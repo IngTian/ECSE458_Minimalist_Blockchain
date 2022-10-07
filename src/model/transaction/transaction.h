@@ -1,6 +1,8 @@
 #ifndef MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_MODEL_TRANSACTION_H
 #define MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_MODEL_TRANSACTION_H
 
+#include <glib.h>
+
 /*
  * The following field is for defining transactions.
  * For more details, please visit:
