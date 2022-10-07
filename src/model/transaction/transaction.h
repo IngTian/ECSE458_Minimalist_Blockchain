@@ -2,6 +2,11 @@
 #define MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_MODEL_TRANSACTION_H
 
 #include <glib.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "utils/cryptography.h"
 
 /*
  * The following field is for defining transactions.
@@ -9,8 +14,10 @@
  * https://developer.bitcoin.org/reference/transactions.html#raw-transaction-format
  */
 
+typedef unsigned int TXID;
+
 typedef struct TransactionOutpoint {
-    char hash[32];       // The transaction ID (TXID) of the transaction holding the output to spend.
+    TXID hash;           // The transaction ID (TXID) of the transaction holding the output to spend.
     unsigned int index;  // The output index of the specific output to spend from the transaction. Starts from 0.
 } transaction_outpoint;
 
@@ -35,5 +42,11 @@ typedef struct Transaction {
     transaction_output **tx_outs;  // Array of transaction outputs.
     unsigned int lock_time;        // A time number.
 } transaction;
+
+void initialize_transaction_system();
+TXID get_transaction_txid(transaction *);
+char* convert_txid_to_str(TXID);
+public_key get_transaction_output_public_key(transaction_output *);
+int register_transaction_in_system(transaction *);
 
 #endif

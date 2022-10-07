@@ -33,11 +33,15 @@ file(GLOB MODEL_HEADERS src/model/**/*.h)
 add_library(BlockChainModels SHARED ${MODEL_SOURCES} ${MODEL_HEADERS})
 target_include_directories(BlockChainModels PRIVATE ${GLIB_INCLUDE_DIRS})
 target_link_libraries(BlockChainModels ${GLIB_LDFLAGS})
+
+file(GLOB UTILS_SOURCES src/utils/*.c)
+file(GLOB UTILS_HEADERS src/utils/*.h)
+add_library(BlockChainUtils SHARED ${UTILS_SOURCES} ${UTILS_HEADERS})
 #endregion
 
 #region Define executables
 add_executable(cli src/cli.c src/cli.h)
 set_target_properties(cli PROPERTIES LINKER_LANGUAGE C)
 target_include_directories(cli PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(cli ${GLIB_LDFLAGS} BlockChainModels)
+target_link_libraries(cli ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils)
 #endregion
