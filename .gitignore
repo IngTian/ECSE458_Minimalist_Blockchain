@@ -2,3 +2,6 @@
 .DS_Store
 /.vscode
 /.idea
+
+# CMake products.
+/cmake-build-debug
