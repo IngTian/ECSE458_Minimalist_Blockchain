@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include "utils/cryptography.h"
+#include "utils/constants.h"
 
 /*
  * The following field is for defining transactions.
@@ -47,6 +48,7 @@ void initialize_transaction_system();
 TXID get_transaction_txid(transaction *);
 char* convert_txid_to_str(TXID);
 public_key get_transaction_output_public_key(transaction_output *);
-int register_transaction_in_system(transaction *);
+bool check_transaction_format(transaction*);
+int register_transaction_in_system(transaction *, bool);
 
 #endif
