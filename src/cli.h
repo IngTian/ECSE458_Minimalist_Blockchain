@@ -1,6 +1,4 @@
 #ifndef MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_CLI_H
 #define MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_CLI_H
 
-#include <stdio.h>
-
 #endif
