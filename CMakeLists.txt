@@ -25,6 +25,10 @@ include(FindPkgConfig)
 pkg_search_module(GLIB REQUIRED glib-2.0)
 include_directories(${GTK2_INCLUDE_DIRS})
 link_directories(${GTK2_LIBRARY_DIRS})
+
+# secp256k1
+include_directories(/usr/local/include)
+include_directories(/usr/local/lib)
 #endregion
 
 #region Add local libraries.
