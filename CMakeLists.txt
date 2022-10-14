@@ -25,6 +25,13 @@ include(FindPkgConfig)
 pkg_search_module(GLIB REQUIRED glib-2.0)
 include_directories(${GTK2_INCLUDE_DIRS})
 link_directories(${GTK2_LIBRARY_DIRS})
+
+# secp256k1
+include_directories(/usr/local/include)
+include_directories(/usr/local/lib)
+find_library(secp256k1_location NAMES libsecp256k1.a)
+add_library(secp256k1 STATIC IMPORTED)
+set_target_properties(secp256k1 PROPERTIES IMPORTED_LOCATION ${secp256k1_location})
 #endregion
 
 #region Add local libraries.
@@ -43,5 +50,5 @@ add_library(BlockChainUtils SHARED ${UTILS_SOURCES} ${UTILS_HEADERS})
 add_executable(cli src/cli.c src/cli.h)
 set_target_properties(cli PROPERTIES LINKER_LANGUAGE C)
 target_include_directories(cli PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(cli ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils)
+target_link_libraries(cli ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils secp256k1)
 #endregion
