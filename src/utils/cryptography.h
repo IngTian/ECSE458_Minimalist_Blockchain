@@ -21,6 +21,5 @@ unsigned char *get_a_new_private_key();
 secp256k1_pubkey *get_a_new_public_key(char *);
 bool verify(secp256k1_pubkey*, unsigned char*, secp256k1_ecdsa_signature*);
 secp256k1_ecdsa_signature *sign(private_key private_key, unsigned char *msg_to_sign);
-unsigned char* compact_signature(secp256k1_ecdsa_signature *signature);
 char* hash_sha256(char*);
 #endif

@@ -54,3 +54,7 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
     secp256k1_ec_pubkey_create(crypto_context, ret_val, private_key);
     return ret_val;
 }
+
+char* hash_sha256(char*){
+
+}

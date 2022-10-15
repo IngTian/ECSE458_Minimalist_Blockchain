@@ -29,6 +29,7 @@ typedef struct TransactionInput {
     unsigned int sequence;           // Sequence number.
 } transaction_input;
 
+
 typedef struct TransactionOutput {
     long int value;                // Number of crypto to spend.
     unsigned int pk_script_bytes;  // Number of bytes in the pubkey script.
