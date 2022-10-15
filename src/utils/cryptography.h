@@ -3,17 +3,24 @@
 
 #include <secp256k1.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
-typedef char *public_key;
-typedef char *private_key;
+secp256k1_context* crypto_context;
+
+typedef unsigned char* private_key;
+typedef unsigned char public_key;
+typedef secp256k1_pubkey public_key_;
+typedef secp256k1_ecdsa_signature crypto_signature;
 
 
-typedef struct cryptography_object {
 
-} crypto_object;
 
-secp256k1_context* create_context(unsigned int flag);
-void generate_public_key(const secp256k1_context *ctx, secp256k1_pubkey *pubkey, const unsigned char *seckey);
-void sign(const secp256k1_context* ctx, secp256k1_ecdsa_signature* sig, unsigned char *msg_hash, const unsigned char *seckey, unsigned char *serialized_signature);
-bool verify(const secp256k1_context* ctx, secp256k1_ecdsa_signature* sig, unsigned char* msg_hash, secp256k1_pubkey *pubkey);
+void initialize_cryptography_system(unsigned int);
+void destroy_cryptography_system();
+unsigned char *get_a_new_private_key();
+secp256k1_pubkey *get_a_new_public_key(char *);
+bool verify(secp256k1_pubkey*, unsigned char*, secp256k1_ecdsa_signature*);
+secp256k1_ecdsa_signature *sign(private_key private_key, unsigned char *msg_to_sign);
+unsigned char* compact_signature(secp256k1_ecdsa_signature *signature);
+char* hash_sha256(char*);
 #endif
