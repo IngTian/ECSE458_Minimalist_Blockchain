@@ -5,3 +5,4 @@
 
 # CMake products.
 /cmake-build-debug
+/build
