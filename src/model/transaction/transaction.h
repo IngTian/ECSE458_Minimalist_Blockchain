@@ -46,10 +46,12 @@ typedef struct Transaction {
 } transaction;
 
 void initialize_transaction_system();
+void get_all_transaction();
 TXID get_transaction_txid(transaction *);
 char* convert_txid_to_str(TXID);
 public_key get_transaction_output_public_key(transaction_output *);
 bool check_transaction_format(transaction*);
 int register_transaction_in_system(transaction *, bool);
+int register_coin_pool(int total_coin_num, TXID pool_TXID);
 
 #endif
