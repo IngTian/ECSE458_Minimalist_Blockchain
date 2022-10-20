@@ -15,6 +15,15 @@ void initialize_transaction_system() {
     utxo = g_hash_table_new(g_str_hash, g_str_equal);
 }
 
+void get_all_transaction(){
+    GList* list=g_hash_table_get_keys(global_transaction_table);
+
+    printf("Number of transaction in the system: %d\n", g_list_length(list));
+    transaction* t=g_hash_table_lookup(global_transaction_table,convert_txid_to_str(114514));
+    printf("The number of coin pool: %d\n",t->tx_outs[0]->value);
+
+}
+
 /**
  * Get the hash code of a transaction.
  * @param transaction
@@ -107,24 +116,37 @@ bool check_transaction_format(transaction *t) {
  * @return 0 for success, other numbers indicate failure.
  */
 int register_transaction_in_system(transaction *t, bool skip_format_checking) {
+
     if (!skip_format_checking && !check_transaction_format(t)) return -1;
 
+
     TXID transaction_id = get_transaction_txid(t);
+
+
+
+
     char *txid_str = convert_txid_to_str(transaction_id);
     g_hash_table_insert(global_transaction_table, txid_str, t);
 
+
     for (int i = 0; i < t->tx_in_count; i++) {
         transaction_outpoint *outpoint = t->tx_ins[i]->outpoint;
+
         unsigned int outpoint_output_idx = outpoint->index;
         char *input_txid_str = convert_txid_to_str(outpoint->hash);
         transaction_output *outpoint_output =
             ((transaction *)g_hash_table_lookup(global_transaction_table, input_txid_str))
                 ->tx_outs[outpoint_output_idx];
+        printf("aaaa\n");
+
         public_key previous_transaction_public_key = get_transaction_output_public_key(outpoint_output);
+
         free(g_hash_table_lookup(global_transaction_table, previous_transaction_public_key));
         g_hash_table_remove(global_transaction_table, previous_transaction_public_key);
         free(input_txid_str);
     }
+
+
 
     for (int i = 0; i < t->tx_out_count; i++) {
         transaction_output *current_output = t->tx_outs[i];
@@ -138,6 +160,26 @@ int register_transaction_in_system(transaction *t, bool skip_format_checking) {
             g_hash_table_insert(global_transaction_table, current_output_public_key, balance);
         }
     }
+
+    return 0;
+}
+
+
+
+int register_coin_pool(int total_coin_num, TXID pool_TXID) {
+    transaction* coin_pool= (transaction *)malloc(sizeof (transaction));
+    coin_pool->tx_in_count=0;
+    coin_pool->tx_out_count=1;
+    transaction_output **tx_outs= malloc(sizeof(transaction_output)*1);
+    transaction_output *output=malloc(sizeof(transaction_output)*1);;
+    output->value=total_coin_num;
+    tx_outs[0]=output;
+
+    coin_pool->tx_outs=tx_outs;
+
+
+    char *txid_str = convert_txid_to_str(pool_TXID);
+    g_hash_table_insert(global_transaction_table, txid_str, coin_pool);
 
     return 0;
 }

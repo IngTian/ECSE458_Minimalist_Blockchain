@@ -1,18 +1,48 @@
 #include "cli.h"
 
+#include <assert.h>
 #include <glib.h>
+#include <secp256k1.h>
+#include <stdbool.h>
 #include <stdio.h>
 
+#include "random.h"
+#include "utils/cryptography.h"
+#include "model/transaction/transaction.h"
+
 int main(int argc, char *argv[]) {
-    GHashTable *hash = g_hash_table_new(g_str_hash, g_str_equal);
+    initialize_transaction_system();
 
-    g_hash_table_insert(hash, "Jazzy", "Cheese");
-    g_hash_table_insert(hash, "Mr Darcy", "Treats");
+    register_coin_pool(99999999,114514);
 
-    printf("There are %d keys in the hash table\n", g_hash_table_size(hash));
+    get_all_transaction();
 
-    printf("Jazzy likes %s\n", g_hash_table_lookup(hash, "Jazzy"));
 
-    g_hash_table_destroy(hash);
+
+
+    transaction t1;
+    t1.version=1;
+    t1.tx_in_count=1;
+    t1.tx_out_count=0;
+    transaction_outpoint outpoint1;
+    outpoint1.hash=114514;
+    outpoint1.index=1;
+
+    transaction_input **tx_ins= malloc(sizeof(transaction_input));
+    transaction_input *input=malloc(sizeof(transaction_input));;
+
+    input->outpoint=&outpoint1;
+
+    tx_ins[0]=input;
+
+    t1.tx_ins=tx_ins;
+
+
+    register_transaction_in_system(&t1,true);
+
+
+
+
+
     return 0;
 }
