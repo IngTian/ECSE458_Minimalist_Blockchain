@@ -13,36 +13,41 @@
 int main(int argc, char *argv[]) {
     initialize_transaction_system();
 
-    register_coin_pool(99999999,114514);
+    register_coin_pool();
+
+
+    //Create a transaction link to the register coin pool
+    transaction* t1=create_new_transaction();
+    t1->version=223;
+    transaction_outpoint outpoint1;
+    outpoint1.hash=POOL_TXID;
+    outpoint1.index=0;
+
+    transaction_receive_coin(t1,&outpoint1);
+    int t2receiveIndex=transaction_send_coin(t1,5000);
+    int t3receiveIndex=transaction_send_coin(t1,7000);
+
+    transaction_outpoint outpoint2;
+    outpoint2.hash= get_transaction_txid(t1);
+    outpoint2.index=t2receiveIndex;
+
+    transaction_outpoint outpoint3;
+    outpoint3.hash= get_transaction_txid(t1);
+    outpoint3.index=t3receiveIndex;
+
+    register_transaction_in_system(t1,true);
+
+    transaction* t2=create_new_transaction();
+    transaction* t3=create_new_transaction();
+
+    transaction_receive_coin(t2,&outpoint2);
+    transaction_receive_coin(t3,&outpoint3);
+
+    register_transaction_in_system(t2,true);
+    register_transaction_in_system(t3,true);
 
     get_all_transaction();
-
-
-
-
-    transaction t1;
-    t1.version=1;
-    t1.tx_in_count=1;
-    t1.tx_out_count=0;
-    transaction_outpoint outpoint1;
-    outpoint1.hash=114514;
-    outpoint1.index=1;
-
-    transaction_input **tx_ins= malloc(sizeof(transaction_input));
-    transaction_input *input=malloc(sizeof(transaction_input));;
-
-    input->outpoint=&outpoint1;
-
-    tx_ins[0]=input;
-
-    t1.tx_ins=tx_ins;
-
-
-    register_transaction_in_system(&t1,true);
-
-
-
-
+    print_UTXO();
 
     return 0;
 }

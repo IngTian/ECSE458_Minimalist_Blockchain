@@ -9,6 +9,11 @@
 #include "utils/cryptography.h"
 #include "utils/constants.h"
 
+#define TOTAL_COIN_NUMBER 999999
+#define POOL_TXID 114514
+#define MAXIMUM_OUTPUT_PER_TX 10
+#define MAXIMUM_INPUT_PER_TX 10
+
 /*
  * The following field is for defining transactions.
  * For more details, please visit:
@@ -52,6 +57,10 @@ char* convert_txid_to_str(TXID);
 public_key get_transaction_output_public_key(transaction_output *);
 bool check_transaction_format(transaction*);
 int register_transaction_in_system(transaction *, bool);
-int register_coin_pool(int total_coin_num, TXID pool_TXID);
+int register_coin_pool();
+transaction* create_new_transaction();
+int transaction_receive_coin(transaction *t, transaction_outpoint* outpoint);
+int transaction_send_coin(transaction *t,long int value);
+int print_UTXO();
 
 #endif
