@@ -1,6 +1,7 @@
 #include "transaction.h"
 
 #include "utils/sys_utils.h"
+#include "utils/cryptography.h"
 
 GHashTable *global_transaction_table;
 GHashTable *utxo;
@@ -48,7 +49,7 @@ char *convert_txid_to_str(TXID id) {
  * @param output
  * @return The public key buried in the output.
  */
-public_key get_transaction_output_public_key(transaction_output *output) { return output->pk_script; }
+secp256k1_pubkey* get_transaction_output_signature(transaction_output *output) { return output->public_key_script; }
 
 /**
  * Check if the transaction's format is valid. Essentially, the sum of
@@ -202,8 +203,17 @@ transaction* create_new_transaction(){
 //    transaction tg_hash_table_lookup(global_transaction_table,txid_str);
 //}
 
-int transaction_receive_coin(transaction *t, transaction_outpoint* outpoint){
-    //Insert an input for the transaction
+int transaction_receive_coin(transaction *t, transaction_outpoint* outpoint, secp256k1_ecdsa_signature* signature){
+    if(outpoint->hash!=POOL_TXID){
+        // verify
+        transaction* transaction_in= (transaction *)g_hash_table_lookup(global_transaction_table, convert_txid_to_str(outpoint->hash));
+        transaction_output* output=transaction_in->tx_outs[outpoint->index];
+        bool valid=verify(output->public_key_script, output->msg_hash,signature);
+        //if it is NOT a valid outpoint and signature, discard
+        if(!valid) return -1;
+    }
+
+    //if it is a valid outpoint and signature, add an input to that transaction
     transaction_input *input=malloc(sizeof(transaction_input));
     input->outpoint=outpoint;
     for(int i=0;i<MAXIMUM_INPUT_PER_TX;i++){
@@ -213,16 +223,28 @@ int transaction_receive_coin(transaction *t, transaction_outpoint* outpoint){
             return 0;
         }
     }
-    return 1;
+    return -1;
 }
 
 /**
  * Add an output for a transaction. It is used to send coins to other transaction.
  * @param t
  * @param value
- * @return The index of output in its transaction's output array
+ * @return The index of output in its transaction's output array. Return -1 if fail
  */
-int transaction_send_coin(transaction *t, long int value){
+int transaction_send_coin(transaction *t, long int value, char* msg_hash, private_key privateKey){
+
+    public_key_* publicKey= malloc(sizeof(publicKey));
+    publicKey= get_a_new_public_key(privateKey);
+    crypto_signature* signature= malloc(sizeof(crypto_signature));
+    signature=sign(privateKey,msg_hash);
+    bool valid=verify(publicKey,msg_hash,signature);
+    if(!valid){
+        printf("Fail to send coins: Fail to create signature\n");
+        return -1;
+    }
+
+
     transaction_output *output= malloc(sizeof(transaction_output));
     output->value=value;
 
@@ -233,6 +255,7 @@ int transaction_send_coin(transaction *t, long int value){
             return i;
         }
     }
+    printf("Fail to send coins: Reach output limit\n");
     return -1;
 }
 
