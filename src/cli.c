@@ -11,37 +11,19 @@
 #include "model/transaction/transaction.h"
 
 int main(int argc, char *argv[]) {
+    //Init the transaction system
     initialize_transaction_system();
+    //Create a coin pool
+    register_coin_pool();
 
-    register_coin_pool(99999999,114514);
-
-    get_all_transaction();
-
-
-
-
-    transaction t1;
-    t1.version=1;
-    t1.tx_in_count=1;
-    t1.tx_out_count=0;
+    //Create a transaction link to the register coin pool
+    transaction* t1=create_new_transaction();
+    t1->version=223;
     transaction_outpoint outpoint1;
-    outpoint1.hash=114514;
-    outpoint1.index=1;
+    outpoint1.hash=POOL_TXID;
+    outpoint1.index=0;
 
-    transaction_input **tx_ins= malloc(sizeof(transaction_input));
-    transaction_input *input=malloc(sizeof(transaction_input));;
-
-    input->outpoint=&outpoint1;
-
-    tx_ins[0]=input;
-
-    t1.tx_ins=tx_ins;
-
-
-    register_transaction_in_system(&t1,true);
-
-
-
+    transaction_receive_coin(t1,&outpoint1,NULL);
 
 
     return 0;
