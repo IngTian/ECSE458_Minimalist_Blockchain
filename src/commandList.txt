@@ -1,0 +1,7 @@
+help			        Displays all the commands
+quit			        Exits / terminates the shell with “Bye!”
+run SCRIPT.TXT		    Executes the file SCRIPT.TXT
+InitSystem              Initialize the system with the first empty transaction
+listAllTransactions     List all transactions in the current system
+addTransactionToSystem  Add a new transaction to the system
+
