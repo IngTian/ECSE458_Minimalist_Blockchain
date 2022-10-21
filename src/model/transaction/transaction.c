@@ -1,6 +1,7 @@
 #include "transaction.h"
 
 #include "utils/cryptography.h"
+#include "utils/log_utils.h"
 #include "utils/sys_utils.h"
 
 #define MAXIMUM_OUTPUT_PER_TX 10
@@ -10,6 +11,8 @@
 static unsigned int g_total_number_of_transactions;  // The total number of transactions in the system.
 static GHashTable *g_global_transaction_table;       // The global transaction table, mapping TXID to transaction.
 static GHashTable *g_utxo;  // Unspent Transaction Output. mapping each transaction output to its value left.
+char *g_genesis_private_key;
+secp256k1_pubkey *g_genesis_public_key;
 
 /*
  * -----------------------------------------------------------
@@ -102,25 +105,26 @@ void free_transaction_input(transaction_input *input) { free(input->signature_sc
 static void free_transaction_output(transaction_output *output) { free(output->pk_script); }
 
 void print_transaction(char *txid, transaction *t, void *user_data) {
-    printf("-----------------------------------------------------------\n");
-    printf("TXID: %s VERSION: %d TX IN COUNT: %u TX OUT COUNT: %u LOCK: %u\n", txid, t->version, t->tx_in_count,
-           t->tx_out_count, t->lock_time);
+    printf("--------------------------- TX TABLE --------------------------\n");
+    printf("TXID: %s VERSION: %d TX IN COUNT: %u TX OUT COUNT: %u LOCK: %u\n", convert_char_hexadecimal(txid, 32),
+           t->version, t->tx_in_count, t->tx_out_count, t->lock_time);
     printf("<Printing Inputs>\n");
     for (int i = 0; i < t->tx_in_count; i++) {
         transaction_input input = t->tx_ins[i];
-        printf("SEQ: %u SIG: %s OUTPOINT HASH: %s OUTPOINT ID: %u\n", input.sequence, input.signature_script,
-               input.previous_outpoint.hash, input.previous_outpoint.index);
+        printf("SEQ: %u SIG: %s OUTPOINT HASH: %s OUTPOINT ID: %u\n", input.sequence,
+               convert_char_hexadecimal(input.signature_script, 64),
+               convert_char_hexadecimal(input.previous_outpoint.hash, 32), input.previous_outpoint.index);
     }
     printf("<Printing Outputs>\n");
     for (int i = 0; i < t->tx_out_count; i++) {
         transaction_output output = t->tx_outs[i];
-        printf("VAL: %ld PK: %s\n", output.value, output.pk_script);
+        printf("VAL: %ld PK: %s\n", output.value, convert_char_hexadecimal(output.pk_script, 64));
     }
 }
 
 void print_utxo_entry(char *hash, long int *val, void *user_data) {
-    printf("***********************************************************\n");
-    printf("ID: %s VAL: %ld\n", hash, *val);
+    printf("**************************** UTXO *****************************\n");
+    printf("ID: %s VAL: %ld\n", convert_char_hexadecimal(hash, 32), *val);
 }
 
 /*
@@ -145,34 +149,21 @@ void initialize_transaction_system() {
     genesis_transaction->tx_ins[0].sequence = 1;
     genesis_transaction->tx_ins[0].script_bytes = 7;
     genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
-    char *private_key = get_genesis_transaction_private_key();
-    secp256k1_pubkey *pub_key = get_a_new_public_key(private_key);
-    free(private_key);
+    g_genesis_private_key = (char *)get_a_new_private_key();
+    g_genesis_public_key = get_a_new_public_key(g_genesis_private_key);
     genesis_transaction->tx_outs->pk_script = (char *)malloc(64);
-    memcpy(genesis_transaction->tx_outs->pk_script, &pub_key->data, 64);
-    free(pub_key);
+    memcpy(genesis_transaction->tx_outs->pk_script, g_genesis_public_key->data, 64);
     genesis_transaction->tx_outs[0].pk_script_bytes = 64;
 
     char *genesis_txid = get_transaction_txid(genesis_transaction);
     transaction_outpoint outpoint;
-    memcpy(outpoint.hash, genesis_transaction, 32);
+    memcpy(outpoint.hash, genesis_txid, 32);
     outpoint.index = 0;
     char *outpoint_hash = hash_transaction_outpoint(&outpoint);
     long int *genesis_balance = (long int *)malloc(sizeof(long int));
     *genesis_balance = TOTAL_NUMBER_OF_COINS;
     g_hash_table_insert(g_utxo, outpoint_hash, genesis_balance);
     g_hash_table_insert(g_global_transaction_table, genesis_txid, genesis_transaction);
-}
-
-/**
- * Get the private key of the genesis transaction.
- * @return The private key.
- * @author Ing Tian
- */
-char *get_genesis_transaction_private_key() {
-    char *private_key = (char *)malloc(64);
-    memset(private_key, 0, 64);
-    return private_key;
 }
 
 /**

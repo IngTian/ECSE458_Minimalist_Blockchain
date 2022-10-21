@@ -43,7 +43,6 @@ typedef struct Transaction {
 } transaction;
 
 void initialize_transaction_system();
-char *get_genesis_transaction_private_key();
 char *get_transaction_txid(transaction *);
 unsigned int get_total_number_of_transactions();
 transaction *create_an_empty_transaction();
