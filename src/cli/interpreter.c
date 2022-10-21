@@ -6,8 +6,8 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
-#include <transaction.h>
-#include <crypotography.h>
+#include "../model/transaction/transaction.h"
+#include "../utils/cryptography.h"
 
 //system functions
 int help();
