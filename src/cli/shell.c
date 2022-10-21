@@ -19,11 +19,6 @@ int main(int argc, char *argv[]) {
     for (int i=0; i<MAX_USER_INPUT; i++)
 	    userInput[i] = '\0';
 
-    //init shell memory
-	
-    //TODO:
-    //mem_init();
-
     while(1) {
 		//whether at the end of the batch mode file
 		if(feof(stdin)){
@@ -36,7 +31,6 @@ int main(int argc, char *argv[]) {
 
 		errorCode = parseInput(userInput);
 		if (errorCode == -1) exit(99);	// ignore all other errors
-		//memset(userInput, 0, sizeof(userInput));
 	}
 
 	return 0;
@@ -79,9 +73,6 @@ int parseInput(char ui[]) {
 			}
 
 			w=0;
-            
-            //TODO:
-			//memset(words,'\0',sizeof(words));
 
 			//skip white space
 			while(ui[a+1]==' '){

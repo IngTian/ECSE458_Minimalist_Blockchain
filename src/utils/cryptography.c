@@ -27,13 +27,16 @@ static const WORD k[64] = {
     0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
 };
 
-void initialize_cryptography_system(unsigned int flag) { crypto_context = secp256k1_context_create(flag); }
+void initialize_cryptography_system(unsigned int flag) { crypto_context = 
+    secp256k1_context_create(flag); 
+}
 
 void destroy_cryptography_system() { secp256k1_context_destroy(crypto_context);}
 
 
 secp256k1_ecdsa_signature *sign(unsigned char *private_key, unsigned char *msg_to_sign) {
-    secp256k1_ecdsa_signature* signature=(secp256k1_ecdsa_signature *)malloc(sizeof(secp256k1_ecdsa_signature));
+    secp256k1_ecdsa_signature* signature=(secp256k1_ecdsa_signature *)malloc
+        (sizeof(secp256k1_ecdsa_signature));
     secp256k1_ecdsa_sign(crypto_context, signature, msg_to_sign, private_key, NULL, NULL);
     return signature;
 
@@ -72,6 +75,7 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
     secp256k1_ec_pubkey_create(crypto_context, ret_val, private_key);
     return ret_val;
 }
+
 
 /**
  *
@@ -210,3 +214,4 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
         hash[i + 28] = (ctx->state[7] >> (24 - i * 8)) & 0x000000ff;
     }
 }
+
