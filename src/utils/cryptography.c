@@ -9,13 +9,16 @@
 #include "cryptography.h"
 #include "random.h"
 
-void initialize_cryptography_system(unsigned int flag) { crypto_context = secp256k1_context_create(flag); }
+void initialize_cryptography_system(unsigned int flag) { crypto_context = 
+    secp256k1_context_create(flag); 
+}
 
 void destroy_cryptography_system() { secp256k1_context_destroy(crypto_context);}
 
 
 secp256k1_ecdsa_signature *sign(unsigned char *private_key, unsigned char *msg_to_sign) {
-    secp256k1_ecdsa_signature* signature=(secp256k1_ecdsa_signature *)malloc(sizeof(secp256k1_ecdsa_signature));
+    secp256k1_ecdsa_signature* signature=(secp256k1_ecdsa_signature *)malloc
+        (sizeof(secp256k1_ecdsa_signature));
     secp256k1_ecdsa_sign(crypto_context, signature, msg_to_sign, private_key, NULL, NULL);
     return signature;
 
@@ -55,6 +58,6 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
     return ret_val;
 }
 
-char* hash_sha256(char*){
+// char* hash_sha256(char*){
 
-}
+// }
