@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
     memset(pk, 0, 64);
     transaction_output output = {.value = 4096, .pk_script = pk, .pk_script_bytes = 64};
     if (!append_new_transaction_output(t, output)) exit(2);
+    if (!finalize_transaction(t)) exit(3);
 
     print_all_transactions();
     print_utxo();
