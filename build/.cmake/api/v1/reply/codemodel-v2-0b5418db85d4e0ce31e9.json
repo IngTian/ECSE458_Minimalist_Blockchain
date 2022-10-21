@@ -1,0 +1,77 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "MinimalistBlockChainSystem",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "BlockChainModels::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-BlockChainModels-Debug-e31dfdec9cf318661609.json",
+					"name" : "BlockChainModels",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "BlockChainUtils::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-BlockChainUtils-Debug-88d2fa86e6fd8ea58763.json",
+					"name" : "BlockChainUtils",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "cli::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-cli-Debug-1b22e70a4512a2ffd875.json",
+					"name" : "cli",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/zsssssssssc/Desktop/Project/ECSE458_Minimalist_Blockchain/build",
+		"source" : "/home/zsssssssssc/Desktop/Project/ECSE458_Minimalist_Blockchain"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 2
+	}
+}
