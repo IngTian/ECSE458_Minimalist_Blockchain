@@ -1,5 +1,0 @@
-/home/zsssssssssc/Desktop/Project/ECSE458_Minimalist_Blockchain/build/CMakeFiles/edit_cache.dir
-/home/zsssssssssc/Desktop/Project/ECSE458_Minimalist_Blockchain/build/CMakeFiles/cli.dir
-/home/zsssssssssc/Desktop/Project/ECSE458_Minimalist_Blockchain/build/CMakeFiles/BlockChainUtils.dir
-/home/zsssssssssc/Desktop/Project/ECSE458_Minimalist_Blockchain/build/CMakeFiles/rebuild_cache.dir
-/home/zsssssssssc/Desktop/Project/ECSE458_Minimalist_Blockchain/build/CMakeFiles/BlockChainModels.dir
