@@ -16,7 +16,7 @@
  */
 
 typedef struct TransactionOutpoint {
-    char hash[32];       // The transaction ID (TXID) of the transaction holding the output to spend.
+    char hash[64];       // The transaction ID (TXID) of the transaction holding the output to spend.
     unsigned int index;  // The output index of the specific output to spend from the transaction. Starts from 0.
 } transaction_outpoint;
 
@@ -42,9 +42,13 @@ typedef struct Transaction {
     unsigned int lock_time;       // A time number.
 } transaction;
 
-void initialize_transaction_system();
+transaction *initialize_transaction_system();
 char *get_transaction_txid(transaction *);
+char *hash_transaction_outpoint(transaction_outpoint*);
+char *hash_transaction_output(transaction_output*);
 unsigned int get_total_number_of_transactions();
+char *get_genesis_transaction_private_key();
+secp256k1_pubkey *get_genesis_transaction_public_key();
 transaction *create_an_empty_transaction();
 void destroy_transaction(transaction *);
 bool append_new_transaction_input(transaction *, transaction_input);

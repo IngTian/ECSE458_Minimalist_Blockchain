@@ -20,41 +20,6 @@ secp256k1_pubkey *g_genesis_public_key;
  * -----------------------------------------------------------
  */
 /**
- * Return the SHA256 hashcode of a general
- * struct.
- * @param ptr A pointer.
- * @param size The size, in bytes, to hash.
- * @return SHA256 hashcode.
- * @author Ing Tian
- */
-char *hash_struct(void *ptr, unsigned int size) {
-    char *msg = (char *)malloc(size + 1);
-    memcpy(msg, ptr, size);
-    msg[size] = '\0';
-    char *hash_msg = hash_sha256(msg);
-    free(msg);
-    return hash_msg;
-}
-
-/**
- * Get the SHA256 hashcode of a transaction output.
- * @param output A transaction output.
- * @return The SHA256 hashcode.
- * @author Ing Tian
- */
-char *hash_transaction_output(transaction_output *output) { return hash_struct(output, sizeof(transaction_output)); }
-
-/**
- * Get the SHA256 hashcode of a transaction outpoint.
- * @param outpoint A transaction outpoint.
- * @return The SHA256 hashcode.
- * @author Ing Tian
- */
-char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
-    return hash_struct(outpoint, sizeof(transaction_outpoint));
-}
-
-/**
  * Verify that the transaction input is valid, i.e.,
  * whoever signs the input has the right to use the
  * specified output.
@@ -78,7 +43,6 @@ bool verify_transaction_input(transaction_input *i) {
     }
 
     transaction_output previous_transaction_output = previous_transaction->tx_outs[output_idx];
-    char *public_key = previous_transaction_output.pk_script;
     char *hash_msg = hash_transaction_output(&previous_transaction_output);
     secp256k1_pubkey pubkey;
     secp256k1_ecdsa_signature signature;
@@ -106,25 +70,25 @@ static void free_transaction_output(transaction_output *output) { free(output->p
 
 void print_transaction(char *txid, transaction *t, void *user_data) {
     printf("--------------------------- TX TABLE --------------------------\n");
-    printf("TXID: %s VERSION: %d TX IN COUNT: %u TX OUT COUNT: %u LOCK: %u\n", convert_char_hexadecimal(txid, 32),
-           t->version, t->tx_in_count, t->tx_out_count, t->lock_time);
+    printf("TXID: %s VERSION: %d TX IN COUNT: %u TX OUT COUNT: %u LOCK: %u\n", txid, t->version, t->tx_in_count,
+           t->tx_out_count, t->lock_time);
     printf("<Printing Inputs>\n");
     for (int i = 0; i < t->tx_in_count; i++) {
         transaction_input input = t->tx_ins[i];
-        printf("SEQ: %u SIG: %s OUTPOINT HASH: %s OUTPOINT ID: %u\n", input.sequence,
-               convert_char_hexadecimal(input.signature_script, 64),
-               convert_char_hexadecimal(input.previous_outpoint.hash, 32), input.previous_outpoint.index);
+        printf("SEQ: %u SIG: %s OUTPOINT HASH: %s OUTPOINT ID: %u\n", input.sequence, input.signature_script,
+               input.previous_outpoint.hash, input.previous_outpoint.index);
     }
     printf("<Printing Outputs>\n");
     for (int i = 0; i < t->tx_out_count; i++) {
         transaction_output output = t->tx_outs[i];
-        printf("VAL: %ld PK: %s\n", output.value, convert_char_hexadecimal(output.pk_script, 64));
+        char *pk_hex = convert_char_hexadecimal(output.pk_script, output.pk_script_bytes);
+        printf("VAL: %ld PK(HEX): %s\n", output.value, pk_hex);
     }
 }
 
-void print_utxo_entry(char *hash, long int *val, void *user_data) {
+void print_utxo_entry(char *hash, long int *value, void *user_data) {
     printf("**************************** UTXO *****************************\n");
-    printf("ID: %s VAL: %ld\n", convert_char_hexadecimal(hash, 32), *val);
+    printf("ID: %s VAL: %ld\n", convert_char_hexadecimal(hash, 32), *value);
 }
 
 /*
@@ -136,9 +100,10 @@ void print_utxo_entry(char *hash, long int *val, void *user_data) {
  * Setup the transaction system, including setting up:
  * 1. The global transaction table.
  * 2. Unspent Transaction Output (UTXO)
+ * @return The first transaction in the system, known as the genesis transaction.
  * @author Ing Tian
  */
-void initialize_transaction_system() {
+transaction *initialize_transaction_system() {
     g_global_transaction_table = g_hash_table_new(g_str_hash, g_str_equal);
     g_utxo = g_hash_table_new(g_str_hash, g_str_equal);
 
@@ -156,14 +121,12 @@ void initialize_transaction_system() {
     genesis_transaction->tx_outs[0].pk_script_bytes = 64;
 
     char *genesis_txid = get_transaction_txid(genesis_transaction);
-    transaction_outpoint outpoint;
-    memcpy(outpoint.hash, genesis_txid, 32);
-    outpoint.index = 0;
-    char *outpoint_hash = hash_transaction_outpoint(&outpoint);
+    char *output_hash = hash_transaction_output(&genesis_transaction->tx_outs[0]);
     long int *genesis_balance = (long int *)malloc(sizeof(long int));
     *genesis_balance = TOTAL_NUMBER_OF_COINS;
-    g_hash_table_insert(g_utxo, outpoint_hash, genesis_balance);
+    g_hash_table_insert(g_utxo, output_hash, genesis_balance);
     g_hash_table_insert(g_global_transaction_table, genesis_txid, genesis_transaction);
+    return genesis_transaction;
 }
 
 /**
@@ -172,14 +135,24 @@ void initialize_transaction_system() {
  * @return The hash of the transaction (32 bytes).
  * @author Ing Tian
  */
-char *get_transaction_txid(transaction *t) {
-    unsigned int transaction_block_size = sizeof(transaction);
-    char *msg = (char *)malloc(transaction_block_size + 1);
-    memcpy(msg, t, transaction_block_size);
-    msg[transaction_block_size] = '\0';
-    char *hash = hash_sha256(msg);
-    free(msg);
-    return hash;
+char *get_transaction_txid(transaction *t) { return hash_struct(t, sizeof(transaction)); }
+
+/**
+ * Get the SHA256 hashcode of a transaction output.
+ * @param output A transaction output.
+ * @return The SHA256 hashcode.
+ * @author Ing Tian
+ */
+char *hash_transaction_output(transaction_output *output) { return hash_struct(output, sizeof(transaction_output)); }
+
+/**
+ * Get the SHA256 hashcode of a transaction outpoint.
+ * @param outpoint A transaction outpoint.
+ * @return The SHA256 hashcode.
+ * @author Ing Tian
+ */
+char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
+    return hash_struct(outpoint, sizeof(transaction_outpoint));
 }
 
 /**
@@ -188,6 +161,20 @@ char *get_transaction_txid(transaction *t) {
  * @author Ing Tian
  */
 unsigned int get_total_number_of_transactions() { return g_total_number_of_transactions; }
+
+/**
+ * Get the private key of the genesis transaction.
+ * @return Private key of the genesis transaction.
+ * @author Ing Tian
+ */
+char *get_genesis_transaction_private_key() { return g_genesis_private_key; }
+
+/**
+ * Get the public key of the genesis transaction.
+ * @return Public key of the genesis transaction.
+ * @author Ing Tian
+ */
+secp256k1_pubkey *get_genesis_transaction_public_key() { return g_genesis_public_key; }
 
 /**
  * Create an empty transaction.

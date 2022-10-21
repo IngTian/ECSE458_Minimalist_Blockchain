@@ -1,4 +1,5 @@
 #include "cryptography.h"
+#include "utils/log_utils.h"
 #include <secp256k1.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -39,7 +40,6 @@ secp256k1_ecdsa_signature *sign(unsigned char *private_key, unsigned char *msg_t
         (sizeof(secp256k1_ecdsa_signature));
     secp256k1_ecdsa_sign(crypto_context, signature, msg_to_sign, private_key, NULL, NULL);
     return signature;
-
 }
 
 unsigned char* compact_signature(secp256k1_ecdsa_signature *signature){
@@ -76,6 +76,22 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
     return ret_val;
 }
 
+/**
+ * Return the SHA256 hashcode of a general
+ * struct.
+ * @param ptr A pointer.
+ * @param size The size, in bytes, to hash.
+ * @return SHA256 hashcode.
+ * @author Ing Tian
+ */
+char *hash_struct(void *ptr, unsigned int size) {
+    char *msg = convert_char_hexadecimal(ptr, size);
+    char *hash_msg = hash_sha256(msg);
+    free(msg);
+    char *hash_msg_hex = convert_char_hexadecimal(hash_msg, 32);
+    free(hash_msg);
+    return hash_msg_hex;
+}
 
 /**
  *
