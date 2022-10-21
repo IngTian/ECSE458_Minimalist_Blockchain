@@ -35,17 +35,17 @@ set_target_properties(secp256k1 PROPERTIES IMPORTED_LOCATION ${secp256k1_locatio
 #endregion
 
 #region Add local libraries.
-file(GLOB UTILS_SOURCES src/utils/*.c)
-file(GLOB UTILS_HEADERS src/utils/*.h)
-add_library(BlockChainUtils SHARED ${UTILS_SOURCES} ${UTILS_HEADERS})
-target_include_directories(BlockChainUtils PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(BlockChainUtils ${GLIB_LDFLAGS} secp256k1)
-
 file(GLOB MODEL_SOURCES src/model/**/*.c)
 file(GLOB MODEL_HEADERS src/model/**/*.h)
-add_library(BlockChainModels SHARED ${MODEL_SOURCES} ${MODEL_HEADERS})
+add_library(BlockChainModels ${MODEL_SOURCES} ${MODEL_HEADERS})
 target_include_directories(BlockChainModels PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(BlockChainModels ${GLIB_LDFLAGS} BlockChainUtils secp256k1)
+target_link_libraries(BlockChainModels ${GLIB_LDFLAGS} secp256k1)
+
+file(GLOB UTILS_SOURCES src/utils/*.c)
+file(GLOB UTILS_HEADERS src/utils/*.h)
+add_library(BlockChainUtils ${UTILS_SOURCES} ${UTILS_HEADERS})
+target_include_directories(BlockChainUtils PRIVATE ${GLIB_INCLUDE_DIRS})
+target_link_libraries(BlockChainUtils ${GLIB_LDFLAGS} secp256k1)
 #endregion
 
 #region Define executables
