@@ -296,3 +296,13 @@ void print_all_transactions() { g_hash_table_foreach(g_global_transaction_table,
  * @author Ing Tian
  */
 void print_utxo() { g_hash_table_foreach(g_utxo, print_utxo_entry, NULL); }
+
+/**
+ * Get a transaction by its txid
+ * @return
+ */
+transaction *get_transaction_by_txid(char* txid){
+    transaction* t= malloc(sizeof (transaction));
+    t=g_hash_table_lookup(g_global_transaction_table,txid);
+    return t;
+}

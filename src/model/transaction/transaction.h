@@ -56,4 +56,5 @@ bool append_new_transaction_output(transaction *, transaction_output);
 bool finalize_transaction(transaction *);
 void print_all_transactions();
 void print_utxo();
+transaction *get_transaction_by_txid(char *);
 #endif
