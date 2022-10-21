@@ -69,14 +69,14 @@ void free_transaction_input(transaction_input *input) { free(input->signature_sc
 static void free_transaction_output(transaction_output *output) { free(output->pk_script); }
 
 void print_transaction(char *txid, transaction *t, void *user_data) {
-    printf("--------------------------- TX TABLE --------------------------\n");
     printf("TXID: %s VERSION: %d TX IN COUNT: %u TX OUT COUNT: %u LOCK: %u\n", txid, t->version, t->tx_in_count,
            t->tx_out_count, t->lock_time);
     printf("<Printing Inputs>\n");
     for (int i = 0; i < t->tx_in_count; i++) {
         transaction_input input = t->tx_ins[i];
-        printf("SEQ: %u SIG: %s OUTPOINT HASH: %s OUTPOINT ID: %u\n", input.sequence, input.signature_script,
-               input.previous_outpoint.hash, input.previous_outpoint.index);
+        printf("SEQ: %u SIG: %s OUTPOINT HASH: %s OUTPOINT ID: %u\n", input.sequence,
+               convert_char_hexadecimal(input.signature_script, 64), input.previous_outpoint.hash,
+               input.previous_outpoint.index);
     }
     printf("<Printing Outputs>\n");
     for (int i = 0; i < t->tx_out_count; i++) {
@@ -84,11 +84,12 @@ void print_transaction(char *txid, transaction *t, void *user_data) {
         char *pk_hex = convert_char_hexadecimal(output.pk_script, output.pk_script_bytes);
         printf("VAL: %ld PK(HEX): %s\n", output.value, pk_hex);
     }
+    printf("\n");
 }
 
 void print_utxo_entry(char *hash, long int *value, void *user_data) {
-    printf("**************************** UTXO *****************************\n");
     printf("ID: %s VAL: %ld\n", convert_char_hexadecimal(hash, 32), *value);
+    printf("\n");
 }
 
 /*
@@ -289,20 +290,28 @@ bool finalize_transaction(transaction *t) {
  * Print every transaction inside the system.
  * @author Ing Tian
  */
-void print_all_transactions() { g_hash_table_foreach(g_global_transaction_table, print_transaction, NULL); }
+void print_all_transactions() {
+    printf("--------------------------- TX TABLE --------------------------\n");
+    g_hash_table_foreach(g_global_transaction_table, print_transaction, NULL);
+    printf("\n");
+}
 
 /**
  * Print UTXO inside the system.
  * @author Ing Tian
  */
-void print_utxo() { g_hash_table_foreach(g_utxo, print_utxo_entry, NULL); }
+void print_utxo() {
+    printf("**************************** UTXO *****************************\n");
+    g_hash_table_foreach(g_utxo, print_utxo_entry, NULL);
+    printf("\n");
+}
 
 /**
  * Get a transaction by its txid
  * @return
  */
-transaction *get_transaction_by_txid(char* txid){
-    transaction* t= malloc(sizeof (transaction));
-    t=g_hash_table_lookup(g_global_transaction_table,txid);
+transaction *get_transaction_by_txid(char *txid) {
+    transaction *t = malloc(sizeof(transaction));
+    t = g_hash_table_lookup(g_global_transaction_table, txid);
     return t;
 }
