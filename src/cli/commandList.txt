@@ -1,0 +1,14 @@
+help			            Displays all the commands
+quit			            Exits / terminates the shell with “Bye!”
+run script.txt		        Executes the file SCRIPT.TXT
+init-system                 Initialize the system with the first empty transaction
+transaction list-all-transactions       List all transactions in the current system
+transaction create-new-transaction script.json      Create a new transaction with the json file
+transaction add-transaction-to-system transaction_id    Add the input transaction to the system
+transaction list-utxo                   List the information of UTXO
+cryptography create-private-key         Create a private key string by random
+cryptography create-public-key private_key          Create a public key by the input private key
+cryptography sign private_key msg_hash  Use the private key to sign the hash of the previous outpoint
+cryptography verify public_key msg_hash msg_signature   Verify the encryption by the public key, message, and the signature
+user get-user-public-key user_id        Get the public key of the input user
+user get-user-balance user_id           Get the balance of the user
