@@ -5,81 +5,40 @@
 #include <secp256k1.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include "utils/mjson.h"
+
+#include "model/transaction/transaction.h"
 #include "random.h"
 #include "utils/cryptography.h"
-#include "model/transaction/transaction.h"
 
 int main(int argc, char *argv[]) {
-    const char *s = "{\"a\":1,\"b\":[2,false]}";  // {"a":1,"b":[2,false]}
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    transaction *genesis_transaction = initialize_transaction_system();
+    print_all_transactions();
+    print_utxo();
 
-    const char *s1 = "{\n"
-        "   \"book\":{\n"
-        "      \"title\":\"comp251\",\n"
-        "      \"id\":114514,\n"
-        "      \"category\":[\n"
-        "         \"computer\",\n"
-        "         \"algorithm\"\n"
-        "      ],\n"
-        "      \"isbooked\":false,\n"
-        "      \"hex\":\"abcd1234\"\n"
-        "   }\n"
-        "}"
-        ;
+    transaction *t = create_an_empty_transaction();
 
+    char *genesis_transaction_id = get_transaction_txid(genesis_transaction);
+    transaction_input input = {
+        .previous_outpoint = {.index = 0}, .signature_script = (char *)malloc(64), .sequence = 1, .script_bytes = 64};
+    memcpy(input.previous_outpoint.hash, genesis_transaction_id, 64);
+    free(genesis_transaction_id);
 
-    //Get a number from the json
-    double value=0;
-    if (mjson_get_number(s1, strlen(s1),"$.book.id",&value))  // And print it
-        printf("The JSON's id is: %f\n", value);
+    char *msg_hash = hash_transaction_output(&genesis_transaction->tx_outs[0]);
+    char *private_key = get_genesis_transaction_private_key();
+    secp256k1_ecdsa_signature *signature = sign((unsigned char *)private_key, (unsigned char *)msg_hash);
+    memcpy(input.signature_script, signature->data, 64);
+    free(signature);
+    free(msg_hash);
+    if (!append_new_transaction_input(t, input)) exit(1);
 
-    //Get a string from the json
-    const char buf[100];
-    if (mjson_get_string(s1, strlen(s1),"$.book.category[0]",buf,sizeof (buf)))  // And print it
-        printf("The JSON's first category is: %s\n", buf);
+    char *pk = (char *)malloc(64);
+    memset(pk, 0, 64);
+    transaction_output output = {.value = 4096, .pk_script = pk, .pk_script_bytes = 64};
+    if (!append_new_transaction_output(t, output)) exit(2);
 
-    //Get a boolean from the json
-    bool v;
-    if(mjson_get_bool(s1, strlen(s1),"$.book.isbooked",&v));
-    printf("The JSON's isbooked is: ");
-    printf(v ? "true\n" : "false\n");
-
-    //Get a hex from the json
-    char* hex_data;
-    if(mjson_get_hex(s1, strlen(s1), "$.book.hex", hex_data, sizeof(hex_data)))
-        printf("The JSON's hex data is: ");
-        print_hex(hex_data, strlen(hex_data));
-
-
-        // Print into a statically allocated buffer
-    mjson_snprintf(buf, sizeof(buf), "{%Q:%d}", "a", 123);
-    printf("%s\n", buf);  // {"a":123}
-
-    // Print into a dynamically allocated string
-    char *s2 = mjson_aprintf("{%Q:%g}", "a", 3.1415);
-    printf("%s\n", s2);  // {"a":3.1415}
-    free(s2);            // Don't forget to free an allocated string;
-
-
-
-    //    double val;                                       // Get `a` attribute
-//    if (mjson_get_number(s, strlen(s), "$.a", &val))  // into C variable `val`
-//        printf("a: %g\n", val);                         // a: 1
-//
-//    const char *buf;  // Get `b` sub-object
-//    int len;          // into C variables `buf,len`
-//    if (mjson_find(s, strlen(s), "$.b", &buf, &len))  // And print it
-//        printf("%.*s\n", len, buf);                     // [2,false]
-//
-//    int v;                                           // Extract `false`
-//    if (mjson_get_bool(s, strlen(s), "$.b[1]", &v))  // into C variable `v`
-//        printf("boolean: %d\n", v);                    // boolean: 0
-
-
-
-//    char *buf=hash_sha256("caonimabi");
-//    print_hex(buf,32);
-
+    print_all_transactions();
+    print_utxo();
 
     return 0;
 }
