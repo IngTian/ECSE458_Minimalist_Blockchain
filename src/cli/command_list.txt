@@ -3,8 +3,7 @@ quit			            Exits / terminates the shell with “Bye!”
 run script.txt		        Executes the file SCRIPT.TXT
 init-system                 Initialize the system with the first empty transaction
 transaction list-all-transactions       List all transactions in the current system
-transaction create-new-transaction script.json      Create a new transaction with the json file
-transaction add-transaction-to-system transaction_id    Add the input transaction to the system
+transaction add-transaction-to-system transaction.json    Add the input transaction to the system with the json file
 transaction list-utxo                   List the information of UTXO
 cryptography create-private-key         Create a private key string by random
 cryptography create-public-key private_key          Create a public key by the input private key

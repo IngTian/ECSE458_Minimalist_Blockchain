@@ -51,14 +51,14 @@ file(GLOB CLI_SOURCES src/cli/*.c)
 file(GLOB CLI_HEADERS src/cli/*.h)
 add_library(CliModule ${CLI_SOURCES} ${CLI_HEADERS})
 target_include_directories(CliModule PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(CliModule ${GLIB_LDFLAGS} secp256k1)
+target_link_libraries(CliModule BlockChainUtils BlockChainModels ${GLIB_LDFLAGS} secp256k1)
 #endregion
 
 #region Define executables
-add_executable(cli src/cli.c src/cli.h)
-set_target_properties(cli PROPERTIES LINKER_LANGUAGE C)
-target_include_directories(cli PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(cli ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils secp256k1)
+# add_executable(cli src/cli.c src/cli.h)
+# set_target_properties(cli PROPERTIES LINKER_LANGUAGE C)
+# target_include_directories(cli PRIVATE ${GLIB_INCLUDE_DIRS})
+# target_link_libraries(cli ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils secp256k1)
 
 add_executable(shell src/cli/shell.c )
 set_target_properties(shell PROPERTIES LINKER_LANGUAGE C)

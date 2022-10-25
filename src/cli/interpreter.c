@@ -5,11 +5,12 @@
 #include <dirent.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include "random.h"
 
+#include "random.h"
+#include "shell.h"	
 #include "../model/transaction/transaction.h"
 #include "../utils/cryptography.h"
-#include "shell.h"
+#include "../utils/mjson.h"
 
 secp256k1_pubkey* public_key_temp ;
 secp256k1_ecdsa_signature* signature_temp;
@@ -26,8 +27,7 @@ int init();
 int run(char* script);
 //--transactions
 int cli_transaction_list_all_transactions();
-int cli_transaction_create_new_transaction(char* script);
-int cli_transaction_add_transaction_to_system(char* transaction_id);
+int cli_transaction_add_transaction_to_system(char* script);
 int cli_list_utxo();
 //--cryptography
 int cli_cryptography_create_private_key();
@@ -67,9 +67,6 @@ int interpreter(char* command_args[], int args_size){
 		if (strcmp(command_args[1], "list-all-transactions")==0) {
 			if (args_size != 2) return bad_command();
 			return cli_transaction_list_all_transactions();
-		}else if (strcmp(command_args[1], "create-new-transaction")==0){
-			if (args_size != 3) return bad_command();
-			return cli_transaction_create_new_transaction(command_args[2]);
 		}else if (strcmp(command_args[1], "add-transaction-to-system")==0){
 			if (args_size != 3) return bad_command();
 			return cli_transaction_add_transaction_to_system(command_args[2]);
@@ -139,11 +136,12 @@ int quit(){
 	exit(0);
 }
 
-//TODO
-int init(){
-    initialize_transaction_system();
-    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
 
+int init(){
+    // transaction *genesis_transaction =  initialize_transaction_system();
+	// char *genesis_transaction_id = get_transaction_txid(genesis_transaction);
+	// printf("Genesis transaction id: %s", genesis_transaction_id);
+	initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     return 0;
 }
 
@@ -173,25 +171,36 @@ int run(char* script){
 
 //-------------------------------Transaction-------------------------
 
-//TODO
 // listAllTransactions     List all transactions in the current system
 int cli_transaction_list_all_transactions(){
-    get_all_transaction();
+    print_all_transactions();
     return 0;
 }
 
+int cli_transaction_add_transaction_to_system(char* script){
+	//json get parameters: input [{previous_id, output_idx, private_key}], output : [{receiver_public_key, amount}]
+	const char previous_id [100];
+	mjson_get_string(script,strlen(script), "$.input[0].previous_transaction_id", previous_id, sizeof(previous_id));
+	int output_idx;
+	mjson_get_number(script,strlen(script), "$.input[0].output_idx", &output_idx);
+	const char sender_private_key [100];
+	mjson_get_string(script,strlen(script), "$.input[0].sender_private_key", sender_private_key, sizeof(sender_private_key));
+	printf("%s",previous_id);
+	printf("%d",output_idx);
+	printf("%s",sender_private_key);
 
-int cli_transaction_create_new_transaction(char* script){
 
-	return 0;
-}
+	const char receiver_public_key [100];
+	mjson_get_string(script,strlen(script), "$.output[0].receiver_public_key", receiver_public_key, sizeof(receiver_public_key));
+	int amount;
+	mjson_get_number(script,strlen(script), "$.output[0].amount", &amount);
 
-int cli_transaction_add_transaction_to_system(char* transaction_id){
-	
     return 0;
 }
 
+//list-utxo                   List the information of UTXO
 int cli_list_utxo(){
+	print_utxo();
 	return 0;
 }
 
