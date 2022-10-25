@@ -68,7 +68,9 @@ void free_transaction_input(transaction_input *input) { free(input->signature_sc
  */
 static void free_transaction_output(transaction_output *output) { free(output->pk_script); }
 
-void print_transaction(char *txid, transaction *t, void *user_data) {
+void print_transaction(void *transaction_id, void *tx, void *user_data) {
+    char *txid = (char *)transaction_id;
+    transaction *t = (transaction *)tx;
     printf("TXID: %s VERSION: %d TX IN COUNT: %u TX OUT COUNT: %u LOCK: %u\n", txid, t->version, t->tx_in_count,
            t->tx_out_count, t->lock_time);
     printf("<Printing Inputs>\n");
@@ -87,7 +89,9 @@ void print_transaction(char *txid, transaction *t, void *user_data) {
     printf("\n");
 }
 
-void print_utxo_entry(char *hash, long int *value, void *user_data) {
+void print_utxo_entry(void *h, void *v, void *user_data) {
+    char *hash = (char *)h;
+    long int *value = (long int *)v;
     printf("ID: %s VAL: %ld\n", convert_char_hexadecimal(hash, 32), *value);
     printf("\n");
 }
