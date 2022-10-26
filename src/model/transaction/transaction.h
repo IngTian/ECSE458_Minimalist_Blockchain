@@ -42,19 +42,33 @@ typedef struct Transaction {
     unsigned int lock_time;       // A time number.
 } transaction;
 
+typedef struct TransactionCreateShortcutInput {
+    char *previous_txid;
+    unsigned int previous_output_idx;
+    char *private_key;
+} transaction_create_shortcut_input;
+
+typedef struct TransactionCreateShortcutOutput {
+    long int value;
+    char *public_key;
+} transaction_create_shortcut_output;
+
+typedef struct TransactionCreateShortcut {
+    transaction_create_shortcut_input *inputs;
+    unsigned int num_of_inputs;
+    transaction_create_shortcut_output *outputs;
+    unsigned int num_of_outputs;
+} transaction_create_shortcut;
+
 transaction *initialize_transaction_system();
+void destroy_transaction_system();
 char *get_transaction_txid(transaction *);
-char *hash_transaction_outpoint(transaction_outpoint*);
-char *hash_transaction_output(transaction_output*);
-unsigned int get_total_number_of_transactions();
 char *get_genesis_transaction_private_key();
 secp256k1_pubkey *get_genesis_transaction_public_key();
-transaction *create_an_empty_transaction();
+transaction *get_transaction_by_txid(char *);
 void destroy_transaction(transaction *);
-bool append_new_transaction_input(transaction *, transaction_input);
-bool append_new_transaction_output(transaction *, transaction_output);
+bool create_new_transaction_shortcut(transaction_create_shortcut *, transaction *);
 bool finalize_transaction(transaction *);
 void print_all_transactions();
 void print_utxo();
-transaction *get_transaction_by_txid(char *);
 #endif
