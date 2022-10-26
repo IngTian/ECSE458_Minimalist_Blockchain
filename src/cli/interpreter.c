@@ -6,11 +6,11 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
-#include "random.h"
-#include "shell.h"	
+#include "shell.h"
 #include "../model/transaction/transaction.h"
 #include "../utils/cryptography.h"
 #include "../utils/mjson.h"
+#include "../utils/log_utils.h"
 
 secp256k1_pubkey* public_key_temp ;
 secp256k1_ecdsa_signature* signature_temp;

@@ -1,9 +1,9 @@
 #include "cryptography.h"
 
 #include <memory.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 
 #include "utils/log_utils.h"
 
@@ -128,7 +128,7 @@ unsigned char *get_a_new_private_key() {
  */
 secp256k1_pubkey *get_a_new_public_key(char *private_key) {
     secp256k1_pubkey *ret_val = (secp256k1_pubkey *)malloc(sizeof(secp256k1_pubkey));
-    secp256k1_ec_pubkey_create(g_crypto_context, ret_val, (const unsigned char *)private_key);
+    if (!secp256k1_ec_pubkey_create(g_crypto_context, ret_val, (const unsigned char *)private_key)) return NULL;
     return ret_val;
 }
 
