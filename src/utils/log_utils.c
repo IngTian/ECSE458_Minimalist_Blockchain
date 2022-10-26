@@ -1,7 +1,84 @@
 #include "log_utils.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "utils/constants.h"
+#include "utils/sys_utils.h"
+
+// Regular text
+#define BLK "\e[0;30m"
+#define RED "\e[0;31m"
+#define GRN "\e[0;32m"
+#define YEL "\e[0;33m"
+#define BLU "\e[0;34m"
+#define MAG "\e[0;35m"
+#define CYN "\e[0;36m"
+#define WHT "\e[0;37m"
+
+// Regular bold text
+#define BBLK "\e[1;30m"
+#define BRED "\e[1;31m"
+#define BGRN "\e[1;32m"
+#define BYEL "\e[1;33m"
+#define BBLU "\e[1;34m"
+#define BMAG "\e[1;35m"
+#define BCYN "\e[1;36m"
+#define BWHT "\e[1;37m"
+
+// Regular underline text
+#define UBLK "\e[4;30m"
+#define URED "\e[4;31m"
+#define UGRN "\e[4;32m"
+#define UYEL "\e[4;33m"
+#define UBLU "\e[4;34m"
+#define UMAG "\e[4;35m"
+#define UCYN "\e[4;36m"
+#define UWHT "\e[4;37m"
+
+// Regular background
+#define BLKB "\e[40m"
+#define REDB "\e[41m"
+#define GRNB "\e[42m"
+#define YELB "\e[43m"
+#define BLUB "\e[44m"
+#define MAGB "\e[45m"
+#define CYNB "\e[46m"
+#define WHTB "\e[47m"
+
+// High intensity background
+#define BLKHB "\e[0;100m"
+#define REDHB "\e[0;101m"
+#define GRNHB "\e[0;102m"
+#define YELHB "\e[0;103m"
+#define BLUHB "\e[0;104m"
+#define MAGHB "\e[0;105m"
+#define CYNHB "\e[0;106m"
+#define WHTHB "\e[0;107m"
+
+// High intensity text
+#define HBLK "\e[0;90m"
+#define HRED "\e[0;91m"
+#define HGRN "\e[0;92m"
+#define HYEL "\e[0;93m"
+#define HBLU "\e[0;94m"
+#define HMAG "\e[0;95m"
+#define HCYN "\e[0;96m"
+#define HWHT "\e[0;97m"
+
+// Bold high intensity text
+#define BHBLK "\e[1;90m"
+#define BHRED "\e[1;91m"
+#define BHGRN "\e[1;92m"
+#define BHYEL "\e[1;93m"
+#define BHBLU "\e[1;94m"
+#define BHMAG "\e[1;95m"
+#define BHCYN "\e[1;96m"
+#define BHWHT "\e[1;97m"
+
+// Reset
+#define reset "\e[0m"
 
 /**
  * Convert a char array of specified length to a string
@@ -19,4 +96,56 @@ char *convert_char_hexadecimal(char *ptr, unsigned int byte_length) {
     }
     *ret_val_counter = '\0';
     return ret_val;
+}
+
+/**
+ * Log.
+ * @param scope The topic of the log.
+ * @param log_level The log level. (LOG_DEBUG, LOG_INFO, LOG_ERROR)
+ * @param format
+ * @param ... Messages, similar to printf.
+ */
+void general_log(char *scope, int log_level, char *format, ...) {
+    if (!VERBOSE) return;
+
+    // Print marcos.
+    char *curr_time = get_str_timestamp(LOG_TIME_FORMAT, LOG_TIME_LENGTH);
+
+    if (log_level == LOG_DEBUG)
+        printf(BYEL "%s" reset, "DBUG");
+    else if (log_level == LOG_INFO)
+        printf(BBLU "%s" reset, "INFO");
+    else if (log_level == LOG_ERROR)
+        printf(BRED "%s" reset, "FATA");
+    else
+        return;
+
+    printf(CYN "[%s]" reset, curr_time);
+    free(curr_time);
+
+    printf("(%s)", scope);
+    printf(" ----> ");
+
+    // Print custom message.
+    va_list args;
+    va_start(args, format);
+    vfprintf(stdout, format, args);
+    va_end(args);
+
+    printf("\n");
+}
+
+/**
+ * Print a series of bytes
+ * in hexadecimal format.
+ * @param data Incoming data.
+ * @param size The size of the incoming data in bytes.
+ */
+void print_hex(unsigned char* data, int size) {
+    size_t i;
+    printf("0x");
+    for (i = 0; i < size; i++) {
+        printf("%02x", data[i]);
+    }
+    printf("\n");
 }

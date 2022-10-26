@@ -1,10 +1,14 @@
 #include "transaction.h"
 
-#include "utils/cryptography.h"
+#include <glib.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "utils/constants.h"
 #include "utils/log_utils.h"
 #include "utils/sys_utils.h"
 
-#define TOTAL_NUMBER_OF_COINS 4096
+#define LOG_SCOPE "transaction"
 
 static unsigned int g_total_number_of_transactions;  // The total number of transactions in the system.
 static GHashTable *g_global_transaction_table;       // The global transaction table, mapping TXID to transaction.
@@ -54,12 +58,15 @@ bool verify_transaction_input(transaction_input *i) {
     memcpy(pubkey.data, previous_transaction_output.pk_script, 64);
     memcpy(signature.data, i->signature_script, 64);
 
+    char *utxo_key = hash_transaction_outpoint(&outpoint);
+    if (!g_hash_table_contains(g_utxo, utxo_key)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "UTXO is over spent.");
+        return false;
+    }
+    free(utxo_key);
+
     bool result = verify(&pubkey, (unsigned char *)hash_msg, &signature);
     free(hash_msg);
-
-    char *utxo_key = hash_transaction_outpoint(&outpoint);
-    result = result && g_hash_table_contains(g_utxo, utxo_key);
-    free(utxo_key);
 
     return result;
 }
@@ -139,9 +146,9 @@ transaction *initialize_transaction_system() {
     g_utxo = g_hash_table_new(g_str_hash, g_str_equal);
 
     transaction *genesis_transaction = create_an_empty_transaction(1, 1);
-    genesis_transaction->tx_ins[0].signature_script = "GENESIS";
+    genesis_transaction->tx_ins[0].signature_script = "";
     genesis_transaction->tx_ins[0].sequence = 1;
-    genesis_transaction->tx_ins[0].script_bytes = 7;
+    genesis_transaction->tx_ins[0].script_bytes = 0;
     genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
     g_genesis_private_key = (char *)get_a_new_private_key();
     g_genesis_public_key = get_a_new_public_key(g_genesis_private_key);
@@ -155,6 +162,9 @@ transaction *initialize_transaction_system() {
     *genesis_balance = TOTAL_NUMBER_OF_COINS;
     g_hash_table_insert(g_utxo, output_hash, genesis_balance);
     g_hash_table_insert(g_global_transaction_table, genesis_txid, genesis_transaction);
+
+    general_log(LOG_SCOPE, LOG_INFO, "Initialized the transaction module. Genesis TXID: %s", genesis_txid);
+
     return genesis_transaction;
 }
 
@@ -167,6 +177,8 @@ void destroy_transaction_system() {
     g_hash_table_foreach(g_utxo, free_utxo_table_entry, NULL);
     free(g_utxo);
     free(g_global_transaction_table);
+
+    general_log(LOG_SCOPE, LOG_INFO, "Destroyed the transaction module.");
 }
 
 /**
@@ -175,7 +187,7 @@ void destroy_transaction_system() {
  * @return The hash of the transaction (32 bytes).
  * @author Ing Tian
  */
-char *get_transaction_txid(transaction *t) { return hash_struct(t, sizeof(transaction)); }
+char *get_transaction_txid(transaction *t) { return hash_struct_in_hex(t, sizeof(transaction)); }
 
 /**
  * Get the SHA256 hashcode of a transaction output.
@@ -183,7 +195,9 @@ char *get_transaction_txid(transaction *t) { return hash_struct(t, sizeof(transa
  * @return The SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_transaction_output(transaction_output *output) { return hash_struct(output, sizeof(transaction_output)); }
+char *hash_transaction_output(transaction_output *output) {
+    return hash_struct_in_hex(output, sizeof(transaction_output));
+}
 
 /**
  * Get the SHA256 hashcode of a transaction outpoint.
@@ -192,7 +206,7 @@ char *hash_transaction_output(transaction_output *output) { return hash_struct(o
  * @author Ing Tian
  */
 char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
-    return hash_struct(outpoint, sizeof(transaction_outpoint));
+    return hash_struct_in_hex(outpoint, sizeof(transaction_outpoint));
 }
 
 /**
@@ -300,7 +314,10 @@ bool finalize_transaction(transaction *t) {
         output_sum += t->tx_outs[i].value;
     }
 
-    if (input_sum != output_sum) return false;
+    if (input_sum != output_sum) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Input (%ld) does not equal output (%ld).", input_sum, output_sum);
+        return false;
+    }
 
     // Register this transaction in the system.
     char *txid = get_transaction_txid(t);
@@ -372,10 +389,18 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
     for (int i = 0; i < transaction_data->num_of_inputs; i++) {
         transaction_create_shortcut_input curr_input_data = transaction_data->inputs[i];
 
-        if (!g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid)) return false;
+        if (!g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid)) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to find the previous transaction with the given TXID: %s",
+                        curr_input_data.previous_txid);
+            return false;
+        }
         transaction *previous_tx = g_hash_table_lookup(g_global_transaction_table, transaction_data);
 
-        if (curr_input_data.previous_output_idx >= previous_tx->tx_out_count) return false;
+        if (curr_input_data.previous_output_idx >= previous_tx->tx_out_count) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Previous output index (%u) is out of scope (%u).",
+                        curr_input_data.previous_output_idx, previous_tx->tx_out_count);
+            return false;
+        }
         transaction_output previous_tx_output = previous_tx->tx_outs[curr_input_data.previous_output_idx];
 
         transaction_input input = {.previous_outpoint = {.index = curr_input_data.previous_output_idx},
@@ -389,7 +414,10 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
         free(signature);
         free(msg);
 
-        if (!append_new_transaction_input(ret_tx, input)) return false;
+        if (!append_new_transaction_input(ret_tx, input)) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to append input to transaction.");
+            return false;
+        }
     }
 
     for (int i = 0; i < transaction_data->num_of_outputs; i++) {
@@ -399,7 +427,10 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
             .value = curr_output_data.value, .pk_script_bytes = 64, .pk_script = (char *)malloc(64)};
         memcpy(output.pk_script, curr_output_data.public_key, 64);
 
-        if (!append_new_transaction_output(ret_tx, output)) return false;
+        if (!append_new_transaction_output(ret_tx, output)) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to append transaction output.");
+            return false;
+        }
     }
 
     *dest = *ret_tx;
