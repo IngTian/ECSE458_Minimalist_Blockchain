@@ -112,7 +112,7 @@ void general_log(char *scope, int log_level, char *format, ...) {
     char *curr_time = get_str_timestamp(LOG_TIME_FORMAT, LOG_TIME_LENGTH);
 
     if (log_level == LOG_DEBUG)
-        printf(BYEL "%s" reset, "WARN");
+        printf(BYEL "%s" reset, "DBUG");
     else if (log_level == LOG_INFO)
         printf(BBLU "%s" reset, "INFO");
     else if (log_level == LOG_ERROR)

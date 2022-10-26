@@ -7,6 +7,8 @@
 
 #include "utils/log_utils.h"
 
+#define LOG_SCOPE "cryptography"
+
 // secp256k1 global variable
 secp256k1_context *g_crypto_context;
 
@@ -18,7 +20,6 @@ typedef struct {
     unsigned int state[8];
 } SHA256_CTX;
 
-char *hash_sha256(char *);
 void sha256_init(SHA256_CTX *ctx);
 void sha256_update(SHA256_CTX *ctx, const unsigned char data[], size_t len);
 void sha256_final(SHA256_CTX *ctx, unsigned char hash[]);
@@ -61,6 +62,7 @@ void initialize_cryptography_system(unsigned int flag) {
     g_crypto_context = secp256k1_context_create(flag);
     g_sha256_ctx = malloc(sizeof(SHA256_CTX));
     sha256_init(g_sha256_ctx);
+    general_log(LOG_SCOPE, LOG_INFO, "Initialized the cryptography library.");
 }
 
 /**
@@ -70,6 +72,7 @@ void initialize_cryptography_system(unsigned int flag) {
 void destroy_cryptography_system() {
     secp256k1_context_destroy(g_crypto_context);
     free(g_sha256_ctx);
+    general_log(LOG_SCOPE, LOG_INFO, "Destroyed the cryptography library.");
 }
 
 /**
@@ -82,6 +85,8 @@ void destroy_cryptography_system() {
 secp256k1_ecdsa_signature *sign(unsigned char *private_key, unsigned char *msg_to_sign) {
     secp256k1_ecdsa_signature *signature = (secp256k1_ecdsa_signature *)malloc(sizeof(secp256k1_ecdsa_signature));
     secp256k1_ecdsa_sign(g_crypto_context, signature, msg_to_sign, private_key, NULL, NULL);
+    general_log(LOG_SCOPE, LOG_DEBUG, "Signed message (%s) with private key (%s). Output: %s", msg_to_sign, private_key,
+                signature->data);
     return signature;
 }
 
@@ -96,8 +101,10 @@ secp256k1_ecdsa_signature *sign(unsigned char *private_key, unsigned char *msg_t
 bool verify(secp256k1_pubkey *public_key, unsigned char *msg_hash, secp256k1_ecdsa_signature *signature) {
     int is_signature_valid = secp256k1_ecdsa_verify(g_crypto_context, signature, msg_hash, public_key);
     if (is_signature_valid == 1) {
+        general_log(LOG_SCOPE, LOG_DEBUG, "Signature verified.");
         return true;
     } else {
+        general_log(LOG_SCOPE, LOG_DEBUG, "Signature invalidated.");
         return false;
     }
 }
@@ -111,11 +118,14 @@ unsigned char *get_a_new_private_key() {
     unsigned char *private_key = (unsigned char *)malloc(sizeof(char) * 64);
     while (1) {
         if (!fill_random(private_key, 32)) {
-            printf("Failed to generate randomness\n");
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to fill random for the private key.");
             return NULL;
         }
         if (secp256k1_ec_seckey_verify(g_crypto_context, private_key)) {
+            general_log(LOG_SCOPE, LOG_DEBUG, "Private key generated -> %s", private_key);
             return private_key;
+        } else {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to generate a new private key.");
         }
     }
 }
@@ -128,7 +138,11 @@ unsigned char *get_a_new_private_key() {
  */
 secp256k1_pubkey *get_a_new_public_key(char *private_key) {
     secp256k1_pubkey *ret_val = (secp256k1_pubkey *)malloc(sizeof(secp256k1_pubkey));
-    if (!secp256k1_ec_pubkey_create(g_crypto_context, ret_val, (const unsigned char *)private_key)) return NULL;
+    if (!secp256k1_ec_pubkey_create(g_crypto_context, ret_val, (const unsigned char *)private_key)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to generate a new public key for the private key: %s", private_key);
+        return NULL;
+    }
+    general_log(LOG_SCOPE, LOG_ERROR, "Public key generated: %s", ret_val->data);
     return ret_val;
 }
 
@@ -148,25 +162,13 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
  * @author Ing Tian
  */
 char *hash_struct_in_hex(void *ptr, unsigned int size) {
-    char *msg = convert_char_hexadecimal(ptr, size);
-    char *hash_msg = hash_sha256(msg);
-    free(msg);
-    char *hash_msg_hex = convert_char_hexadecimal(hash_msg, 32);
+    unsigned char *hash_msg = (unsigned char *)malloc(32);
+    sha256_update(g_sha256_ctx, (unsigned char *)ptr, size);
+    sha256_final(g_sha256_ctx, hash_msg);
+    char *hash_msg_hex = convert_char_hexadecimal((char *)hash_msg, 32);
+    general_log(LOG_SCOPE, LOG_DEBUG, "Hash message hashed (hex) -> %s", hash_msg_hex);
     free(hash_msg);
     return hash_msg_hex;
-}
-
-/**
- * Hash a string of data.
- * @param data a string
- * @return Return a string of 32 bytes (256 bits)
- * @auhtor Junjian Chen
- */
-char *hash_sha256(char *data) {
-    char *result = malloc(sizeof(char) * 32);
-    sha256_update(g_sha256_ctx, (unsigned char *)data, strlen(data));
-    sha256_final(g_sha256_ctx, (unsigned char *)result);
-    return result;
 }
 
 void sha256_transform(SHA256_CTX *ctx, const unsigned char data[]) {
