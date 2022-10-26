@@ -1,6 +1,7 @@
 #include "sys_utils.h"
 
 #include <sys/time.h>
+#include <stddef.h>
 
 /**
  * Get the timestamp now in milliseconds.

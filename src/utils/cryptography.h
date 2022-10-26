@@ -3,18 +3,17 @@
 
 #include <secp256k1.h>
 #include <stdbool.h>
-#include <stdlib.h>
-#include <stddef.h>
 
-/**    sha256 functions   **/
-char *hash_struct(void *, unsigned int);
+/*
+ * SHA256
+ */
+char *hash_struct_in_hex(void *, unsigned int);
 
-/**    public/private key   **/
-secp256k1_context *crypto_context;
+/**
+ * secp256k1
+ */
 typedef unsigned char *private_key;
 typedef unsigned char public_key;
-typedef secp256k1_pubkey public_key_;
-typedef secp256k1_ecdsa_signature crypto_signature;
 
 void initialize_cryptography_system(unsigned int);
 void destroy_cryptography_system();

@@ -1,12 +1,8 @@
 #ifndef MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_MODEL_TRANSACTION_H
 #define MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_MODEL_TRANSACTION_H
 
-#include <glib.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
 
-#include "utils/constants.h"
 #include "utils/cryptography.h"
 
 /*

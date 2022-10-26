@@ -1,10 +1,12 @@
 #include "transaction.h"
 
-#include "utils/cryptography.h"
+#include <glib.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 #include "utils/log_utils.h"
 #include "utils/sys_utils.h"
-
-#define TOTAL_NUMBER_OF_COINS 4096
+#include "utils/constants.h"
 
 static unsigned int g_total_number_of_transactions;  // The total number of transactions in the system.
 static GHashTable *g_global_transaction_table;       // The global transaction table, mapping TXID to transaction.
@@ -139,9 +141,9 @@ transaction *initialize_transaction_system() {
     g_utxo = g_hash_table_new(g_str_hash, g_str_equal);
 
     transaction *genesis_transaction = create_an_empty_transaction(1, 1);
-    genesis_transaction->tx_ins[0].signature_script = "GENESIS";
+    genesis_transaction->tx_ins[0].signature_script = "";
     genesis_transaction->tx_ins[0].sequence = 1;
-    genesis_transaction->tx_ins[0].script_bytes = 7;
+    genesis_transaction->tx_ins[0].script_bytes = 0;
     genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
     g_genesis_private_key = (char *)get_a_new_private_key();
     g_genesis_public_key = get_a_new_public_key(g_genesis_private_key);
@@ -175,7 +177,7 @@ void destroy_transaction_system() {
  * @return The hash of the transaction (32 bytes).
  * @author Ing Tian
  */
-char *get_transaction_txid(transaction *t) { return hash_struct(t, sizeof(transaction)); }
+char *get_transaction_txid(transaction *t) { return hash_struct_in_hex(t, sizeof(transaction)); }
 
 /**
  * Get the SHA256 hashcode of a transaction output.
@@ -183,7 +185,7 @@ char *get_transaction_txid(transaction *t) { return hash_struct(t, sizeof(transa
  * @return The SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_transaction_output(transaction_output *output) { return hash_struct(output, sizeof(transaction_output)); }
+char *hash_transaction_output(transaction_output *output) { return hash_struct_in_hex(output, sizeof(transaction_output)); }
 
 /**
  * Get the SHA256 hashcode of a transaction outpoint.
@@ -192,7 +194,7 @@ char *hash_transaction_output(transaction_output *output) { return hash_struct(o
  * @author Ing Tian
  */
 char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
-    return hash_struct(outpoint, sizeof(transaction_outpoint));
+    return hash_struct_in_hex(outpoint, sizeof(transaction_outpoint));
 }
 
 /**
