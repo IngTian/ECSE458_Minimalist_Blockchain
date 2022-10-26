@@ -11,6 +11,7 @@
 #include <string.h>
 #include <time.h>
 
+
 #define MAXIMUM_TX_PER_BLOCK 100
 
 static GHashTable  *g_global_block_table;
@@ -25,23 +26,24 @@ int get_current_unix_time(){
     return (int)tick;
 }
 
-char* sha256_twice(block_header* header){
-    char * hash=hash_struct(header, sizeof(header));
-    hash= hash_struct(hash, sizeof(hash));
+char* sha256_twice(block_header* header) {
+    char *hash = hash_struct(header, sizeof(header));
+    hash = hash_struct(hash, sizeof(hash));
     return hash;
 }
-
 
 block *initialize_block_system(){
     g_global_block_table= g_hash_table_new(g_str_hash, g_str_equal);
     block* genesis_block= create_an_empty_block();
     g_genesis_block_hash= sha256_twice(genesis_block->header);
     finalize_block(genesis_block);
+
     return genesis_block;
 }
 
 block *create_an_empty_block(){
     block* block_create= malloc(sizeof(block));
+
     block_header* header= malloc(sizeof(block_header));
     header->version=0;
     header->nonce=0;
@@ -50,6 +52,7 @@ block *create_an_empty_block(){
     block_create->header=header;
     block_create->txn_count=0;
     block_create->txns=(transaction *)malloc(sizeof(transaction)*MAXIMUM_TX_PER_BLOCK);
+
     return block_create;
 }
 
@@ -145,3 +148,4 @@ bool verify_block_chain(block * cur_block){
 char * get_genesis_block_hash(){
     return g_genesis_block_hash;
 }
+

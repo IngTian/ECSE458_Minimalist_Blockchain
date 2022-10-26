@@ -33,6 +33,7 @@ typedef struct Block{
 
 } block;
 
+
 block *initialize_block_system();
 block *create_an_empty_block();
 void destroy_block(block *);
@@ -44,3 +45,5 @@ bool verify_block_chain(block *);
 char* get_genesis_block_hash();
 
 #endif
+
+
