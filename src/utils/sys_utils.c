@@ -33,6 +33,18 @@ unsigned long get_timestamp() {
 }
 
 /**
+ * Get the current timestamp in seconds.
+ * @return The current timestamp.
+ * @author Junjian Chen
+ */
+int get_current_unix_time() {
+    time_t tick;
+    tick = time(NULL);
+    *localtime(&tick);
+    return (int)tick;
+}
+
+/**
  * Return the timestamp in a specific format.
  * @param format The format of the timestamp.
  * @param time_str_length Length of the result string.

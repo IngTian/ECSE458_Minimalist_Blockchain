@@ -1,6 +1,6 @@
 ---
 BasedOnStyle: Google
-ColumnLimit: 120
+ColumnLimit: 150
 DerivePointerAlignment: false
 IndentWidth: 4
 Language: Cpp
