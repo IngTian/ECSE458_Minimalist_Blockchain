@@ -60,8 +60,6 @@ SHA256_CTX *g_sha256_ctx;
  */
 void initialize_cryptography_system(unsigned int flag) {
     g_crypto_context = secp256k1_context_create(flag);
-    g_sha256_ctx = malloc(sizeof(SHA256_CTX));
-    sha256_init(g_sha256_ctx);
     general_log(LOG_SCOPE, LOG_INFO, "Initialized the cryptography library.");
 }
 
@@ -142,7 +140,7 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to generate a new public key for the private key: %s", private_key);
         return NULL;
     }
-    general_log(LOG_SCOPE, LOG_ERROR, "Public key generated: %s", ret_val->data);
+    general_log(LOG_SCOPE, LOG_DEBUG, "Public key generated: %s", ret_val->data);
     return ret_val;
 }
 
@@ -163,6 +161,8 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
  */
 char *hash_struct_in_hex(void *ptr, unsigned int size) {
     unsigned char *hash_msg = (unsigned char *)malloc(32);
+    g_sha256_ctx = malloc(sizeof(SHA256_CTX));
+    sha256_init(g_sha256_ctx);
     sha256_update(g_sha256_ctx, (unsigned char *)ptr, size);
     sha256_final(g_sha256_ctx, hash_msg);
     char *hash_msg_hex = convert_char_hexadecimal((char *)hash_msg, 32);

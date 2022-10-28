@@ -33,7 +33,6 @@ char *get_str_timestamp(char *format, unsigned int time_str_length) {
     tm_info = localtime(&timer);
 
     strftime(buffer, time_str_length, format, tm_info);
-    puts(buffer);
 
     return buffer;
 }
