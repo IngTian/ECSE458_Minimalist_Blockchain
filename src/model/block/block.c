@@ -27,15 +27,16 @@ int get_current_unix_time(){
 }
 
 char* sha256_twice(block_header* header) {
-    char *hash = hash_struct(header, sizeof(header));
-    hash = hash_struct(hash, sizeof(hash));
+    char* hash = hash_struct_in_hex(header, sizeof(header));
+    hash = hash_struct_in_hex(hash, sizeof(hash));
     return hash;
 }
 
 block *initialize_block_system(){
     g_global_block_table= g_hash_table_new(g_str_hash, g_str_equal);
+
     block* genesis_block= create_an_empty_block();
-    g_genesis_block_hash= sha256_twice(genesis_block->header);
+
     finalize_block(genesis_block);
 
     return genesis_block;
@@ -43,7 +44,6 @@ block *initialize_block_system(){
 
 block *create_an_empty_block(){
     block* block_create= malloc(sizeof(block));
-
     block_header* header= malloc(sizeof(block_header));
     header->version=0;
     header->nonce=0;
@@ -69,7 +69,7 @@ bool append_prev_block(block* prev_block, block* cur_block){
         return false;
     }
     //sha256(previous block header) twice
-    char * prev_block_header_hash= sha256_twice(prev_block->header);
+    char * prev_block_header_hash=sha256_twice(prev_block->header);
 
     cur_block->header->prev_block_header_hash=prev_block_header_hash;
 

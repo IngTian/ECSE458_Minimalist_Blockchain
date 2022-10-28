@@ -43,6 +43,7 @@ block *get_block_by_hash(char *);
 bool append_transaction_into_block(transaction *, block *);
 bool verify_block_chain(block *);
 char* get_genesis_block_hash();
+char* sha256_twice(block_header *);
 
 #endif
 
