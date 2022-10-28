@@ -6,15 +6,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "../transaction/transaction.h"
 #include "utils/constants.h"
 #include "utils/cryptography.h"
-#include "../transaction/transaction.h"
 
-typedef struct Block_Header{
-
+typedef struct Block_Header {
     int version;
 
-    char* prev_block_header_hash;
+    char *prev_block_header_hash;
 
     int time;
 
@@ -23,9 +22,8 @@ typedef struct Block_Header{
     int nonce;
 } block_header;
 
-typedef struct Block{
-
-    block_header* header;
+typedef struct Block {
+    block_header *header;
 
     transaction **txns;
 
@@ -33,18 +31,15 @@ typedef struct Block{
 
 } block;
 
-
 block *initialize_block_system();
+void destroy_cryptography_system();
 block *create_an_empty_block();
 void destroy_block(block *);
-bool append_prev_block(block* prev_block, block* cur_block);
+bool append_prev_block(block *prev_block, block *cur_block);
 bool finalize_block(block *);
 block *get_block_by_hash(char *);
-bool append_transaction_into_block(transaction *, block *);
+bool append_transaction_into_block(block *, transaction *, unsigned int input_idx);
 bool verify_block_chain(block *);
-char* get_genesis_block_hash();
-char* sha256_twice(block_header *);
+char *get_genesis_block_hash();
 
 #endif
-
-
