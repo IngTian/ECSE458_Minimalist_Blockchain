@@ -54,7 +54,7 @@ block *initialize_block_system() {
     block *genesis_block = create_an_empty_block(1);
     g_genesis_block_hash = hash_block_header(genesis_block->header);
     finalize_block(genesis_block);
-    general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system.");
+    general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.",g_genesis_block_hash);
     return genesis_block;
 }
 
@@ -185,7 +185,7 @@ bool append_transaction_into_block(block *block1, transaction *transaction1, uns
 
 /**
  * Verify the integrity of the block chain.
- * @param chain_tail The header block.
+ * @param chain_tail The tail block.
  * @return True for valid, and false otherwise.
  * @author Junjian Chen
  */
@@ -216,7 +216,7 @@ bool verify_block_chain(block *chain_tail) {
             if (strcmp(hash, temp->header->prev_block_header_hash) == 0) {
                 temp = get_block_by_hash(temp->header->prev_block_header_hash);
             } else {
-                general_log(LOG_SCOPE, LOG_INFO, "The block is invalid: previous block hash doesn't match!");
+                general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid: previous block hash doesn't match!");
                 return false;
             }
         }
@@ -229,3 +229,35 @@ bool verify_block_chain(block *chain_tail) {
  * @author Junjian Chen
  */
 char *get_genesis_block_hash() { return g_genesis_block_hash; }
+
+/**
+ * Print the structure of the block chain
+ * @param chain_tail The tail block.
+ * @author Junjian Chen
+ */
+void print_block_chain(block *chain_tail){
+
+//    if(!verify_block_chain(chain_tail)){
+//        general_log(LOG_SCOPE, LOG_ERROR, "Invalid, cannot print!");
+//        return ;
+//    }
+    block *temp = chain_tail;
+    char print_content[1000];
+    char * temp_hash= hash_block_header(temp->header);
+    strcat(print_content,temp_hash);
+
+    while (true){
+        if(strcmp(temp->header->prev_block_header_hash, "") == 0){
+            general_log(LOG_SCOPE, LOG_INFO, "Block chain structure: %s", print_content);
+            return ;
+        }else{
+            strcat(print_content,"\n                                      <-----");
+            strcat(print_content,temp->header->prev_block_header_hash);
+            temp = get_block_by_hash(temp->header->prev_block_header_hash);
+            if(temp==NULL){
+                general_log(LOG_SCOPE, LOG_INFO, "Blockchain structure: %s", print_content);
+                return ;
+            }
+        }
+    }
+}
