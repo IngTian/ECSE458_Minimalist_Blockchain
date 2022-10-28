@@ -20,8 +20,8 @@ char *hash_transaction_outpoint(transaction_outpoint *);
 char *hash_transaction_output(transaction_output *);
 unsigned int get_total_number_of_transactions();
 transaction *create_an_empty_transaction(unsigned int, unsigned int);
-bool append_new_transaction_input(transaction *, transaction_input);
-bool append_new_transaction_output(transaction *, transaction_output);
+bool append_new_transaction_input(transaction *, transaction_input, unsigned int);
+bool append_new_transaction_output(transaction *, transaction_output, unsigned int);
 
 /*
  * -----------------------------------------------------------
@@ -157,10 +157,14 @@ transaction *initialize_transaction_system() {
     genesis_transaction->tx_outs[0].pk_script_bytes = 64;
 
     char *genesis_txid = get_transaction_txid(genesis_transaction);
-    char *output_hash = hash_transaction_output(&genesis_transaction->tx_outs[0]);
+
+    transaction_outpoint outpoint = {.index = 0};
+    memcpy(outpoint.hash, genesis_txid, 64);
+    char *outpoint_hash = hash_transaction_outpoint(&outpoint);
     long int *genesis_balance = (long int *)malloc(sizeof(long int));
     *genesis_balance = TOTAL_NUMBER_OF_COINS;
-    g_hash_table_insert(g_utxo, output_hash, genesis_balance);
+
+    g_hash_table_insert(g_utxo, outpoint_hash, genesis_balance);
     g_hash_table_insert(g_global_transaction_table, genesis_txid, genesis_transaction);
 
     general_log(LOG_SCOPE, LOG_INFO, "Initialized the transaction module. Genesis TXID: %s", genesis_txid);
@@ -246,7 +250,7 @@ transaction *create_an_empty_transaction(unsigned int num_of_inputs, unsigned in
     t->tx_outs = (transaction_output *)malloc(sizeof(transaction_output) * num_of_outputs);
     t->lock_time = get_timestamp();
     return t;
-};
+}
 
 /**
  * Destroy a transaction, free all of its memory space.
@@ -269,10 +273,9 @@ void destroy_transaction(transaction *t) {
  * @return True for success, false otherwise.
  * @author Ing Tian
  */
-bool append_new_transaction_input(transaction *t, transaction_input input) {
+bool append_new_transaction_input(transaction *t, transaction_input input, unsigned int input_idx) {
     if (!verify_transaction_input(&input)) return false;
-
-    t->tx_ins[t->tx_in_count++] = input;
+    memcpy(&t->tx_ins[input_idx], &input, sizeof(transaction_input));
     return true;
 }
 
@@ -283,9 +286,9 @@ bool append_new_transaction_input(transaction *t, transaction_input input) {
  * @return True for success, false otherwise.
  * @auhor Ing Tian
  */
-bool append_new_transaction_output(transaction *t, transaction_output output) {
+bool append_new_transaction_output(transaction *t, transaction_output output, unsigned int output_idx) {
     if (t == NULL) return false;
-    t->tx_outs[t->tx_out_count++] = output;
+    memcpy(&t->tx_outs[output_idx], &output, sizeof(transaction_output));
     return true;
 }
 
@@ -370,8 +373,7 @@ void print_utxo() {
  * @author Junjian Chen
  */
 transaction *get_transaction_by_txid(char *txid) {
-    transaction *t = malloc(sizeof(transaction));
-    t = g_hash_table_lookup(g_global_transaction_table, txid);
+    transaction *t = g_hash_table_lookup(g_global_transaction_table, txid);
     return t;
 }
 
@@ -394,7 +396,7 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
                         curr_input_data.previous_txid);
             return false;
         }
-        transaction *previous_tx = g_hash_table_lookup(g_global_transaction_table, transaction_data);
+        transaction *previous_tx = g_hash_table_lookup(g_global_transaction_table, curr_input_data.previous_txid);
 
         if (curr_input_data.previous_output_idx >= previous_tx->tx_out_count) {
             general_log(LOG_SCOPE, LOG_ERROR, "Previous output index (%u) is out of scope (%u).",
@@ -414,7 +416,7 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
         free(signature);
         free(msg);
 
-        if (!append_new_transaction_input(ret_tx, input)) {
+        if (!append_new_transaction_input(ret_tx, input, i)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to append input to transaction.");
             return false;
         }
@@ -427,7 +429,7 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
             .value = curr_output_data.value, .pk_script_bytes = 64, .pk_script = (char *)malloc(64)};
         memcpy(output.pk_script, curr_output_data.public_key, 64);
 
-        if (!append_new_transaction_output(ret_tx, output)) {
+        if (!append_new_transaction_output(ret_tx, output, i)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to append transaction output.");
             return false;
         }

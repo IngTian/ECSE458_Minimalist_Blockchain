@@ -106,7 +106,7 @@ char *convert_char_hexadecimal(char *ptr, unsigned int byte_length) {
  * @param ... Messages, similar to printf.
  */
 void general_log(char *scope, int log_level, char *format, ...) {
-    if (!VERBOSE) return;
+    if (!VERBOSE || log_level < LOG_LEVEL) return;
 
     // Print marcos.
     char *curr_time = get_str_timestamp(LOG_TIME_FORMAT, LOG_TIME_LENGTH);
