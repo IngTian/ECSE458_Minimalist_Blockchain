@@ -6,7 +6,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "../model/block/block.h"
 #include "../model/transaction/transaction.h"
 #include "../utils/cryptography.h"
 #include "../utils/log_utils.h"
@@ -40,10 +39,6 @@ int cli_cryptography_verify(char *public_key, char *msg_hash, char *signature);
 //--user
 int cli_user_get_user_public_key(char *user_id);
 int cli_user_get_user_balance(char *user_id);
-//--block
-int cli_block_list_all_blocks();
-int cli_block_add_block_to_system(char *script);
-int cli_block_get_genesis_block_hash();
 
 int interpreter(char *command_args[], int args_size) {
     int i;
@@ -100,7 +95,7 @@ int interpreter(char *command_args[], int args_size) {
         } else {
             return bad_command();
         }
-    } else if (strcmp(command_args[0], "user") == 0) {
+    } else if (strcmp(command_args[0], "cryptography") == 0) {
         if (strcmp(command_args[1], "get-user-public-key") == 0) {
             if (args_size != 3) return bad_command();
             return cli_user_get_user_public_key(command_args[2]);
@@ -108,19 +103,6 @@ int interpreter(char *command_args[], int args_size) {
             if (args_size != 3) return bad_command();
             return cli_user_get_user_balance(command_args[2]);
         } else {
-            return bad_command();
-        }
-    } else if (strcmp(command_args[0], "block") == 0) {
-        if (strcmp(command_args[1], "list-all-blocks") == 0) {
-            if (args_size != 2) return bad_command();
-            return cli_block_list_all_blocks();
-        }else if (strcmp(command_args[1], "get-genesis-hash") == 0) {
-            if (args_size != 2) return bad_command();
-            return cli_block_get_genesis_block_hash();
-        }else if (strcmp(command_args[1], "add-block-to-system"){
-            if (args_size != 3) return bad_command();
-            return cli_block_add_block_to_system(command_args[2]);
-        }else {
             return bad_command();
         }
     } else {
@@ -138,24 +120,20 @@ run script.txt		        								Executes the file SCRIPT.TXT\n \
 init-system                 								Initialize the system with the first empty transaction\n \
 transaction list-all-transactions       					List all transactions in the current system\n \
 transaction add-transaction-to-system transaction.json    	Add the input transaction to the system with the json file\n \
-transaction list-utxo                   					List the information of UTXO \n \
-transaction get-genesis-private-key							Get the private key of the geneis transaction\n \
+transaction list-utxo                   					List the information of UTXO\n \
+transaction get-genesis-private-key							\n \
 cryptography create-private-key         					Create a private key string by random\n \
 cryptography create-public-key private_key          		Create a public key by the input private key\n \
 cryptography sign private_key msg_hash  					Use the private key to sign the hash of the previous outpoint\n \
 cryptography verify public_key msg_hash msg_signature   	Verify the encryption by the public key, message, and the signature\n \
 user get-user-public-key user_id        					Get the public key of the input user\n \
-user get-user-balance user_id           					Get the balance of the user\n \
-block list-all-blocks                                       List all blocks in the current system\n \
-block get-genesis-hash                                      Get the hash of the genesis block \n \
-block add-block-to-system block.json                        Add the input block to the system with the json file \n";
+user get-user-balance user_id           					Get the balance of the user\n";
     printf("%s\n", help_string);
     return 0;
 }
 
 // quit the shell interface
 int quit() {
-    destroy_block_system();
     destroy_transaction_system();
     destroy_cryptography_system();
     printf("%s\n", "Quit!");
@@ -163,16 +141,10 @@ int quit() {
 }
 
 int init() {
-    // cryptography init
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-
-    // transaction init
     transaction *genesis_transaction = initialize_transaction_system();
     char *genesis_transaction_id = get_transaction_txid(genesis_transaction);
     printf("Genesis transaction id: %s\n", genesis_transaction_id);
-
-    // block init
-    initialize_block_system();
     return 0;
 }
 
@@ -239,12 +211,14 @@ int cli_transaction_add_transaction_to_system(char *script) {
         (transaction_create_shortcut_input *)malloc(input_size * sizeof(transaction_create_shortcut_input));
     for (int i = 0; i < input_size; i++) {
         const char previous_id[100];
-        mjson_get_string(buffer, strlen(buffer), "$.inputs[i].previous_transaction_id", previous_id, sizeof(previous_id));
+        mjson_get_string(buffer, strlen(buffer), "$.inputs[i].previous_transaction_id", previous_id,
+                         sizeof(previous_id));
         double output_idx;
         mjson_get_number(buffer, strlen(buffer), "$.inputs[i].output_idx", &output_idx);
         output_idx = (int)output_idx;
         const char sender_private_key[100];
-        mjson_get_string(buffer, strlen(buffer), "$.inputs[i].sender_private_key", sender_private_key, sizeof(sender_private_key));
+        mjson_get_string(buffer, strlen(buffer), "$.inputs[i].sender_private_key", sender_private_key,
+                         sizeof(sender_private_key));
 
         memcpy(shortcut_input_array[i].previous_txid, previous_id, strlen(previous_id));
         shortcut_input_array[i].previous_output_idx = output_idx;
@@ -261,13 +235,14 @@ int cli_transaction_add_transaction_to_system(char *script) {
 
     for (int i = 0; i < output_size; i++) {
         const char receiver_public_key[100];
-        mjson_get_string(buffer, strlen(buffer), "$.outputs[0].receiver_public_key", receiver_public_key, sizeof(receiver_public_key));
+        mjson_get_string(buffer, strlen(buffer), "$.outputs[0].receiver_public_key", receiver_public_key,
+                         sizeof(receiver_public_key));
         // secp256k1_pubkey *new_public_key = (secp256k1_pubkey *)malloc(sizeof(secp256k1_pubkey));
         // new_public_key->data = receiver_public_key;
 
         double amount;
         mjson_get_number(buffer, strlen(buffer), "$.outputs[0].amount", &amount);
-
+        amount = (int)amount;
         shortcut_output_array[i].value = amount;
         shortcut_output_array[i].public_key = receiver_public_key;
     }
@@ -290,6 +265,7 @@ int cli_transaction_add_transaction_to_system(char *script) {
     return 0;
 }
 
+// list-utxo                   List the information of UTXO
 int cli_transaction_list_utxo() {
     print_utxo();
     return 0;
@@ -305,7 +281,16 @@ int cli_transaction_get_genesis_transaction_private_key() {
     return 0;
 }
 
-//-----------------------------Cryptography--------------------------
+/**
+ * Get the genesis transaction's private key
+ */
+int cli_transaction_get_genesis_transaction_private_key() {
+    char *temp = get_genesis_transaction_private_key();
+    printf("Genesis private key: ");
+    print_hex(temp, strlen(temp));
+    return 0;
+}
+
 int cli_cryptography_create_private_key() {
     unsigned char *private_key = get_a_new_private_key();
     printf("Private key: ");
@@ -354,71 +339,6 @@ int cli_cryptography_verify(char *public_key, char *msg_hash, char *signature) {
 int cli_user_get_user_public_key(char *user_id) { return 0; }
 
 int cli_user_get_user_balance(char *user_id) { return 0; }
-
-//-------------------------------block---------------------------------
-int cli_block_list_all_blocks() { 
-
-    return 0; 
-}
-
-int cli_block_add_block_to_system(char* script) {
-    char *buffer;
-    long numbytes;
-    FILE *p = fopen(script, "rt");  // the program is in a file
-    if (p == NULL) {
-        return bad_command_file_does_not_exist();
-    }
-
-    fseek(p, 0L, SEEK_END);
-    numbytes = ftell(p);
-    fseek(p, 0L, SEEK_SET);
-
-    buffer = (char *)calloc(numbytes, sizeof(char));
-    if (buffer == NULL) return 1;
-    fread(buffer, sizeof(char), numbytes, p);
-    fclose(p);
-
-    printf("%s\n", buffer);
-
-
-    double val;                                       // Get `a` attribute
-    mjson_get_number(buffer, strlen(buffer), "$.input_size", &val);  // into C variable `val`
-    printf("a: %lf\n", val);
-  
-    
-    for(int i=0;i<val;i++){
-        const char transaction_id[100];
-        mjson_get_string(buffer, strlen(buffer), "$.inputs[i]", transaction_id, sizeof(transaction_id));
-        
-    }
-
-    int number_of_transactions = 1;
-    for(int i=0; i<number_of_transactions, i++){
-        append_transaction_into_block();
-    }
-    
-    const char previous_block_hash[100];
-    mjson_get_string(buffer, strlen(buffer), "$.previous_block_hash", previous_block_hash, sizeof(previous_block_hash));
-    block* previous_block =  get_block_by_hash(previous_block_hash);
-
-    block* new_block = create_an_empty_block(number_of_transaction);
-    if(append_prev_block(previous_block, new_block)){
-        if(!finalize_block(new_block);){
-            printf("Fail to add the block to the system!");
-        }
-    }else{
-        printf("Blocks cannot be NULL when linking!");
-    }
-    return 0; 
-}
-
-
-int cli_block_get_genesis_block_hash() { 
-    char *temp = get_genesis_block_hash();
-    printf("Genesis block hash: ");
-    print_hex(temp, strlen(temp));
-    return 0; 
-}
 
 
 
