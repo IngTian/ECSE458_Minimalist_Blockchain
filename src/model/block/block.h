@@ -38,5 +38,6 @@ bool append_transaction_into_block(block *, transaction *, unsigned int input_id
 bool verify_block_chain(block *);
 char *get_genesis_block_hash();
 void print_block_chain(block *);
+bool verify_transaction(transaction *);
 
 #endif

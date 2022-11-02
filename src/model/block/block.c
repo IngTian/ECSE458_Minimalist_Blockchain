@@ -183,6 +183,24 @@ bool append_transaction_into_block(block *block1, transaction *transaction1, uns
     return true;
 }
 
+
+/**
+ * Verify transactions in a block
+ * @param block1  The block to verify transaction in it
+ * @return True for the valid transactions in the block, false for invalid
+ * @author Junjian Chen
+ */
+bool verify_block_transaction(block *block1){
+    for(int i=0;i<block1->txn_count;i++){
+        if(!verify_transaction(block1->txns[i])){
+            return false;
+        }
+    }
+
+    return true;
+
+}
+
 /**
  * Verify the integrity of the block chain.
  * @param chain_tail The tail block.
@@ -193,6 +211,12 @@ bool verify_block_chain(block *chain_tail) {
     block *temp = chain_tail;
 
     while (true) {
+
+        if(!verify_block_transaction(temp)){
+            general_log(LOG_SCOPE, LOG_ERROR,"The chain is invalid because one transaction in the block is invalid.");
+            return false;
+        }
+
         if (strcmp(temp->header->prev_block_header_hash, "") == 0) {
             // When temp is genesis block
             char *hash = hash_block_header(temp->header);
@@ -242,7 +266,7 @@ void print_block_chain(block *chain_tail){
     strcat(print_content,temp_hash);
 
     while (true){
-        if(strcmp(temp->header->prev_block_header_hash, "") == 0){
+        if(temp==NULL||strcmp(temp->header->prev_block_header_hash, "") == 0){
             general_log(LOG_SCOPE, LOG_INFO, "Block chain structure: %s", print_content);
             return ;
         }else{
@@ -250,6 +274,7 @@ void print_block_chain(block *chain_tail){
             strcat(print_content,temp->header->prev_block_header_hash);
             temp = get_block_by_hash(temp->header->prev_block_header_hash);
             if(temp==NULL){
+
                 general_log(LOG_SCOPE, LOG_INFO, "Blockchain structure: %s", print_content);
                 return ;
             }
