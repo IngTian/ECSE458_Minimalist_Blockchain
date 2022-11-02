@@ -77,8 +77,11 @@ bool verify_transaction_input(transaction_input *i) {
  * @author Ing Tian
  */
 void free_transaction_input(transaction_input *input) {
-    free(input->signature_script);
-    free(input);
+    if (input != NULL) {
+        if (input->signature_script != NULL)
+            free(input->signature_script);
+        free(input);
+    }
 }
 
 /**
@@ -152,7 +155,8 @@ transaction *initialize_transaction_system() {
     genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
     g_genesis_private_key = (char *)get_a_new_private_key();
     g_genesis_public_key = get_a_new_public_key(g_genesis_private_key);
-    genesis_transaction->tx_outs->pk_script = (char *)malloc(64);
+    genesis_transaction->tx_outs->pk_script = (char *)malloc(65);
+    genesis_transaction->tx_outs->pk_script[64] = '\0';
     memcpy(genesis_transaction->tx_outs->pk_script, g_genesis_public_key->data, 64);
     genesis_transaction->tx_outs[0].pk_script_bytes = 64;
 
@@ -408,7 +412,8 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
         transaction_input input = {.previous_outpoint = {.index = curr_input_data.previous_output_idx},
                                    .sequence = 1,
                                    .script_bytes = 64,
-                                   .signature_script = (char *)malloc(64)};
+                                   .signature_script = (char *)malloc(65)};
+        input.signature_script[64] = '\0';
         memcpy(input.previous_outpoint.hash, transaction_data->inputs[i].previous_txid, 64);
         char *msg = hash_transaction_output(&previous_tx_output);
         secp256k1_ecdsa_signature *signature = sign((unsigned char *)curr_input_data.private_key, (unsigned char *)msg);
@@ -426,7 +431,8 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
         transaction_create_shortcut_output curr_output_data = transaction_data->outputs[i];
 
         transaction_output output = {
-            .value = curr_output_data.value, .pk_script_bytes = 64, .pk_script = (char *)malloc(64)};
+            .value = curr_output_data.value, .pk_script_bytes = 64, .pk_script = (char *)malloc(65)};
+        output.pk_script[64] = '\0';
         memcpy(output.pk_script, curr_output_data.public_key, 64);
 
         if (!append_new_transaction_output(ret_tx, output, i)) {
