@@ -486,17 +486,17 @@ bool verify_transaction_cryptography(transaction *t){
         char *previous_transaction_id = input.previous_outpoint.hash;
         unsigned int previous_output_id = input.previous_outpoint.index;
         transaction *previous_transaction = g_hash_table_lookup(g_global_transaction_table, previous_transaction_id);
-        secp256k1_pubkey* pubkey= (secp256k1_pubkey*)malloc(sizeof (secp256k1_pubkey*));
+        secp256k1_pubkey* pubkey= (secp256k1_pubkey*)malloc(sizeof (secp256k1_pubkey));
         memcpy(pubkey->data,previous_transaction->tx_outs[previous_output_id].pk_script,64);
-        secp256k1_ecdsa_signature* signature= (secp256k1_ecdsa_signature*)malloc(sizeof(secp256k1_ecdsa_signature*));
+        secp256k1_ecdsa_signature* signature= (secp256k1_ecdsa_signature*)malloc(sizeof(secp256k1_ecdsa_signature));
         memcpy(signature->data,input.signature_script,64);
-        char* msg= hash_transaction_outpoint(&(previous_transaction->tx_outs[previous_output_id]));
-        bool result=verify(pubkey,signature,msg);
+       unsigned char* msg= hash_transaction_outpoint(&(previous_transaction->tx_outs[previous_output_id]));
+        bool result=verify(pubkey,msg,signature);
         if(!result){
-            general_log(LOG_SCOPE, LOG_ERROR, "The transaction's public/private key verification fails.");
+//            general_log(LOG_SCOPE, LOG_ERROR, "The transaction's public/private key verification fails.");
         }
-//        free(signature);
-//        free(pubkey);
+        free(signature);
+        free(pubkey);
         return result;
 
 
