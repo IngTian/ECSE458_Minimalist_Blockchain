@@ -21,6 +21,13 @@ include(CheckTypeSize)
 include(CheckLibraryExists)
 include(FindPkgConfig)
 
+# MySQL
+pkg_check_modules(LIBMYSQLCLIENT REQUIRED mysqlclient)
+foreach(FLAG ${LIBMYSQLCLIENT_CFLAGS_OTHER})
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
+endforeach()
+link_directories(${LIBMYSQLCLIENT_LIBRARY_DIRS})
+
 # Glib
 pkg_search_module(GLIB REQUIRED glib-2.0)
 include_directories(${GTK2_INCLUDE_DIRS})
@@ -38,30 +45,30 @@ set_target_properties(secp256k1 PROPERTIES IMPORTED_LOCATION ${secp256k1_locatio
 file(GLOB MODEL_SOURCES src/model/**/*.c)
 file(GLOB MODEL_HEADERS src/model/**/*.h)
 add_library(BlockChainModels ${MODEL_SOURCES} ${MODEL_HEADERS})
-target_include_directories(BlockChainModels PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(BlockChainModels ${GLIB_LDFLAGS} secp256k1)
+target_include_directories(BlockChainModels PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS})
+target_link_libraries(BlockChainModels ${GLIB_LDFLAGS} secp256k1 ${LIBMYSQLCLIENT_LIBRARIES})
 
 file(GLOB UTILS_SOURCES src/utils/*.c)
 file(GLOB UTILS_HEADERS src/utils/*.h)
 add_library(BlockChainUtils ${UTILS_SOURCES} ${UTILS_HEADERS})
-target_include_directories(BlockChainUtils PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(BlockChainUtils ${GLIB_LDFLAGS} secp256k1)
+target_include_directories(BlockChainUtils PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS})
+target_link_libraries(BlockChainUtils ${GLIB_LDFLAGS} secp256k1 ${LIBMYSQLCLIENT_LIBRARIES})
 
 file(GLOB CLI_SOURCES src/cli/*.c)
 file(GLOB CLI_HEADERS src/cli/*.h)
 add_library(CliModule ${CLI_SOURCES} ${CLI_HEADERS})
-target_include_directories(CliModule PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(CliModule BlockChainUtils BlockChainModels ${GLIB_LDFLAGS} secp256k1)
+target_include_directories(CliModule PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS})
+target_link_libraries(CliModule BlockChainUtils BlockChainModels ${GLIB_LDFLAGS} secp256k1 ${LIBMYSQLCLIENT_LIBRARIES})
 #endregion
 
 #region Define executables
 add_executable(shell src/cli/shell.c)
 set_target_properties(shell PROPERTIES LINKER_LANGUAGE C)
-target_include_directories(shell PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(shell ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1)
+target_include_directories(shell PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS})
+target_link_libraries(shell ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 ${LIBMYSQLCLIENT_LIBRARIES})
 
 add_executable(main src/main.c)
 set_target_properties(main PROPERTIES LINKER_LANGUAGE C)
-target_include_directories(main PRIVATE ${GLIB_INCLUDE_DIRS})
-target_link_libraries(main ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1)
+target_include_directories(main PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS})
+target_link_libraries(main ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 ${LIBMYSQLCLIENT_LIBRARIES})
 #endregion
