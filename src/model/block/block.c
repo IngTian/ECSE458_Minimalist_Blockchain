@@ -236,11 +236,6 @@ char *get_genesis_block_hash() { return g_genesis_block_hash; }
  * @author Junjian Chen
  */
 void print_block_chain(block *chain_tail){
-
-//    if(!verify_block_chain(chain_tail)){
-//        general_log(LOG_SCOPE, LOG_ERROR, "Invalid, cannot print!");
-//        return ;
-//    }
     block *temp = chain_tail;
     char print_content[1000];
     char * temp_hash= hash_block_header(temp->header);
