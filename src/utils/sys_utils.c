@@ -39,7 +39,7 @@ unsigned long get_timestamp() {
 int get_current_unix_time() {
     time_t tick;
     tick = time(NULL);
-    *localtime(&tick);
+    localtime(&tick);
     return (int)tick;
 }
 
