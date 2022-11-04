@@ -24,7 +24,9 @@ int main() {
 
     // Start testing.
 
-    long int execution_time = 0;
+    long int verify_tx_time = 0;
+    long int verify_tx_signature = 0;
+    long int verify_block = 0;
 
 
 
@@ -56,13 +58,26 @@ int main() {
         previous_transaction = t;
         previous_output_private_key = (char *)new_private_key;
 
+        /** Verify transaction input/outputs **/
+
         long int start_time = get_timestamp();
 
         verify_transaction(t);
 
         long int end_time = get_timestamp();
 
-        execution_time+=(end_time-start_time);
+        verify_tx_time+=(end_time-start_time);
+
+        /** Verify transaction cryptography **/
+
+        start_time = get_timestamp();
+
+        verify_transaction_cryptography(t);
+
+        end_time = get_timestamp();
+
+        verify_tx_signature+=(end_time-start_time);
+
 
         block* b= create_an_empty_block(10);
         b->header->version=i+5;
@@ -79,10 +94,12 @@ int main() {
 
     long int end_time = get_timestamp();
 
-    execution_time+=(end_time-start_time);
+    long int verify_block_time=end_time-start_time;
 
 //    print_block_chain(previous_block);
 
     // Record time consumed.
-    general_log(LOG_SCOPE, LOG_INFO, "Time consumed = %ld ms", execution_time);
+    general_log(LOG_SCOPE, LOG_INFO, "Time consumed to verify transaction= %ld ms", verify_tx_time);
+    general_log(LOG_SCOPE, LOG_INFO, "Time consumed to verify transaction signature= %ld ms", verify_tx_signature);
+    general_log(LOG_SCOPE, LOG_INFO, "Time consumed to verify blocks= %ld ms", verify_block_time);
 }
