@@ -1,0 +1,17 @@
+{
+    "input_size":1,
+    "inputs": [
+        {
+            "previous_transaction_id" : "060EB5CC5D91654E6A1458D4445EA9FC9859CBFA9A34DD3B7DB0D65B607ED46A",
+            "output_idx" : 0,
+            "sender_private_key" : "0x8ffd3392c0754835e374e20fa4aeef5024a58df6de07b6386153caea83bf0425d9158af0ffffffffd9e083e0ffffffffdafea770ffffffffdbc065e0ffffffffdcde8970ffffffff51"
+        }
+    ],
+    "output_size":1,
+    "outputs":[
+        {
+            "receiver_public_key":"0xef492c6e29661c64acfbe31f45b39b0653a51a2e221b419fba3186b6beebb9b91235213980399551bff0161eb38edcd5dbd8ae396c6591b4cccda3a439c963d30102010201020102a107",
+            "amount" : 1
+        }
+    ]
+}

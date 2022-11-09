@@ -113,7 +113,8 @@ bool verify(secp256k1_pubkey *public_key, unsigned char *msg_hash, secp256k1_ecd
  * @author Junjian Chen
  */
 unsigned char *get_a_new_private_key() {
-    unsigned char *private_key = (unsigned char *)malloc(sizeof(char) * 64);
+    unsigned char *private_key = (unsigned char *)malloc(65);
+    private_key[64] = '\0';
     while (1) {
         if (!fill_random(private_key, 32)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to fill random for the private key.");

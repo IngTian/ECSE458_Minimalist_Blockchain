@@ -1,0 +1,8 @@
+{   
+    "input_size": 2,
+    "inputs" : [
+        "transaction1_id",
+        "transaction2_id"
+    ],
+    "previous_block_hash" : "xxx"
+}
