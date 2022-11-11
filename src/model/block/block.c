@@ -128,15 +128,32 @@ bool append_prev_block(block *prev_block, block *cur_block) {
  * @author Junjian Chen
  */
 bool check_block_valid(block *block1) {
+
+    //check if the block is NULL
     if (block1 == NULL) {
         return false;
     }
 
+    //check if the header is NULL
     block_header *header = block1->header;
     if (header == NULL) {
         return false;
     }
 
+    //check if the previous block is NULL
+    if(strcmp(header->prev_block_header_hash,"")==0){
+        if(strcmp(hash_block_header(header),g_genesis_block_hash)!=0){
+            return false;
+        }
+    }else{
+        block *prev_block = get_block_by_hash(header->prev_block_header_hash);
+        if (prev_block == NULL) {
+            return false;
+        }
+    }
+
+
+    //check if the time is valid
     if (header->time == 0) {
         return false;
     }
@@ -151,6 +168,8 @@ bool check_block_valid(block *block1) {
  * @author Junjian Chen
  */
 bool finalize_block(block *block_finalize) {
+
+    //check if the block is valid
     if (!check_block_valid(block_finalize)) {
         return false;
     }
@@ -183,6 +202,24 @@ bool append_transaction_into_block(block *block1, transaction *transaction1, uns
     return true;
 }
 
+
+/**
+ * Verify transactions in a block
+ * @param block1  The block to verify transaction in it
+ * @return True for the valid transactions in the block, false for invalid
+ * @author Junjian Chen
+ */
+bool verify_block_transaction(block *block1){
+    for(int i=0;i<block1->txn_count;i++){
+        if(!verify_transaction(block1->txns[i])){
+            return false;
+        }
+    }
+
+    return true;
+
+}
+
 /**
  * Verify the integrity of the block chain.
  * @param chain_tail The tail block.
@@ -192,7 +229,15 @@ bool append_transaction_into_block(block *block1, transaction *transaction1, uns
 bool verify_block_chain(block *chain_tail) {
     block *temp = chain_tail;
 
+    int i=0;
+
     while (true) {
+
+        if(!verify_block_transaction(temp)){
+            general_log(LOG_SCOPE, LOG_ERROR,"The chain is invalid because one transaction in the block is invalid.\n Error block: the last %dth block",i);
+            return false;
+        }
+
         if (strcmp(temp->header->prev_block_header_hash, "") == 0) {
             // When temp is genesis block
             char *hash = hash_block_header(temp->header);
@@ -201,14 +246,14 @@ bool verify_block_chain(block *chain_tail) {
                 return true;
             } else {
                 general_log(LOG_SCOPE, LOG_ERROR,
-                            "The chain is invalid because the first block does not equal the genesis block.");
+                            "The chain is invalid because the first block does not equal the genesis block.\n Error block: the last %dth block",i);
                 return false;
             }
         } else {
             // When temp isn't genesis block
             block *prev_block = get_block_by_hash(temp->header->prev_block_header_hash);
             if (prev_block == NULL) {
-                general_log(LOG_SCOPE, LOG_ERROR, "The chain is invalid: no previous block found for a block!");
+                general_log(LOG_SCOPE, LOG_ERROR, "The chain is invalid: no previous block found for a block!\n Error block: the last %dth block",i);
                 return false;
             }
 
@@ -216,10 +261,12 @@ bool verify_block_chain(block *chain_tail) {
             if (strcmp(hash, temp->header->prev_block_header_hash) == 0) {
                 temp = get_block_by_hash(temp->header->prev_block_header_hash);
             } else {
-                general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid: previous block hash doesn't match!");
+                general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid: previous block hash doesn't match!\n Error block: the last %dth block",i);
                 return false;
             }
         }
+
+        i++;
     }
 }
 
@@ -242,7 +289,7 @@ void print_block_chain(block *chain_tail){
     strcat(print_content,temp_hash);
 
     while (true){
-        if(strcmp(temp->header->prev_block_header_hash, "") == 0){
+        if(temp==NULL||strcmp(temp->header->prev_block_header_hash, "") == 0){
             general_log(LOG_SCOPE, LOG_INFO, "Block chain structure: %s", print_content);
             return ;
         }else{
@@ -250,9 +297,33 @@ void print_block_chain(block *chain_tail){
             strcat(print_content,temp->header->prev_block_header_hash);
             temp = get_block_by_hash(temp->header->prev_block_header_hash);
             if(temp==NULL){
+
                 general_log(LOG_SCOPE, LOG_INFO, "Blockchain structure: %s", print_content);
                 return ;
             }
         }
     }
+}
+
+/**
+ * Create a new block based on its header information, transactions information
+ * @param block_data The incomming header, transactions
+ * @param dest Where the result block will be written to
+ * @return True for success, false otherwise.
+ * @author Junjian Chen
+ */
+bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest){
+    block *ret_block= create_an_empty_block(block_data->transaction_list->txn_count);
+    memcpy(ret_block->header->prev_block_header_hash,block_data->header->prev_block_header_hash,65);
+    ret_block->header->time=block_data->header->time;
+    memcpy(ret_block->header->merkle_root_hash,block_data->header->merkle_root_hash,65);
+    ret_block->header->nBits=block_data->header->nBits;
+    ret_block->header->nonce=block_data->header->nonce;
+    ret_block->header->version=block_data->header->version;
+    ret_block->txn_count=block_data->transaction_list->txn_count;
+    ret_block->txns=block_data->transaction_list->txns;
+    *dest = *ret_block;
+
+    return true;
+
 }

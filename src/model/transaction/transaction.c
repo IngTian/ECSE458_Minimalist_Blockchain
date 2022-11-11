@@ -445,3 +445,37 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
 
     return true;
 }
+
+/**
+ * Verify a transaction with a txid
+ * @param txid txid of the transaction
+ * @return True if it is valid. False otherwise
+ * @author Junjian Chen
+ */
+bool verify_transaction(transaction *t){
+
+    // Check if the sum of input is equal
+    // to the sum of outputs.
+    long int input_sum = 0, output_sum = 0;
+
+    for (int i = 0; i < t->tx_in_count; i++) {
+        transaction_input input = t->tx_ins[i];
+//        if(!verify_transaction_input(&input)) return false;
+        char *previous_transaction_id = input.previous_outpoint.hash;
+        unsigned int previous_output_id = input.previous_outpoint.index;
+        transaction *previous_transaction = g_hash_table_lookup(g_global_transaction_table, previous_transaction_id);
+        input_sum += previous_transaction->tx_outs[previous_output_id].value;
+    }
+
+    for (int i = 0; i < t->tx_out_count; i++) {
+        output_sum += t->tx_outs[i].value;
+    }
+
+    if (input_sum != output_sum) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Input (%ld) does not equal output (%ld).", input_sum, output_sum);
+        return false;
+    }
+
+    return true;
+
+}

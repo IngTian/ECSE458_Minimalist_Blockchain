@@ -23,9 +23,10 @@ int main() {
     char* genesis_block_hash = get_genesis_block_hash();
 
     // Start testing.
-    long int start_time = get_timestamp();
+
 
     for (int i = 0; i < 100000; i++) {
+
         char *previous_transaction_id = get_transaction_txid(previous_transaction);
         transaction_create_shortcut_input input = {.previous_output_idx = 0,
                                                    .previous_txid = previous_transaction_id,
@@ -37,6 +38,7 @@ int main() {
 
         transaction_create_shortcut create_data = {
             .num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output, .inputs = &input};
+
 
         transaction *t = (transaction *)malloc(sizeof(transaction));
 //        print_all_transactions();
@@ -51,6 +53,27 @@ int main() {
         previous_transaction = t;
         previous_output_private_key = (char *)new_private_key;
 
+        /** Verify transaction input/outputs **/
+
+        long int start_time = get_timestamp();
+
+        verify_transaction(t);
+
+        long int end_time = get_timestamp();
+
+        verify_tx_time+=(end_time-start_time);
+
+        /** Verify transaction cryptography **/
+
+        start_time = get_timestamp();
+
+        verify_transaction_cryptography(t);
+
+        end_time = get_timestamp();
+
+        verify_tx_signature+=(end_time-start_time);
+
+
         block* b= create_an_empty_block(10);
         b->header->version=i+5;
         append_prev_block(previous_block,b);
@@ -60,10 +83,34 @@ int main() {
 
     }
 
+    long int start_time = get_timestamp();
+
     verify_block_chain(previous_block);
-    print_block_chain(previous_block);
+
+    long int end_time = get_timestamp();
+
+    long int verify_block_time=end_time-start_time;
+
+
+
+
+    start_time = get_timestamp();
+
+    char* msg_to_hash="hello,world";
+
+    for(int i=0; i<10000; i++){
+        msg_to_hash=hash_struct_in_hex(msg_to_hash, sizeof(msg_to_hash));
+    }
+
+    end_time = get_timestamp();
+
+    hash_time=end_time-start_time;
+
+//    print_block_chain(previous_block);
 
     // Record time consumed.
-    long int end_time = get_timestamp();
-    general_log(LOG_SCOPE, LOG_INFO, "Time consumed = %ld ms", end_time - start_time);
+    general_log(LOG_SCOPE, LOG_INFO, "Time consumed to verify transaction= %ld ms", verify_tx_time);
+    general_log(LOG_SCOPE, LOG_INFO, "Time consumed to verify transaction signature= %ld ms", verify_tx_signature);
+    general_log(LOG_SCOPE, LOG_INFO, "Time consumed to verify blocks= %ld ms", verify_block_time);
+    general_log(LOG_SCOPE, LOG_INFO, "Time consumed to hash= %ld ms", hash_time);
 }
