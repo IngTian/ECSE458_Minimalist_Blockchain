@@ -25,7 +25,7 @@ int main() {
     // Start testing.
     long int start_time = get_timestamp();
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 100000; i++) {
         char *previous_transaction_id = get_transaction_txid(previous_transaction);
         transaction_create_shortcut_input input = {.previous_output_idx = 0,
                                                    .previous_txid = previous_transaction_id,
