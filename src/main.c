@@ -24,14 +24,9 @@ int main() {
 
     // Start testing.
 
-    long int verify_tx_time = 0;
-    long int verify_tx_signature = 0;
-    long int verify_block = 0;
-    long int hash_time= 0;
 
+    for (int i = 0; i < 100000; i++) {
 
-
-    for (int i = 0; i < 50000; i++) {
         char *previous_transaction_id = get_transaction_txid(previous_transaction);
         transaction_create_shortcut_input input = {.previous_output_idx = 0,
                                                    .previous_txid = previous_transaction_id,
