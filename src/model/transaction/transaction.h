@@ -67,5 +67,4 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *, transaction 
 bool finalize_transaction(transaction *);
 void print_all_transactions();
 void print_utxo();
-bool verify_transaction_cryptography(transaction *);
 #endif
