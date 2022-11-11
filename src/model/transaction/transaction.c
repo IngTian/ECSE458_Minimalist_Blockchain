@@ -12,7 +12,7 @@
 
 static unsigned int g_total_number_of_transactions;  // The total number of transactions in the system.
 static GHashTable *g_global_transaction_table;       // The global transaction table, mapping TXID to transaction.
-static GHashTable *g_utxo;  // Unspent Transaction Output. mapping each transaction output to its value left.
+static GHashTable *g_utxo;                           // Unspent Transaction Output. mapping each transaction output to its value left.
 char *g_genesis_private_key;
 secp256k1_pubkey *g_genesis_public_key;
 
@@ -78,8 +78,7 @@ bool verify_transaction_input(transaction_input *i) {
  */
 void free_transaction_input(transaction_input *input) {
     if (input != NULL) {
-        if (input->signature_script != NULL)
-            free(input->signature_script);
+        if (input->signature_script != NULL) free(input->signature_script);
         free(input);
     }
 }
@@ -97,14 +96,12 @@ static void free_transaction_output(transaction_output *output) {
 void print_transaction(void *transaction_id, void *tx, void *user_data) {
     char *txid = (char *)transaction_id;
     transaction *t = (transaction *)tx;
-    printf("TXID: %s VERSION: %d TX IN COUNT: %u TX OUT COUNT: %u LOCK: %u\n", txid, t->version, t->tx_in_count,
-           t->tx_out_count, t->lock_time);
+    printf("TXID: %s VERSION: %d TX IN COUNT: %u TX OUT COUNT: %u LOCK: %u\n", txid, t->version, t->tx_in_count, t->tx_out_count, t->lock_time);
     printf("<Printing Inputs>\n");
     for (int i = 0; i < t->tx_in_count; i++) {
         transaction_input input = t->tx_ins[i];
-        printf("SEQ: %u SIG: %s OUTPOINT HASH: %s OUTPOINT ID: %u\n", input.sequence,
-               convert_char_hexadecimal(input.signature_script, 64), input.previous_outpoint.hash,
-               input.previous_outpoint.index);
+        printf("SEQ: %u SIG: %s OUTPOINT HASH: %s OUTPOINT ID: %u\n", input.sequence, convert_char_hexadecimal(input.signature_script, 64),
+               input.previous_outpoint.hash, input.previous_outpoint.index);
     }
     printf("<Printing Outputs>\n");
     for (int i = 0; i < t->tx_out_count; i++) {
@@ -122,15 +119,13 @@ void print_utxo_entry(void *h, void *v, void *user_data) {
     printf("\n");
 }
 
-void free_transaction_table_entry(void *txid, void *tx, void *user_data) {
-    free(txid);
-    destroy_transaction((transaction *)tx);
-}
+void free_transaction_table_key(char *key) { free(key); }
 
-void free_utxo_table_entry(void *utxo_id, void *val, void *user_data) {
-    free(utxo_id);
-    free(val);
-}
+void free_transaction_table_val(void *val) { destroy_transaction(val); }
+
+void free_utxo_table_key(void *key) { free(key); }
+
+void free_utxo_table_val(void *val) { free(val); }
 
 /*
  * -----------------------------------------------------------
@@ -145,11 +140,12 @@ void free_utxo_table_entry(void *utxo_id, void *val, void *user_data) {
  * @author Ing Tian
  */
 transaction *initialize_transaction_system() {
-    g_global_transaction_table = g_hash_table_new(g_str_hash, g_str_equal);
-    g_utxo = g_hash_table_new(g_str_hash, g_str_equal);
+    g_global_transaction_table = g_hash_table_new_full(g_str_hash, g_str_equal, free_transaction_table_key, free_transaction_table_val);
+    g_utxo = g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
 
     transaction *genesis_transaction = create_an_empty_transaction(1, 1);
-    genesis_transaction->tx_ins[0].signature_script = "";
+    genesis_transaction->tx_ins[0].signature_script = (char *)malloc(65);
+    genesis_transaction->tx_ins[0].signature_script[64] = '\0';
     genesis_transaction->tx_ins[0].sequence = 1;
     genesis_transaction->tx_ins[0].script_bytes = 0;
     genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
@@ -181,11 +177,10 @@ transaction *initialize_transaction_system() {
  * @author Ing Tian
  */
 void destroy_transaction_system() {
-    g_hash_table_foreach(g_global_transaction_table, free_transaction_table_entry, NULL);
-    g_hash_table_foreach(g_utxo, free_utxo_table_entry, NULL);
-    free(g_utxo);
-    free(g_global_transaction_table);
-
+    g_hash_table_remove_all(g_global_transaction_table);
+    g_hash_table_remove_all(g_utxo);
+    g_hash_table_destroy(g_global_transaction_table);
+    g_hash_table_destroy(g_utxo);
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the transaction module.");
 }
 
@@ -203,9 +198,7 @@ char *get_transaction_txid(transaction *t) { return hash_struct_in_hex(t, sizeof
  * @return The SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_transaction_output(transaction_output *output) {
-    return hash_struct_in_hex(output, sizeof(transaction_output));
-}
+char *hash_transaction_output(transaction_output *output) { return hash_struct_in_hex(output, sizeof(transaction_output)); }
 
 /**
  * Get the SHA256 hashcode of a transaction outpoint.
@@ -213,9 +206,7 @@ char *hash_transaction_output(transaction_output *output) {
  * @return The SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
-    return hash_struct_in_hex(outpoint, sizeof(transaction_outpoint));
-}
+char *hash_transaction_outpoint(transaction_outpoint *outpoint) { return hash_struct_in_hex(outpoint, sizeof(transaction_outpoint)); }
 
 /**
  * Get the total number of transactions in the system.
@@ -390,21 +381,19 @@ transaction *get_transaction_by_txid(char *txid) {
  * @author Ing Tian
  */
 bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_data, transaction *dest) {
-    transaction *ret_tx =
-        create_an_empty_transaction(transaction_data->num_of_inputs, transaction_data->num_of_outputs);
+    transaction *ret_tx = create_an_empty_transaction(transaction_data->num_of_inputs, transaction_data->num_of_outputs);
     for (int i = 0; i < transaction_data->num_of_inputs; i++) {
         transaction_create_shortcut_input curr_input_data = transaction_data->inputs[i];
 
         if (!g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid)) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Failed to find the previous transaction with the given TXID: %s",
-                        curr_input_data.previous_txid);
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to find the previous transaction with the given TXID: %s", curr_input_data.previous_txid);
             return false;
         }
         transaction *previous_tx = g_hash_table_lookup(g_global_transaction_table, curr_input_data.previous_txid);
 
         if (curr_input_data.previous_output_idx >= previous_tx->tx_out_count) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Previous output index (%u) is out of scope (%u).",
-                        curr_input_data.previous_output_idx, previous_tx->tx_out_count);
+            general_log(LOG_SCOPE, LOG_ERROR, "Previous output index (%u) is out of scope (%u).", curr_input_data.previous_output_idx,
+                        previous_tx->tx_out_count);
             return false;
         }
         transaction_output previous_tx_output = previous_tx->tx_outs[curr_input_data.previous_output_idx];
@@ -430,8 +419,7 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
     for (int i = 0; i < transaction_data->num_of_outputs; i++) {
         transaction_create_shortcut_output curr_output_data = transaction_data->outputs[i];
 
-        transaction_output output = {
-            .value = curr_output_data.value, .pk_script_bytes = 64, .pk_script = (char *)malloc(65)};
+        transaction_output output = {.value = curr_output_data.value, .pk_script_bytes = 64, .pk_script = (char *)malloc(65)};
         output.pk_script[64] = '\0';
         memcpy(output.pk_script, curr_output_data.public_key, 64);
 

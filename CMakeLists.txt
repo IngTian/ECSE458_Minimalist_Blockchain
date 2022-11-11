@@ -33,6 +33,11 @@ pkg_search_module(GLIB REQUIRED glib-2.0)
 include_directories(${GTK2_INCLUDE_DIRS})
 link_directories(${GTK2_LIBRARY_DIRS})
 
+# Check
+find_library(check_library_location check)
+add_library(check_library SHARED IMPORTED)
+set_target_properties(check_library PROPERTIES IMPORTED_LOCATION ${check_library_location})
+
 # secp256k1
 include_directories(/usr/local/include)
 include_directories(/usr/local/lib)
@@ -71,4 +76,9 @@ add_executable(main src/main.c)
 set_target_properties(main PROPERTIES LINKER_LANGUAGE C)
 target_include_directories(main PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS})
 target_link_libraries(main ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 ${LIBMYSQLCLIENT_LIBRARIES})
+
+add_executable(test test/model/transaction_test.c)
+set_target_properties(test PROPERTIES LINKER_LANGUAGE C)
+target_include_directories(test PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS} /opt/homebrew/Cellar/check/0.15.2/include)
+target_link_libraries(test ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 check_library ${LIBMYSQLCLIENT_LIBRARIES})
 #endregion
