@@ -73,17 +73,17 @@ START_TEST(test_print_utxo) {
 }
 END_TEST
 
-START_TEST(test_create_new_transaction_shortcut) {
+START_TEST(test_create_new_transaction_shortcut1) {
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
     /**
      * Test case:
-     * !g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid): true.
-     * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: true.
-     * !append_new_transaction_input(ret_tx, input, i): true.
-     * !append_new_transaction_output(ret_tx, output, i): true.
-     * input_sum != output_sum: true
+     * !g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid): false.
+     * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: false.
+     * !append_new_transaction_input(ret_tx, input, i): false.
+     * !append_new_transaction_output(ret_tx, output, i): false.
+     * input_sum != output_sum: false
      */
     char *previous_transaction_id = get_transaction_txid(genesis_t);
     transaction_create_shortcut_input input = {
@@ -97,55 +97,85 @@ START_TEST(test_create_new_transaction_shortcut) {
     ck_assert_msg(create_new_transaction_shortcut(&create_data, new_t1), "Assert create new transaction successfully, but receive returning false!");
     ck_assert_msg(finalize_transaction(new_t1), "Assert create new transaction successfully, but receive returning false!");
 
+    //Destroy.
+    destroy_transaction_system();
+    destroy_cryptography_system();
+}
+END_TEST
 
-//    /**
-//     * Test case:
-//     * !g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid): false.
-//     * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: true.
-//     * !append_new_transaction_input(ret_tx, input, i): true.
-//     * !append_new_transaction_output(ret_tx, output, i): true.
-//     * input_sum != output_sum: true
-//     */
-//    previous_transaction_id = get_transaction_txid(new_t1);
-//    previous_transaction_id[0]='a';
-//    transaction_create_shortcut_input input2 = {
-//        .previous_output_idx = 0, .previous_txid = previous_transaction_id, .private_key = (char*)new_private_key};
-//    unsigned char *new_private_key2 = get_a_new_private_key();
-//    secp256k1_pubkey *new_public_key2 = get_a_new_public_key((char *)new_private_key2);
-//    transaction_create_shortcut_output output2 = {.value = TOTAL_NUMBER_OF_COINS, .public_key = (char *)new_public_key2->data};
-//    transaction_create_shortcut create_data2 = {.num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output2, .inputs = &input2};
-//    transaction *new_t2 = (transaction *)malloc(sizeof(transaction));
-//
-//    ck_assert_msg(!create_new_transaction_shortcut(&create_data2, new_t2), "Assert create new transaction successfully, but receive returning false!");
-//    ck_assert_msg(!finalize_transaction(new_t2), "Assert create new transaction successfully, but receive returning false!");
-//
-//    /**
-//     * Test case:
-//     * !g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid): true.
-//     * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: false.
-//     * !append_new_transaction_input(ret_tx, input, i): true.
-//     * !append_new_transaction_output(ret_tx, output, i): true.
-//     * input_sum != output_sum: true
-//     */
-//    previous_transaction_id = get_transaction_txid(new_t1);
-//    transaction_create_shortcut_input input3 = {
-//        .previous_output_idx = 1, .previous_txid = previous_transaction_id, .private_key = (char*)new_private_key};
-//    unsigned char *new_private_key3 = get_a_new_private_key();
-//    secp256k1_pubkey *new_public_key3 = get_a_new_public_key((char *)new_private_key3);
-//    transaction_create_shortcut_output output3 = {.value = TOTAL_NUMBER_OF_COINS, .public_key = (char *)new_public_key3->data};
-//    transaction_create_shortcut create_data3 = {.num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output3, .inputs = &input3};
-//    transaction *new_t3 = (transaction *)malloc(sizeof(transaction));
-//
-//    ck_assert_msg(create_new_transaction_shortcut(&create_data3, new_t3), "Assert create new transaction successfully, but receive returning false!");
-//    ck_assert_msg(finalize_transaction(new_t3), "Assert create new transaction successfully, but receive returning false!");
+START_TEST(test_create_new_transaction_shortcut2){
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    transaction *genesis_t = initialize_transaction_system();
 
+    /**
+     * Test case:
+     * !g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid): true.
+     * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: false.
+     * !append_new_transaction_input(ret_tx, input, i): false.
+     * !append_new_transaction_output(ret_tx, output, i): false.
+     * input_sum != output_sum: false.
+     */
+    char* previous_transaction_id = get_transaction_txid(genesis_t);
+    previous_transaction_id[0]='a';
+    transaction_create_shortcut_input input2 = {
+        .previous_output_idx = 0, .previous_txid = previous_transaction_id, .private_key = get_genesis_transaction_private_key()};
+    unsigned char *new_private_key2 = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key2 = get_a_new_public_key((char *)new_private_key2);
+    transaction_create_shortcut_output output2 = {.value = TOTAL_NUMBER_OF_COINS, .public_key = (char *)new_public_key2->data};
+    transaction_create_shortcut create_data2 = {.num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output2, .inputs = &input2};
+    transaction *new_t2 = (transaction *)malloc(sizeof(transaction));
 
+    ck_assert_msg(!create_new_transaction_shortcut(&create_data2, new_t2), "Assert create new transaction fail, but receive returning true!");
+    //TODO: finalize
+    //ck_assert_msg(!finalize_transaction(new_t2), "Assert create new transaction fail, but receive returning true!");
 
     //Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
+
+START_TEST(test_create_new_transaction_shortcut3){
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    transaction *genesis_t = initialize_transaction_system();
+
+    /**
+     * Test case:
+     * !g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid): false.
+     * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: true.
+     * !append_new_transaction_input(ret_tx, input, i): false.
+     * !append_new_transaction_output(ret_tx, output, i): false.
+     * input_sum != output_sum: false
+     */
+    char* previous_transaction_id = get_transaction_txid(genesis_t);
+    transaction_create_shortcut_input input3 = {
+        .previous_output_idx = 2, .previous_txid = previous_transaction_id, .private_key = get_genesis_transaction_private_key()};
+    unsigned char *new_private_key3 = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key3 = get_a_new_public_key((char *)new_private_key3);
+    transaction_create_shortcut_output output3 = {.value = TOTAL_NUMBER_OF_COINS, .public_key = (char *)new_public_key3->data};
+    transaction_create_shortcut create_data3 = {.num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output3, .inputs = &input3};
+    transaction *new_t3 = (transaction *)malloc(sizeof(transaction));
+
+    ck_assert_msg(!create_new_transaction_shortcut(&create_data3, new_t3), "Assert create new transaction successfully, but receive returning false!");
+    //TODO: finalize
+    //ck_assert_msg(!finalize_transaction(new_t3), "Assert create new transaction successfully, but receive returning false!");
+
+    //Destroy.
+    destroy_transaction_system();
+    destroy_cryptography_system();
+}
+END_TEST
+
+START_TEST(t3){
+
+}
+END_TEST
+
+START_TEST(t2){
+
+}
+END_TEST
+
 
 START_TEST(test_get_transaction_txid) {
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
@@ -247,12 +277,6 @@ Suite *transaction_suite(void) {
     tcase_add_test(tc_print_utxo, test_print_utxo);
     suite_add_tcase(s, tc_print_utxo);
 
-    /* tc_get_genesis_t_pub_key test case */
-    TCase *tc_create_new_transaction_shortcut;
-    tc_create_new_transaction_shortcut = tcase_create("tc_create_new_transaction_shortcut");
-    tcase_add_test(tc_create_new_transaction_shortcut, test_create_new_transaction_shortcut);
-    suite_add_tcase(s, tc_create_new_transaction_shortcut);
-
     /* tc_get_transaction_txid test case */
     TCase *tc_get_transaction_txid;
     tc_get_transaction_txid = tcase_create("tc_get_transaction_txid");
@@ -270,6 +294,24 @@ Suite *transaction_suite(void) {
     tc_destroy_transaction = tcase_create("tc_destroy_transaction");
     tcase_add_test(tc_destroy_transaction, test_destroy_transaction);
     suite_add_tcase(s, tc_destroy_transaction);
+
+    /* tc_create_new_transaction_shortcut1 test case */
+    TCase *tc_create_new_transaction_shortcut1;
+    tc_create_new_transaction_shortcut1 = tcase_create("tc_create_new_transaction_shortcut1");
+    tcase_add_test(tc_create_new_transaction_shortcut1, test_create_new_transaction_shortcut1);
+    suite_add_tcase(s, tc_create_new_transaction_shortcut1);
+
+    /* tc_create_new_transaction_shortcut2 test case */
+    TCase *tc_create_new_transaction_shortcut2;
+    tc_create_new_transaction_shortcut2 = tcase_create("tc_create_new_transaction_shortcut2");
+    tcase_add_test(tc_create_new_transaction_shortcut2, test_create_new_transaction_shortcut2);
+    suite_add_tcase(s, tc_create_new_transaction_shortcut2);
+
+    /* tc_create_new_transaction_shortcut3 test case */
+    TCase *tc_create_new_transaction_shortcut3;
+    tc_create_new_transaction_shortcut3 = tcase_create("tc_create_new_transaction_shortcut3");
+    tcase_add_test(tc_create_new_transaction_shortcut3, test_create_new_transaction_shortcut3);
+    suite_add_tcase(s, tc_create_new_transaction_shortcut3);
 
     return s;
 }

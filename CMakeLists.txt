@@ -81,4 +81,9 @@ add_executable(test test/model/transaction_test.c)
 set_target_properties(test PROPERTIES LINKER_LANGUAGE C)
 target_include_directories(test PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS} /opt/homebrew/Cellar/check/0.15.2/include)
 target_link_libraries(test ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 check_library ${LIBMYSQLCLIENT_LIBRARIES})
+
+add_executable(test_block test/model/block_test.c)
+set_target_properties(test_block PROPERTIES LINKER_LANGUAGE C)
+target_include_directories(test_block PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS} /opt/homebrew/Cellar/check/0.15.2/include)
+target_link_libraries(test_block ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 check_library ${LIBMYSQLCLIENT_LIBRARIES})
 #endregion
