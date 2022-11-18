@@ -1,5 +1,7 @@
 #region Macro Settings.
 cmake_minimum_required(VERSION 3.10)
+set(CMAKE_C_COMPILER "clang")
+set(CMAKE_CXX_COMPILER "clang++")
 project(MinimalistBlockChainSystem)
 
 include_directories(src)
@@ -21,11 +23,18 @@ include(CheckTypeSize)
 include(CheckLibraryExists)
 include(FindPkgConfig)
 
+# Test coverage
+set(GCC_COVERAGE_COMPILE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -mllvm -runtime-counter-relocation")
+set(GCC_COVERAGE_LINK_FLAGS "--coverage")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
+
 # MySQL
 pkg_check_modules(LIBMYSQLCLIENT REQUIRED mysqlclient)
-foreach(FLAG ${LIBMYSQLCLIENT_CFLAGS_OTHER})
+foreach (FLAG ${LIBMYSQLCLIENT_CFLAGS_OTHER})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
-endforeach()
+endforeach ()
 link_directories(${LIBMYSQLCLIENT_LIBRARY_DIRS})
 
 # Glib
