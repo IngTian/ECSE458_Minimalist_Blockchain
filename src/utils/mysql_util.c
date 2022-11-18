@@ -3,70 +3,81 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define LOG_SCOPE "mysql_util"
+
 MYSQL *g_mysql_client;
+
+void finish_with_error() {
+    //fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
+    general_log(LOG_SCOPE, LOG_ERROR, "my_sql query error: %s", mysql_error(g_mysql_client));
+    mysql_close(g_mysql_client);
+    exit(1);
+}
 
 void initialize_mysql_system(mysql_config) {
     mysql_init(g_mysql_client);
 
     if (g_mysql_client == NULL) {
-        fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
+        //fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
+        general_log(LOG_SCOPE, LOG_ERROR, "my_sql initialize error: %s", mysql_error(g_mysql_client));
         exit(1);
     }
 
     if (mysql_real_connect(g_mysql_client, mysql_config->host_addr, mysql_config->username, mysql_config->password, mysql_config->db,
                            mysql_config->port_number, mysql_config->unix_socket, mysql_config->client_flag) == NULL) {
-        fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
+        //fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
+        general_log(LOG_SCOPE, LOG_ERROR, "my_sql real connect error: %s", mysql_error(g_mysql_client));
         mysql_close(g_mysql_client);
         exit(1);
     }
 
-    if (mysql_query(g_mysql_client, "CREATE DATABASE testdb")) {
-        fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
-        mysql_close(g_mysql_client);
-        exit(1);
-    }
+    // if (mysql_query(g_mysql_client, "CREATE DATABASE testdb")) {
+    //     fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
+    //     mysql_close(g_mysql_client);
+    //     exit(1);
+    // }
 }
 
 bool mysql_create_database(char *sql_query) {
-    if (mysql_query(g_mysql_client, char *sql_query)) {
-        finish_with_error(con);
+    if (mysql_query(g_mysql_client, sql_query)) {
+        finish_with_error(g_mysql_client);
     }
-    return 1;
+    return True;
 }
 
 bool mysql_destroy_database(char *sql_query) {
-    if (mysql_query(g_mysql_client, char *sql_query)) {
-        finish_with_error(con);
+    if (mysql_query(g_mysql_client, sql_query)) {
+        finish_with_error(g_mysql_client);
     }
-    return 1;
+    return True;
 }
 
 bool mysql_create(char *sql_query) {
-    if (mysql_query(g_mysql_client, char *sql_query)) {
-        finish_with_error(con);
+    if (mysql_query(g_mysql_client, sql_query)) {
+        finish_with_error(g_mysql_client);
     }
-    return 1;
+    return True;
 }
 
-bool mysql_read(char *sql_query){
-    if (mysql_query(g_mysql_client, char *sql_query)) {
-        finish_with_error(con);
+MYSQL_RES mysql_read(char *sql_query) {
+    if (mysql_query(g_mysql_client, sql_query)) {
+        finish_with_error(g_mysql_client);
     }
-    return 1;
+    MYSQL_RES *result = mysql_store_result(g_mysql_client);
+    return result;
 }
-
 
 bool mysql_update(char *sql_query) {
-    if (mysql_query(g_mysql_client, char *sql_query)) {
-        finish_with_error(con);
+    if (mysql_query(g_mysql_client, sql_query)) {
+        finish_with_error(g_mysql_client);
     }
-    return 1;
+    return True;
 }
 bool mysql_delete(char *sql_query) {
-    if (mysql_query(g_mysql_client, char *sql_query)) {
-        finish_with_error(con);
+    if (mysql_query(g_mysql_client, sql_query)) {
+        finish_with_error(g_mysql_client);
     }
-    return 1;
+    return True;
 }
 
 // int get_previous_insert_id(MYSQL *mysql_database) {
@@ -76,48 +87,11 @@ bool mysql_delete(char *sql_query) {
 //     return id;
 // }
 
-MYSQL_RES *mysql_retrieve_data() {
-    MYSQL_RES *result = mysql_store_result(g_mysql_client);
-
-    if (result == NULL) {
-        finish_with_error(g_mysql_client);
-    }
-
-    int num_fields = mysql_num_fields(result);
-
-    MYSQL_ROW row;
-    MYSQL_FIELD *field;
-
-    while ((row = mysql_fetch_row(result))) {
-        for (int i = 0; i < num_fields; i++) {
-            if (i == 0) {
-                while (field = mysql_fetch_field(result)) {
-                    printf("%s ", field->name);
-                }
-                printf("\n");
-            }
-            printf("%s ", row[i] ? row[i] : "NULL");
-        }
-
-        printf("\n");
-    }
-
-    return result;
-}
+void mysql_delete_result(MYSQL_RES *result) { free(result); }
 
 void destroy_mysql_system() {
     mysql_close(g_mysql_client);
-    mysql_free_result(result);
     free(g_mysql_client);
-    exit(0);
 }
 
-void finish_with_error() {
-    fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
-    mysql_close(g_mysql_client);
-    exit(1);
-}
-
-int main(int argc, char **argv) {
-
-}
+int main(int argc, char **argv) {}
