@@ -1,19 +1,20 @@
 #include "mysql_util.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 
 MYSQL *g_mysql_client;
 
-
-bool initialize_mysql_system() {
-    g_mysql_client = mysql_init(NULL);
+void initialize_mysql_system(mysql_config) {
+    mysql_init(g_mysql_client);
 
     if (g_mysql_client == NULL) {
         fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
         exit(1);
     }
 
-    if (mysql_real_connect(g_mysql_client, "localhost", "root", "root_passwd", NULL, 0, NULL, 0) == NULL) {
+    if (mysql_real_connect(g_mysql_client, mysql_config->host_addr, mysql_config->username, mysql_config->password, mysql_config->db,
+                           mysql_config->port_number, mysql_config->unix_socket, mysql_config->client_flag) == NULL) {
         fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
         mysql_close(g_mysql_client);
         exit(1);
@@ -26,18 +27,60 @@ bool initialize_mysql_system() {
     }
 }
 
-int get_previous_insert_id(MYSQL *mysql_database) {
-    int id = mysql_insert_id(mysql_database);
-    printf("The last inserted row id is: %d\n", id);
-
-    return id;
+bool mysql_create_database(char *sql_query) {
+    if (mysql_query(g_mysql_client, char *sql_query)) {
+        finish_with_error(con);
+    }
+    return 1;
 }
 
-void mysql_retrieve_data(MYSQL *mysql_database) {
-    MYSQL_RES *result = mysql_store_result(mysql_database);
+bool mysql_destroy_database(char *sql_query) {
+    if (mysql_query(g_mysql_client, char *sql_query)) {
+        finish_with_error(con);
+    }
+    return 1;
+}
+
+bool mysql_create(char *sql_query) {
+    if (mysql_query(g_mysql_client, char *sql_query)) {
+        finish_with_error(con);
+    }
+    return 1;
+}
+
+bool mysql_read(char *sql_query){
+    if (mysql_query(g_mysql_client, char *sql_query)) {
+        finish_with_error(con);
+    }
+    return 1;
+}
+
+
+bool mysql_update(char *sql_query) {
+    if (mysql_query(g_mysql_client, char *sql_query)) {
+        finish_with_error(con);
+    }
+    return 1;
+}
+bool mysql_delete(char *sql_query) {
+    if (mysql_query(g_mysql_client, char *sql_query)) {
+        finish_with_error(con);
+    }
+    return 1;
+}
+
+// int get_previous_insert_id(MYSQL *mysql_database) {
+//     int id = mysql_insert_id(mysql_database);
+//     printf("The last inserted row id is: %d\n", id);
+
+//     return id;
+// }
+
+MYSQL_RES *mysql_retrieve_data() {
+    MYSQL_RES *result = mysql_store_result(g_mysql_client);
 
     if (result == NULL) {
-        finish_with_error(mysql_database);
+        finish_with_error(g_mysql_client);
     }
 
     int num_fields = mysql_num_fields(result);
@@ -59,26 +102,22 @@ void mysql_retrieve_data(MYSQL *mysql_database) {
         printf("\n");
     }
 
-    mysql_free_result(result);
+    return result;
 }
 
-
-void destroy_mysql_connection(MYSQL *mysql_database) {
-    mysql_close(mysql_database);
+void destroy_mysql_system() {
+    mysql_close(g_mysql_client);
+    mysql_free_result(result);
+    free(g_mysql_client);
     exit(0);
 }
 
-
-void finish_with_error(MYSQL *mysql_database) {
-    fprintf(stderr, "%s\n", mysql_error(mysql_database));
-    mysql_close(mysql_database);
+void finish_with_error() {
+    fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
+    mysql_close(g_mysql_client);
     exit(1);
 }
 
-
 int main(int argc, char **argv) {
-    initialize_mysql_system(g_mysql_client);
-    execute_mysql_query(g_mysql_client, "CREATE TABLE cars(id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), price INT)");
-    execute_mysql_query(g_mysql_client, "INSERT INTO cars VALUES(1,'Audi',52642)");
-    destroy_mysql_connection(g_mysql_client);
+
 }
