@@ -119,7 +119,7 @@ void print_utxo_entry(void *h, void *v, void *user_data) {
     printf("\n");
 }
 
-void free_transaction_table_key(char *key) { free(key); }
+void free_transaction_table_key(void *key) { free(key); }
 
 void free_transaction_table_val(void *val) { destroy_transaction(val); }
 
