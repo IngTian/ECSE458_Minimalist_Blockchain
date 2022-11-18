@@ -278,34 +278,6 @@ bool verify_block_chain(block *chain_tail) {
 char *get_genesis_block_hash() { return g_genesis_block_hash; }
 
 /**
- * Print the structure of the block chain
- * @param chain_tail The tail block.
- * @author Junjian Chen
- */
-void print_block_chain(block *chain_tail){
-    block *temp = chain_tail;
-    char print_content[1000];
-    char * temp_hash= hash_block_header(temp->header);
-    strcat(print_content,temp_hash);
-
-    while (true){
-        if(temp==NULL||strcmp(temp->header->prev_block_header_hash, "") == 0){
-            general_log(LOG_SCOPE, LOG_INFO, "Block chain structure: %s", print_content);
-            return ;
-        }else{
-            strcat(print_content,"\n                                      <-----");
-            strcat(print_content,temp->header->prev_block_header_hash);
-            temp = get_block_by_hash(temp->header->prev_block_header_hash);
-            if(temp==NULL){
-
-                general_log(LOG_SCOPE, LOG_INFO, "Blockchain structure: %s", print_content);
-                return ;
-            }
-        }
-    }
-}
-
-/**
  * Create a new block based on its header information, transactions information
  * @param block_data The incomming header, transactions
  * @param dest Where the result block will be written to

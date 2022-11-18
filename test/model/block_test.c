@@ -4,6 +4,10 @@
 #include <stdlib.h>
 
 #include "utils/constants.h"
+#include "utils/sys_utils.h"
+
+void test_create_transaction_foo(transaction* previous_transaction, char* previous_private_key, unsigned char* current_private_key);
+
 
 START_TEST(test_block_system_init_and_destroy) {
     //Init
@@ -48,14 +52,18 @@ START_TEST(test_create_empty_block){
 END_TEST
 
 START_TEST(test_destroy_block1){
+    /**
+     * destroy an empty block that does not be added into the system
+     */
     //Init
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     initialize_transaction_system();
     block* genesis_b = initialize_block_system();
 
     block* block1 = create_an_empty_block(10);
+    char* hash = hash_block_header(block1->header);
     destroy_block(block1);
-    //ck_assert_ptr_null(block1);
+    //ck_assert_ptr_null(get_block_by_hash(hash));
 
     //Destroy.
     //TODO:destroy block
@@ -66,15 +74,111 @@ START_TEST(test_destroy_block1){
 END_TEST
 
 START_TEST(test_destroy_block2){
+    /**
+     * Test create block but not finalize into the system
+     */
     //Init
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    initialize_transaction_system();
+    transaction* genesis_t = initialize_transaction_system();
     block* genesis_b = initialize_block_system();
 
-    //TODO: use shortcut to add transactions
-    block* block1;
-    destroy_block(block1);
-    //ck_assert_ptr_null(block1);
+    //Shortcut of block creating
+    char *previous_transaction_id = get_transaction_txid(genesis_t);
+    transaction_create_shortcut_input input = {.previous_output_idx = 0,
+                                               .previous_txid = previous_transaction_id,
+                                               .private_key = get_genesis_transaction_private_key()};
+    unsigned char *new_private_key = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
+    transaction_create_shortcut_output output = {.value = TOTAL_NUMBER_OF_COINS,
+                                                 .public_key = (char *)new_public_key->data};
+    transaction_create_shortcut create_data = {
+        .num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output, .inputs = &input};
+    transaction * new_t = (transaction *)malloc(sizeof(transaction));
+    create_new_transaction_shortcut(&create_data, new_t);
+    finalize_transaction(new_t);
+    block_header_shortcut block_header={
+        .prev_block_header_hash=NULL,
+        .version=0,
+        .nonce=0,
+        .nBits=0,
+        .merkle_root_hash=NULL,
+        .time=get_current_unix_time()
+    };
+    memcpy(block_header.prev_block_header_hash,get_genesis_block_hash(),65);
+    transaction **txns= malloc(sizeof(txns));
+    txns[0]=new_t;
+    transactions_shortcut txns_shortcut={
+        .txns=txns,
+        .txn_count=1
+    };
+    block_create_shortcut block_data={
+        .header=&block_header,
+        .transaction_list=&txns_shortcut
+    };
+
+    block* block1= (block *)malloc(sizeof(block));
+    create_new_block_shortcut(&block_data, block1);
+    char* hash = hash_block_header(block1->header);
+    //destroy_block(block1);
+    //ck_assert_ptr_null(get_block_by_hash(hash));
+
+    //Destroy.
+    //TODO:destroy block
+    //destroy_block_system();
+    destroy_transaction_system();
+    destroy_cryptography_system();
+}
+END_TEST
+
+START_TEST(test_destroy_block3){
+    /**
+     * Test create a block and add into the system and then destroy it
+     */
+    //Init
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    transaction * genesis_t = initialize_transaction_system();
+    block* genesis_b = initialize_block_system();
+
+    //Shortcut of the block
+    char *previous_transaction_id = get_transaction_txid(genesis_t);
+    transaction_create_shortcut_input input = {.previous_output_idx = 0,
+                                               .previous_txid = previous_transaction_id,
+                                               .private_key = get_genesis_transaction_private_key()};
+    unsigned char *new_private_key = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
+    transaction_create_shortcut_output output = {.value = TOTAL_NUMBER_OF_COINS,
+                                                 .public_key = (char *)new_public_key->data};
+    transaction_create_shortcut create_data = {
+        .num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output, .inputs = &input};
+    transaction * new_t = (transaction *)malloc(sizeof(transaction));
+    create_new_transaction_shortcut(&create_data, new_t);
+    finalize_transaction(new_t);
+    block_header_shortcut block_header={
+        .prev_block_header_hash=NULL,
+        .version=0,
+        .nonce=0,
+        .nBits=0,
+        .merkle_root_hash=NULL,
+        .time=get_current_unix_time()
+    };
+    memcpy(block_header.prev_block_header_hash,get_genesis_block_hash(),65);
+    transaction **txns= malloc(sizeof(txns));
+    txns[0]=new_t;
+    transactions_shortcut txns_shortcut={
+        .txns=txns,
+        .txn_count=1
+    };
+    block_create_shortcut block_data={
+        .header=&block_header,
+        .transaction_list=&txns_shortcut
+    };
+
+    block* block1= (block *)malloc(sizeof(block));
+    create_new_block_shortcut(&block_data, block1);
+    finalize_block(block1);
+    char* hash = hash_block_header(block1->header);
+    //destroy_block(block1);
+    //ck_assert_ptr_null(get_block_by_hash(hash));
 
     //Destroy.
     //TODO:destroy block
@@ -85,22 +189,17 @@ START_TEST(test_destroy_block2){
 END_TEST
 
 START_TEST(test_append_prev_block){
+    /**
+     * Test append prev block
+     */
     //Init
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction* genesis_t = initialize_transaction_system();
     block* genesis_b = initialize_block_system();
 
     block* new_block = create_an_empty_block(10);
-    char *previous_transaction_id = get_transaction_txid(genesis_t);
-    transaction_create_shortcut_input input = {
-        .previous_output_idx = 0, .previous_txid = previous_transaction_id, .private_key = get_genesis_transaction_private_key()};
-    unsigned char *new_private_key = get_a_new_private_key();
-    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
-    transaction_create_shortcut_output output = {.value = TOTAL_NUMBER_OF_COINS, .public_key = (char *)new_public_key->data};
-    transaction_create_shortcut create_data = {.num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output, .inputs = &input};
-    transaction *new_t1 = (transaction *)malloc(sizeof(transaction));
-    append_transaction_into_block(new_block, new_t1,0);
-
+    append_prev_block(genesis_b,new_block);
+    ck_assert_str_eq(new_block->header->prev_block_header_hash, hash_block_header(genesis_b->header));
 
     //Destroy.
     //TODO:destroy block
@@ -116,6 +215,8 @@ START_TEST(test_get_block_by_hash){
     initialize_transaction_system();
     block* genesis_b = initialize_block_system();
 
+    ck_assert_ptr_eq(genesis_b, get_block_by_hash(hash_block_header(genesis_b->header)));
+
     //Destroy.
     //TODO:destroy block
     //destroy_block_system();
@@ -124,7 +225,88 @@ START_TEST(test_get_block_by_hash){
 }
 END_TEST
 
+START_TEST(test_get_genesis_block_hash){
+    //Init
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    initialize_transaction_system();
+    block* genesis_b = initialize_block_system();
 
+    ck_assert_str_eq(hash_block_header(genesis_b->header), get_genesis_block_hash());
+
+    //Destroy.
+    //TODO:destroy block
+    //destroy_block_system();
+    destroy_transaction_system();
+    destroy_cryptography_system();
+}
+END_TEST
+
+START_TEST(test_hash_block_header){
+    //Init
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    initialize_transaction_system();
+    block* genesis_b = initialize_block_system();
+
+    ck_assert_str_eq(hash_block_header(genesis_b->header), get_genesis_block_hash());
+
+    //Destroy.
+    //TODO:destroy block
+    //destroy_block_system();
+    destroy_transaction_system();
+    destroy_cryptography_system();
+}
+END_TEST
+
+START_TEST(test_add_block_by_shortcut_and_finalize){
+    //Init
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    initialize_transaction_system();
+    block* genesis_b = initialize_block_system();
+
+
+
+    //Destroy.
+    //TODO:destroy block
+    //destroy_block_system();
+    destroy_transaction_system();
+    destroy_cryptography_system();
+}
+END_TEST
+
+START_TEST(test_append_transaction_into_block){
+    //Init
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    transaction * genesis_t = initialize_transaction_system();
+    block* genesis_b = initialize_block_system();
+
+    block* new_block = create_an_empty_block(10);
+    unsigned char* current_private_key = NULL;
+    test_create_transaction_foo(genesis_t,get_genesis_transaction_private_key(),current_private_key);
+    printf("---------%s\n",current_private_key);
+
+    //Destroy.
+    //TODO:destroy block
+    //destroy_block_system();
+    destroy_transaction_system();
+    destroy_cryptography_system();
+}
+END_TEST
+
+START_TEST(test_verify_block_chain){
+    //Init
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    initialize_transaction_system();
+    block* genesis_b = initialize_block_system();
+
+
+
+    //Destroy.
+    //TODO:destroy block
+    //destroy_block_system();
+    destroy_transaction_system();
+    destroy_cryptography_system();
+}
+END_TEST
 
 
 Suite *transaction_suite(void) {
@@ -155,6 +337,12 @@ Suite *transaction_suite(void) {
     tcase_add_test(tc_destroy_block2, test_destroy_block2);
     suite_add_tcase(s, tc_destroy_block2);
 
+    /* tc_destroy_block3 test case */
+    TCase *tc_destroy_block3;
+    tc_destroy_block3 = tcase_create("tc_destroy_block3");
+    tcase_add_test(tc_destroy_block3, test_destroy_block3);
+    suite_add_tcase(s, tc_destroy_block3);
+
     /* tc_append_prev_block test case */
     TCase *tc_append_prev_block;
     tc_append_prev_block = tcase_create("tc_append_prev_block");
@@ -167,21 +355,35 @@ Suite *transaction_suite(void) {
     tcase_add_test(tc_get_block_by_hash, test_get_block_by_hash);
     suite_add_tcase(s, tc_get_block_by_hash);
 
+    /* tc_get_genesis_block_hash test case */
+    TCase *tc_get_genesis_block_hash;
+    tc_get_genesis_block_hash = tcase_create("tc_get_genesis_block_hash");
+    tcase_add_test(tc_get_genesis_block_hash, test_get_genesis_block_hash);
+    suite_add_tcase(s, tc_get_genesis_block_hash);
 
-    //TODO: taske name
+    /* tc_hash_block_header test case */
+    TCase *tc_hash_block_header;
+    tc_hash_block_header = tcase_create("tc_hash_block_header");
+    tcase_add_test(tc_hash_block_header, test_hash_block_header);
+    suite_add_tcase(s, tc_hash_block_header);
+
+    /* tc_add_block_by_shortcut_and_finalize test case */
+    TCase *tc_add_block_by_shortcut_and_finalize;
+    tc_add_block_by_shortcut_and_finalize = tcase_create("tc_add_block_by_shortcut_and_finalize");
+    tcase_add_test(tc_add_block_by_shortcut_and_finalize, test_add_block_by_shortcut_and_finalize);
+    suite_add_tcase(s, tc_add_block_by_shortcut_and_finalize);
+
     /* tc_append_transaction_into_block test case */
     TCase *tc_append_transaction_into_block;
-    tc_append_transaction_into_block = tcase_create("tc_append_transaction_into_block");
-    tcase_add_test(tc_append_transaction_into_block, test_get_block_by_hash);
+    tc_append_transaction_into_block = tcase_create(tc_append_transaction_into_block);
+    tcase_add_test(tc_append_transaction_into_block, test_append_transaction_into_block);
     suite_add_tcase(s, tc_append_transaction_into_block);
 
     /* tc_verify_block_chain test case */
     TCase *tc_verify_block_chain;
-    tc_verify_block_chain = tcase_create("tc_verify_block_chain");
-    tcase_add_test(tc_verify_block_chain, test_get_block_by_hash);
+    tc_verify_block_chain = tcase_create(tc_verify_block_chain);
+    tcase_add_test(tc_verify_block_chain, test_verify_block_chain);
     suite_add_tcase(s, tc_verify_block_chain);
-
-
     return s;
 }
 
@@ -197,11 +399,16 @@ int main(void) {
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
-//void destroy_block(block *);
-//bool append_prev_block(block *prev_block, block *cur_block);
-//bool finalize_block(block *);
-//block *get_block_by_hash(char *);
-//bool append_transaction_into_block(block *, transaction *, unsigned int input_idx);
-//bool verify_block_chain(block *);
-//char *get_genesis_block_hash();
-//void print_block_chain(block *);
+void test_create_transaction_foo(transaction* previous_transaction, char* previous_private_key, unsigned char* current_private_key){
+    char* previous_transaction_id = get_transaction_txid(previous_transaction);
+    transaction_create_shortcut_input input = {
+        .previous_output_idx = 2, .previous_txid = previous_transaction_id, .private_key = previous_private_key};
+    unsigned char *new_private_key = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
+    transaction_create_shortcut_output output = {.value = TOTAL_NUMBER_OF_COINS, .public_key = (char *)new_public_key->data};
+    transaction_create_shortcut create_data = {.num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output, .inputs = &input};
+    transaction *new_t = (transaction *)malloc(sizeof(transaction));
+    create_new_transaction_shortcut(&create_data, new_t);
+    finalize_transaction(new_t);
+    current_private_key = new_private_key;
+}
