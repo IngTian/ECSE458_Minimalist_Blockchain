@@ -1,0 +1,49 @@
+CREATE TABLE txid_in (
+  `txid` INT,
+  `tx_ins` VARCHAR,
+  PRIMARY KEY (`txid`)
+)
+
+CREATE TABLE txid_out (
+  `txid` INT,
+  `tx_outs` VARCHAR,
+  PRIMARY KEY (`txid`)
+)
+
+CREATE TABLE transaction (
+`txid` INT,
+`tx_in_count` INT,
+`tx_out_count` INT,
+`lock_time` INT,
+PRIMARY KEY (`txid`),
+KEY `transaction_input` (`tx_in_count`),
+CONSTRAINT `transaction_input` FOREIGN KEY (`tx_in_count`) REFERENCES `txid_in` (`txid`),
+KEY `transaction_output` (`tx_in_count`),
+CONSTRAINT `transaction_output` FOREIGN KEY (`tx_out_count`) REFERENCES `txid_out` (`txid`)
+);
+
+CREATE TABLE blockheader (
+`version` INT,
+`prev_block_header_hash` VARCHAR(65),
+`merkle_root_hash` VARCHAR(65),
+`time` INT,
+`nBits` INT,
+`nonce` INT
+);
+
+CREATE TABLE block (
+`header` INT,
+`txns` INT,
+`txn_count` INT,
+PRIMARY KEY (`header`),
+KEY `block_head` (`header`),
+CONSTRAINT `block_head` FOREIGN KEY (`header`) REFERENCES `blockheader` (`version`)
+KEY `block_transaction` (`txns`),
+CONSTRAINT `block_transaction` FOREIGN KEY (`txns`) REFERENCES `transaction` (`txid`)
+);
+
+insert
+
+read
+
+update
