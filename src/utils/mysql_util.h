@@ -15,10 +15,9 @@ typedef struct MySQLConfig {
 
 void initialize_mysql_system(mysql_config);
 bool mysql_create_database(char *sql_query);
-bool mysql_destroy_database(char *sql_query);
-bool mysql_create(char *sql_query);
-MYSQL_RES mysql_read(char *sql_query);
-void mysql_delete_result(MYSQL_RES);
+bool mysql_delete_table(char *sql_query);
+bool mysql_insert(char *sql_query);
+MYSQL_RES *mysql_read(char *sql_query);
 bool mysql_update(char *sql_query);
 bool mysql_delete(char *sql_query);
 void destroy_mysql_system();

@@ -1,97 +1,137 @@
 #include "mysql_util.h"
 
-#include <stdio.h>
 #include <stdlib.h>
+
+#include "log_utils.h"
 
 #define LOG_SCOPE "mysql_util"
 
-MYSQL *g_mysql_client;
+MYSQL *g_mysql_connection;
 
-void finish_with_error() {
-    //fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
-    general_log(LOG_SCOPE, LOG_ERROR, "my_sql query error: %s", mysql_error(g_mysql_client));
-    mysql_close(g_mysql_client);
-    exit(1);
-}
+/*
+ * -----------------------------------------------------------
+ * APIs
+ * -----------------------------------------------------------
+ */
 
-void initialize_mysql_system(mysql_config) {
-    mysql_init(g_mysql_client);
+/**
+ * Initialize the MySQL system.
+ * @param config The config passed on to initialize the MySQL.
+ * @author Luke E
+ */
+void initialize_mysql_system(mysql_config config) {
+    general_log(LOG_SCOPE, LOG_INFO, "MySQL client version detected: %s\n", mysql_get_client_info());
 
-    if (g_mysql_client == NULL) {
-        //fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
-        general_log(LOG_SCOPE, LOG_ERROR, "my_sql initialize error: %s", mysql_error(g_mysql_client));
+    g_mysql_connection = mysql_init(NULL);
+
+    if (g_mysql_connection == NULL) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to initialize the MYSQL object: %s", mysql_error(g_mysql_connection));
         exit(1);
     }
 
-    if (mysql_real_connect(g_mysql_client, mysql_config->host_addr, mysql_config->username, mysql_config->password, mysql_config->db,
-                           mysql_config->port_number, mysql_config->unix_socket, mysql_config->client_flag) == NULL) {
-        //fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
-        general_log(LOG_SCOPE, LOG_ERROR, "my_sql real connect error: %s", mysql_error(g_mysql_client));
-        mysql_close(g_mysql_client);
+    if (mysql_real_connect(g_mysql_connection,
+                           config.host_addr,
+                           config.username,
+                           config.password,
+                           config.db,
+                           config.port_number,
+                           config.unix_socket,
+                           config.client_flag) == NULL) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Error in connecting to MySQL: %s", mysql_error(g_mysql_connection));
+        mysql_close(g_mysql_connection);
         exit(1);
     }
-
-    // if (mysql_query(g_mysql_client, "CREATE DATABASE testdb")) {
-    //     fprintf(stderr, "%s\n", mysql_error(g_mysql_client));
-    //     mysql_close(g_mysql_client);
-    //     exit(1);
-    // }
 }
 
+/**
+ * Create a database.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
 bool mysql_create_database(char *sql_query) {
-    if (mysql_query(g_mysql_client, sql_query)) {
-        finish_with_error(g_mysql_client);
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to create database with SQL: %s", sql_query);
+        return false;
     }
-    return True;
+    return true;
 }
 
-bool mysql_destroy_database(char *sql_query) {
-    if (mysql_query(g_mysql_client, sql_query)) {
-        finish_with_error(g_mysql_client);
+/**
+ * Delete a table from the database.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
+bool mysql_delete_table(char *sql_query) {
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to delete tables with SQL: %s", sql_query);
+        return false;
     }
-    return True;
+    return true;
 }
 
-bool mysql_create(char *sql_query) {
-    if (mysql_query(g_mysql_client, sql_query)) {
-        finish_with_error(g_mysql_client);
+/**
+ * Insert the record into the database.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
+bool mysql_insert(char *sql_query) {
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to insert into the database with SQL: %s", sql_query);
+        return false;
     }
-    return True;
+    return true;
 }
 
-MYSQL_RES mysql_read(char *sql_query) {
-    if (mysql_query(g_mysql_client, sql_query)) {
-        finish_with_error(g_mysql_client);
+/**
+ * Read records from the SQL database.
+ * @param sql_query A SQL query.
+ * @return The SQL result.
+ * @author Luke E
+ */
+MYSQL_RES *mysql_read(char *sql_query) {
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to read from the database with SQL: %s", sql_query);
+        return NULL;
     }
-    MYSQL_RES *result = mysql_store_result(g_mysql_client);
-    return result;
+    return mysql_store_result(g_mysql_connection);
 }
 
+/**
+ * Update entries in the table.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
 bool mysql_update(char *sql_query) {
-    if (mysql_query(g_mysql_client, sql_query)) {
-        finish_with_error(g_mysql_client);
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to update data with SQL: %s", sql_query);
+        return false;
     }
-    return True;
+    return true;
 }
+
+/**
+ * Delete entries in the table.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @auhtor Luke E
+ */
 bool mysql_delete(char *sql_query) {
-    if (mysql_query(g_mysql_client, sql_query)) {
-        finish_with_error(g_mysql_client);
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to delete entries with SQL: %s", sql_query);
+        return false;
     }
-    return True;
+    return true;
 }
 
-// int get_previous_insert_id(MYSQL *mysql_database) {
-//     int id = mysql_insert_id(mysql_database);
-//     printf("The last inserted row id is: %d\n", id);
-
-//     return id;
-// }
-
-void mysql_delete_result(MYSQL_RES *result) { free(result); }
-
+/**
+ * Destroy the MySQL Util system.
+ * @auhtor Luke E
+ */
 void destroy_mysql_system() {
-    mysql_close(g_mysql_client);
-    free(g_mysql_client);
+    mysql_close(g_mysql_connection);
+    free(g_mysql_connection);
 }
-
-int main(int argc, char **argv) {}
