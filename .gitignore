@@ -6,3 +6,6 @@
 # CMake products.
 /cmake-build-debug
 /build
+
+# Log files
+**/*.log

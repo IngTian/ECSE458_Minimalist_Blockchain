@@ -1,5 +1,7 @@
 #region Macro Settings.
 cmake_minimum_required(VERSION 3.10)
+set(CMAKE_C_COMPILER "clang")
+set(CMAKE_CXX_COMPILER "clang++")
 project(MinimalistBlockChainSystem)
 
 include_directories(src)
@@ -21,17 +23,29 @@ include(CheckTypeSize)
 include(CheckLibraryExists)
 include(FindPkgConfig)
 
+# Test coverage
+set(GCC_COVERAGE_COMPILE_FLAGS "-fprofile-instr-generate -fcoverage-mapping -mllvm -runtime-counter-relocation")
+set(GCC_COVERAGE_LINK_FLAGS "--coverage")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
+
 # MySQL
 pkg_check_modules(LIBMYSQLCLIENT REQUIRED mysqlclient)
-foreach(FLAG ${LIBMYSQLCLIENT_CFLAGS_OTHER})
+foreach (FLAG ${LIBMYSQLCLIENT_CFLAGS_OTHER})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
-endforeach()
+endforeach ()
 link_directories(${LIBMYSQLCLIENT_LIBRARY_DIRS})
 
 # Glib
 pkg_search_module(GLIB REQUIRED glib-2.0)
 include_directories(${GTK2_INCLUDE_DIRS})
 link_directories(${GTK2_LIBRARY_DIRS})
+
+# Check
+find_library(check_library_location check)
+add_library(check_library SHARED IMPORTED)
+set_target_properties(check_library PROPERTIES IMPORTED_LOCATION ${check_library_location})
 
 # secp256k1
 include_directories(/usr/local/include)
@@ -71,4 +85,14 @@ add_executable(main src/main.c)
 set_target_properties(main PROPERTIES LINKER_LANGUAGE C)
 target_include_directories(main PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS})
 target_link_libraries(main ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 ${LIBMYSQLCLIENT_LIBRARIES})
+
+add_executable(test test/model/transaction_test.c)
+set_target_properties(test PROPERTIES LINKER_LANGUAGE C)
+target_include_directories(test PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS} /opt/homebrew/Cellar/check/0.15.2/include)
+target_link_libraries(test ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 check_library ${LIBMYSQLCLIENT_LIBRARIES})
+
+add_executable(test_block test/model/block_test.c)
+set_target_properties(test_block PROPERTIES LINKER_LANGUAGE C)
+target_include_directories(test_block PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS} /opt/homebrew/Cellar/check/0.15.2/include)
+target_link_libraries(test_block ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 check_library ${LIBMYSQLCLIENT_LIBRARIES})
 #endregion

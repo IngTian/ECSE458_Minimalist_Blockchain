@@ -119,15 +119,13 @@ void print_utxo_entry(void *h, void *v, void *user_data) {
     printf("\n");
 }
 
-void free_transaction_table_entry(void *txid, void *tx, void *user_data) {
-    free(txid);
-    destroy_transaction((transaction *)tx);
-}
+void free_transaction_table_key(void *key) { free(key); }
 
-void free_utxo_table_entry(void *utxo_id, void *val, void *user_data) {
-    free(utxo_id);
-    free(val);
-}
+void free_transaction_table_val(void *val) { destroy_transaction(val); }
+
+void free_utxo_table_key(void *key) { free(key); }
+
+void free_utxo_table_val(void *val) { free(val); }
 
 /*
  * -----------------------------------------------------------
@@ -142,11 +140,12 @@ void free_utxo_table_entry(void *utxo_id, void *val, void *user_data) {
  * @author Ing Tian
  */
 transaction *initialize_transaction_system() {
-    g_global_transaction_table = g_hash_table_new(g_str_hash, g_str_equal);
-    g_utxo = g_hash_table_new(g_str_hash, g_str_equal);
+    g_global_transaction_table = g_hash_table_new_full(g_str_hash, g_str_equal, free_transaction_table_key, free_transaction_table_val);
+    g_utxo = g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
 
     transaction *genesis_transaction = create_an_empty_transaction(1, 1);
-    genesis_transaction->tx_ins[0].signature_script = "";
+    genesis_transaction->tx_ins[0].signature_script = (char *)malloc(65);
+    genesis_transaction->tx_ins[0].signature_script[64] = '\0';
     genesis_transaction->tx_ins[0].sequence = 1;
     genesis_transaction->tx_ins[0].script_bytes = 0;
     genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
@@ -178,11 +177,10 @@ transaction *initialize_transaction_system() {
  * @author Ing Tian
  */
 void destroy_transaction_system() {
-    g_hash_table_foreach(g_global_transaction_table, free_transaction_table_entry, NULL);
-    g_hash_table_foreach(g_utxo, free_utxo_table_entry, NULL);
-    free(g_utxo);
-    free(g_global_transaction_table);
-
+    g_hash_table_remove_all(g_global_transaction_table);
+    g_hash_table_remove_all(g_utxo);
+    g_hash_table_destroy(g_global_transaction_table);
+    g_hash_table_destroy(g_utxo);
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the transaction module.");
 }
 
