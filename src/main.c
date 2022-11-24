@@ -75,6 +75,8 @@ int main() {
 
     char *sub_genesis_transaction_id = get_transaction_txid(previous_transaction);
     general_log(LOG_SCOPE, LOG_INFO, "Sub genesis hash: %s, its length: %d", sub_genesis_transaction_id, strlen(sub_genesis_transaction_id));
+    previous_transaction_id = sub_genesis_transaction_id;
+    unsigned char* previous_private_key;
 
     for(int i=0;i<size;i++){
 
@@ -85,9 +87,9 @@ int main() {
                                                          .previous_txid = sub_genesis_transaction_id,
                                                          .private_key = (char*)outputs_genesis_private_keys[i]};
 
-        transaction_create_shortcut_input input_large = {.previous_output_idx = size,
-                                                         .previous_txid = sub_genesis_transaction_id,
-                                                         .private_key = (char*)outputs_genesis_private_keys[size]};
+        transaction_create_shortcut_input input_large = {.previous_output_idx = i == 0 ? size : 0,
+                                                         .previous_txid = previous_transaction_id,
+                                                         .private_key = i == 0 ? (char*)outputs_genesis_private_keys[size] : previous_private_key};
 
         transaction_create_shortcut_output output_small = {.value = TOTAL_NUMBER_OF_COINS-size+1+i,
                                                            .public_key = ((char *)(new_public_key_output_small->data))};
@@ -113,7 +115,8 @@ int main() {
             general_log(LOG_SCOPE, LOG_INFO, "the %d round success", i);
         }
 
-
+        previous_transaction_id = get_transaction_txid(t_small);
+        previous_private_key = new_private_key_output_small;
     }
 
 }
