@@ -131,23 +131,27 @@ bool check_block_valid(block *block1) {
 
     //check if the block is NULL
     if (block1 == NULL) {
+        general_log(LOG_SCOPE, LOG_ERROR, "The block is null.");
         return false;
     }
 
     //check if the header is NULL
     block_header *header = block1->header;
     if (header == NULL) {
+        general_log(LOG_SCOPE, LOG_ERROR, "The block header is null.");
         return false;
     }
 
     //check if the previous block is NULL
     if(strcmp(header->prev_block_header_hash,"")==0){
         if(strcmp(hash_block_header(header),g_genesis_block_hash)!=0){
+            general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid since the previous block is null.");
             return false;
         }
     }else{
         block *prev_block = get_block_by_hash(header->prev_block_header_hash);
         if (prev_block == NULL) {
+            general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid since the previous block is null.");
             return false;
         }
     }
@@ -268,6 +272,26 @@ bool verify_block_chain(block *chain_tail) {
 
         i++;
     }
+}
+
+/**
+ * Verify a single block:
+ * 1. Verify whether all transactions in this block are valid
+ * 2. Verify whether the previous block header is valid
+ * @param block1 The block to be verified
+ * @return True if valid. False otherwise
+ * @author Junjian Chen
+ */
+bool verify_block(block *block1){
+    if(!verify_block_transaction(block1)){
+        return false;
+    }
+
+    if(!check_block_valid(block1)){
+        return false;
+    }
+
+    return true;
 }
 
 /**
