@@ -40,12 +40,22 @@ bool verify_transaction_input(transaction_input *i) {
     transaction_outpoint outpoint = i->previous_outpoint;
     char *transaction_hash = outpoint.hash;
     unsigned int output_idx = outpoint.index;
+    transaction_hash[64]='\0';
+
+
+    printf("      \n");
+    printf("previous outpoint hash is %s， %lu\n", transaction_hash, strlen(transaction_hash));
+    printf("      \n");
 
     if (!g_hash_table_contains(g_global_transaction_table, transaction_hash)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Could not find previous transaction");
         return false;
     }
 
     transaction *previous_transaction = g_hash_table_lookup(g_global_transaction_table, transaction_hash);
+    printf("transaction previous : %d\n", previous_transaction->version);
+    printf("output_idx %d\n", output_idx);
+    printf("previous_transaction->tx_out_count %d\n", previous_transaction->tx_out_count);
 
     if (output_idx >= previous_transaction->tx_out_count) {
         return false;
@@ -305,6 +315,7 @@ bool finalize_transaction(transaction *t) {
         char *previous_transaction_id = input.previous_outpoint.hash;
         unsigned int previous_output_id = input.previous_outpoint.index;
         transaction *previous_transaction = g_hash_table_lookup(g_global_transaction_table, previous_transaction_id);
+        //general_log(LOG_SCOPE, LOG_ERROR, ".", input_sum, output_sum);
         input_sum += previous_transaction->tx_outs[previous_output_id].value;
     }
 
@@ -451,6 +462,7 @@ bool verify_transaction(transaction *t) {
         }
 
         unsigned int previous_output_index = t->tx_ins[i].previous_outpoint.index;
+        t->tx_ins[i].previous_outpoint.hash[64] = '\0';
         transaction *previous_transaction = g_hash_table_lookup(g_global_transaction_table, t->tx_ins[i].previous_outpoint.hash);
         input_sum += previous_transaction->tx_outs[previous_output_index].value;
     }
@@ -461,7 +473,7 @@ bool verify_transaction(transaction *t) {
     }
 
     if (input_sum != output_sum) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Input sum (%ld) does not equal to output sum (%ld).", input_sum, output_sum);
+        general_log(LOG_SCOPE, LOG_ERROR, "Transaction verify: Input sum (%ld) does not equal to output sum (%ld).", input_sum, output_sum);
         return false;
     }
 

@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <strings.h>
 
 #include "model/transaction/transaction.h"
 #include "model/block//block.h"
@@ -14,78 +15,105 @@ int main() {
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *previous_transaction = initialize_transaction_system();
     char *previous_output_private_key = get_genesis_transaction_private_key();
+    /** Create a sub-genesis transaction with 1 input from genesis transaction and 10001 outputs: 1*30960+10000*1 **/
+    char *previous_transaction_id = get_transaction_txid(previous_transaction);
 
-    char** private_key_array = malloc(40000*65);
-    secp256k1_pubkey** public_key_array = malloc(40000*sizeof(secp256k1_pubkey));
-    for (int i = 0; i < 40000; i++) {
-        char *new_private_key = (char*) get_a_new_private_key();
-        secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
-        private_key_array[i] = new_private_key;
-        public_key_array[i] = new_public_key;
+    int size = 5;
+
+    // Input from genesis tx
+    transaction_create_shortcut_input input_genesis = {.previous_output_idx = 0,
+                                                       .previous_txid = previous_transaction_id,
+                                                       .private_key = previous_output_private_key};
+    //Create an output array of length 10001
+    transaction_create_shortcut_output *outputs_genesis = malloc((size+1) * sizeof(transaction_create_shortcut_output));
+    unsigned char* outputs_genesis_private_keys[size+1];
+
+    //Create 10000 outputs, each one has 1 value
+    for(int i=0;i<size;i++){
+        unsigned char *new_private_key_output_genesis = get_a_new_private_key();
+        secp256k1_pubkey *new_public_key_output_genesis = get_a_new_public_key((char *) new_private_key_output_genesis);
+
+        transaction_create_shortcut_output output_genesis = {.value = 1,
+                                                             .public_key = ((char *) (new_public_key_output_genesis->data))};
+
+        outputs_genesis[i]=output_genesis;
+        outputs_genesis_private_keys[i]=new_private_key_output_genesis;
+
     }
-    int outputCounter = 0;
-    int money_left = TOTAL_NUMBER_OF_COINS;
 
-    // Start testing.
+    //Create 1 output, it has 30960 value
+    unsigned char *new_private_key_output_genesis_large = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key_output_genesis_large = get_a_new_public_key((char *) new_private_key_output_genesis_large);
 
-    for (int i = 0; i < 10000; i++) {
-        char *previous_transaction_id = get_transaction_txid(previous_transaction);
-        transaction_create_shortcut_input input = {.previous_output_idx = 0,
-                                                   .previous_txid = previous_transaction_id,
-                                                   .private_key = previous_output_private_key};
+    transaction_create_shortcut_output output_genesis_large = {.value = TOTAL_NUMBER_OF_COINS-size,
+                                                               .public_key = ((char *) (new_public_key_output_genesis_large->data))};
 
-        int num_outputs = rand()%4+1;
-        money_left = money_left-num_outputs+1;
-        transaction_create_shortcut_output* outputs=malloc(num_outputs*sizeof(transaction_create_shortcut_output));
-        transaction_create_shortcut_output output = {.value = money_left,
-                                                     .public_key = (char *)(public_key_array[outputCounter]->data)};
-        previous_output_private_key = private_key_array[outputCounter];
-        outputCounter++;
-        outputs[0] = output;
+    outputs_genesis[size]=output_genesis_large;
+    outputs_genesis_private_keys[size]=new_private_key_output_genesis_large;
 
-        for (int j = 1; j < num_outputs; j++) {
-            transaction_create_shortcut_output output1 = {.value = 1,
-                                                         .public_key = (char *)(public_key_array[outputCounter]->data)};
-            outputCounter++;
-            outputs[j] = output1;
-        }
+    transaction_create_shortcut create_data_genesis = {
+        .num_of_inputs = 1, .num_of_outputs = size+1, .outputs = outputs_genesis, .inputs = &input_genesis};
+    transaction *t_sub_genesis = (transaction *) malloc(sizeof(transaction));
 
-//        unsigned char *new_private_key = get_a_new_private_key();
-//        secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
-//
-//        unsigned char *new_private_key1 = get_a_new_private_key();
-//        secp256k1_pubkey *new_public_key1 = get_a_new_public_key((char *)new_private_key1);
-//
-//        transaction_create_shortcut_output output1 = {.value = TOTAL_NUMBER_OF_COINS-i-1,
-//                                                     .public_key = (char *)(new_public_key->data)};
-//
-//        transaction_create_shortcut_output output2 = {.value = 1,
-//                                                      .public_key = (char *)new_public_key1->data};
-//
-//        transaction_create_shortcut_output* outputs=malloc(2*sizeof(transaction_create_shortcut_output));
-//
-//        outputs[0]=output1;
-//        outputs[1]=output2;
-
-        transaction_create_shortcut create_data = {
-            .num_of_inputs = 1, .num_of_outputs = num_outputs, .outputs = outputs, .inputs = &input};
-
-
-        transaction *t = (transaction *)malloc(sizeof(transaction));
-
-
-
-        if (!create_new_transaction_shortcut(&create_data, t)) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
-        }
-
-        verify_transaction(t);
-
-        if (!finalize_transaction(t)) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
-        }
-
-        previous_transaction = t;
-//        previous_output_private_key = new_private_key;
+    if (!create_new_transaction_shortcut(&create_data_genesis, t_sub_genesis)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
+    } else{
+        general_log(LOG_SCOPE, LOG_INFO, "create a genesis sub transaction.");
     }
+
+    verify_transaction(t_sub_genesis);
+
+    if (!finalize_transaction(t_sub_genesis)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
+    }
+
+    previous_transaction = t_sub_genesis;
+
+    /** Create 10000*1 one to one transactions **/
+
+    transaction *small_txs= malloc(size* sizeof(transaction));
+
+    char *sub_genesis_transaction_id = get_transaction_txid(previous_transaction);
+    general_log(LOG_SCOPE, LOG_INFO, "Sub genesis hash: %s, its length: %d", sub_genesis_transaction_id, strlen(sub_genesis_transaction_id));
+
+    for(int i=0;i<size;i++){
+
+        unsigned char *new_private_key_output_small = get_a_new_private_key();
+        secp256k1_pubkey *new_public_key_output_small = get_a_new_public_key((char *) new_private_key_output_small);
+
+        transaction_create_shortcut_input input_small = {.previous_output_idx = i,
+                                                         .previous_txid = sub_genesis_transaction_id,
+                                                         .private_key = (char*)outputs_genesis_private_keys[i]};
+
+        transaction_create_shortcut_input input_large = {.previous_output_idx = size,
+                                                         .previous_txid = sub_genesis_transaction_id,
+                                                         .private_key = (char*)outputs_genesis_private_keys[size]};
+
+        transaction_create_shortcut_output output_small = {.value = TOTAL_NUMBER_OF_COINS-size+1+i,
+                                                           .public_key = ((char *)(new_public_key_output_small->data))};
+
+        transaction_create_shortcut_input* inputs=malloc(2*sizeof(transaction_create_shortcut_input));
+        inputs[0]=input_small;
+        inputs[1]=input_large;
+
+        transaction_create_shortcut create_data_small = {
+            .num_of_inputs = 2, .num_of_outputs = 1, .outputs = &output_small, .inputs = inputs};
+
+        transaction *t_small = (transaction *)malloc(sizeof(transaction));
+
+        if (!create_new_transaction_shortcut(&create_data_small, t_small)) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction. + %d", i);
+        }
+
+        verify_transaction(t_small);
+
+        if (!finalize_transaction(t_small)) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction %d.",i);
+        }else{
+            general_log(LOG_SCOPE, LOG_INFO, "the %d round success", i);
+        }
+
+
+    }
+
 }
