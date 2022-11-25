@@ -43,6 +43,7 @@ bool initialize_transaction_persistence() {
             "    tx_in_count  int unsigned not null,\n"
             "    tx_out_count int unsigned not null,\n"
             "    lock_time    int unsigned not null,\n"
+            "    block_id     int          not null default 0,"
             "    primary key (id)\n"
             ");\n"
             "\n"
@@ -176,6 +177,23 @@ bool save_transaction(transaction *tx) {
     }
 
     return false;
+}
+
+/**
+ * Update the block ID in the transaction.
+ * @param block_id The block ID to update to.
+ * @param txid The transaction ID.
+ * @return True for success and false otherwise.
+ * @author Ing Tian
+ */
+bool update_transaction_block_id(unsigned long block_id, char *txid) {
+    char sql_query[1000];
+    sprintf(sql_query, "update transaction set block_id=%lu where txid='%s';", block_id, txid);
+    if (!mysql_update(sql_query)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to update block ID (%d) for a transaction (%s).", block_id, txid);
+        return false;
+    }
+    return true;
 }
 
 /**

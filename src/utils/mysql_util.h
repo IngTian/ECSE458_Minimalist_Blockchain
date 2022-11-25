@@ -21,6 +21,7 @@ bool mysql_insert(char *sql_query);
 MYSQL_RES *mysql_read(char *sql_query);
 bool mysql_update(char *sql_query);
 bool mysql_delete(char *sql_query);
+unsigned long mysql_get_last_updated_id();
 void destroy_mysql_system();
 
 #endif
