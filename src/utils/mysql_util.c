@@ -1,84 +1,169 @@
-//#include <mysql.h>
-//#include <stdio.h>
-//#include <stdlib.h>
-//
-//MYSQL *mysql_database;
-//
-//
-//void initialize_mysql_system(MYSQL *mysql_database) {
-//    MYSQL *mysql_database = mysql_init(NULL);
-//
-//    if (mysql_database == NULL) {
-//        fprintf(stderr, "%s\n", mysql_error(mysql_database));
-//        exit(1);
-//    }
-//
-//    if (mysql_real_connect(mysql_database, "localhost", "root", "root_passwd", NULL, 0, NULL, 0) == NULL) {
-//        fprintf(stderr, "%s\n", mysql_error(mysql_database));
-//        mysql_close(mysql_database);
-//        exit(1);
-//    }
-//
-//    if (mysql_query(mysql_database, "CREATE DATABASE testdb")) {
-//        fprintf(stderr, "%s\n", mysql_error(mysql_database));
-//        mysql_close(mysql_database);
-//        exit(1);
-//    }
-//}
-//
-//int get_previous_insert_id(MYSQL *mysql_database) {
-//    int id = mysql_insert_id(mysql_database);
-//    printf("The last inserted row id is: %d\n", id);
-//
-//    return id;
-//}
-//
-//void mysql_retrieve_data(MYSQL *mysql_database) {
-//    MYSQL_RES *result = mysql_store_result(mysql_database);
-//
-//    if (result == NULL) {
-//        finish_with_error(mysql_database);
-//    }
-//
-//    int num_fields = mysql_num_fields(result);
-//
-//    MYSQL_ROW row;
-//    MYSQL_FIELD *field;
-//
-//    while ((row = mysql_fetch_row(result))) {
-//        for (int i = 0; i < num_fields; i++) {
-//            if (i == 0) {
-//                while (field = mysql_fetch_field(result)) {
-//                    printf("%s ", field->name);
-//                }
-//                printf("\n");
-//            }
-//            printf("%s ", row[i] ? row[i] : "NULL");
-//        }
-//
-//        printf("\n");
-//    }
-//
-//    mysql_free_result(result);
-//}
-//
-//
-//void destroy_mysql_connection(MYSQL *mysql_database) {
-//    mysql_close(mysql_database);
-//    exit(0);
-//}
-//
-//
-//void finish_with_error(MYSQL *mysql_database) {
-//    fprintf(stderr, "%s\n", mysql_error(mysql_database));
-//    mysql_close(mysql_database);
-//    exit(1);
-//}
-//
-//
-//int main(int argc, char **argv) {
-//    initialize_mysql_system(mysql_database);
-//    execute_mysql_query(mysql_database, "CREATE TABLE cars(id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), price INT)");
-//    execute_mysql_query(mysql_database, "INSERT INTO cars VALUES(1,'Audi',52642)");
-//    destroy_mysql_connection(mysql_database);
-//}
+#include "mysql_util.h"
+
+#include <stdlib.h>
+
+#include "log_utils.h"
+
+#define LOG_SCOPE "mysql_util"
+
+MYSQL *g_mysql_connection;
+
+/*
+ * -----------------------------------------------------------
+ * Helper methods.
+ * -----------------------------------------------------------
+ */
+void free_mysql_connection_result() {
+    while (mysql_more_results(g_mysql_connection)) mysql_next_result(g_mysql_connection);
+    MYSQL_RES *result = mysql_store_result(g_mysql_connection);
+    mysql_free_result(result);
+}
+
+/*
+ * -----------------------------------------------------------
+ * APIs
+ * -----------------------------------------------------------
+ */
+
+/**
+ * Initialize the MySQL system.
+ * @param config The config passed on to initialize the MySQL.
+ * @author Luke E
+ */
+void initialize_mysql_system(mysql_config config) {
+    general_log(LOG_SCOPE, LOG_INFO, "MySQL client version detected: %s\n", mysql_get_client_info());
+
+    g_mysql_connection = mysql_init(NULL);
+
+    if (g_mysql_connection == NULL) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to initialize the MYSQL object: %s", mysql_error(g_mysql_connection));
+        exit(1);
+    }
+
+    if (mysql_real_connect(g_mysql_connection,
+                           config.host_addr,
+                           config.username,
+                           config.password,
+                           config.db,
+                           config.port_number,
+                           config.unix_socket,
+                           config.client_flag) == NULL) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Error in connecting to MySQL: %s", mysql_error(g_mysql_connection));
+        mysql_close(g_mysql_connection);
+        exit(1);
+    }
+}
+
+/**
+ * Create a database.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
+bool mysql_create_database(char *sql_query) {
+    free_mysql_connection_result();
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create database (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Create tables.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
+bool mysql_create_table(char *sql_query) {
+    free_mysql_connection_result();
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create tables (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Delete a table from the database.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
+bool mysql_delete_table(char *sql_query) {
+    free_mysql_connection_result();
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete tables with SQL: %s", sql_query);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Insert the record into the database.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
+bool mysql_insert(char *sql_query) {
+    free_mysql_connection_result();
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert into the database (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Read records from the SQL database.
+ * @param sql_query A SQL query.
+ * @return The SQL result.
+ * @author Luke E
+ */
+MYSQL_RES *mysql_read(char *sql_query) {
+    free_mysql_connection_result();
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to read from the database (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
+        return NULL;
+    }
+    return mysql_store_result(g_mysql_connection);
+}
+
+/**
+ * Update entries in the table.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
+bool mysql_update(char *sql_query) {
+    free_mysql_connection_result();
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to update data (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Delete entries in the table.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @auhtor Luke E
+ */
+bool mysql_delete(char *sql_query) {
+    free_mysql_connection_result();
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete entries (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Destroy the MySQL Util system.
+ * @auhtor Luke E
+ */
+void destroy_mysql_system() {
+    mysql_close(g_mysql_connection);
+    free(g_mysql_connection);
+}
