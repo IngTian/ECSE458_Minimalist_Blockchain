@@ -7,6 +7,7 @@
 bool initialize_transaction_persistence();
 bool save_transaction(transaction *);
 transaction *get_transaction(char *);
+bool does_transaction_exist(char *);
 bool destroy_transaction_persistence();
 
 #endif

@@ -187,7 +187,7 @@ transaction *get_transaction(char *txid) {
     res = mysql_read(sql_query);
     int output_idx = 0;
     while ((row = mysql_fetch_row(res))) {
-        transaction_output* current_output = &tx->tx_outs[output_idx];
+        transaction_output *current_output = &tx->tx_outs[output_idx];
         current_output->value = atoi(row[1]);
         current_output->pk_script_bytes = atoi(row[2]);
         current_output->pk_script = (char *)malloc(current_output->pk_script_bytes);
@@ -204,7 +204,7 @@ transaction *get_transaction(char *txid) {
     int outpoint_input_ids[tx->tx_in_count];
     memset(outpoint_input_ids, 0, tx->tx_in_count);
     while ((row = mysql_fetch_row(res))) {
-        transaction_input* current_input = &tx->tx_ins[input_idx];
+        transaction_input *current_input = &tx->tx_ins[input_idx];
         outpoint_input_ids[input_idx] = atoi(row[0]);
         current_input->script_bytes = atoi(row[1]);
         current_input->signature_script = (char *)malloc(current_input->script_bytes);
@@ -221,7 +221,7 @@ transaction *get_transaction(char *txid) {
         res = mysql_read(sql_query);
 
         row = mysql_fetch_row(res);
-        transaction_outpoint* current_outpoint = &tx->tx_ins[outpoint_idx].previous_outpoint;
+        transaction_outpoint *current_outpoint = &tx->tx_ins[outpoint_idx].previous_outpoint;
         current_outpoint->index = atoi(row[2]);
         memset(current_outpoint->hash, '\0', 64);
         memcpy(current_outpoint->hash, row[1], 64);
@@ -232,6 +232,22 @@ transaction *get_transaction(char *txid) {
 
     return tx;
 }
+
+/**
+ * Determines if a transaction exists.
+ * @param txid The transaction ID.
+ * @return True if the transaction exists and false otherwise.
+ * @author Ing Tian
+ */
+bool does_transaction_exist(char *txid) {
+    char sql_query[1000];
+    memset(sql_query, '\0', 1000);
+    sprintf(sql_query, "select * from transaction where txid='%s';", txid);
+    MYSQL_RES *res = mysql_read(sql_query);
+    bool result = res->row_count > 0;
+    mysql_free_result(res);
+    return result;
+};
 
 /**
  * Destroy the transaction persistence layer
