@@ -1,5 +1,6 @@
 #include "transaction_persistence.h"
 
+#include <mysql.h>
 #include <string.h>
 
 #include "utils/log_utils.h"
@@ -24,7 +25,7 @@ bool initialize_transaction_persistence() {
         "create table transaction\n"
         "(\n"
         "    id           int auto_increment,\n"
-        "    txid         BLOB         not null,\n"
+        "    txid         char(64)     not null unique,\n"
         "    version      int          not null,\n"
         "    tx_in_count  int unsigned not null,\n"
         "    tx_out_count int unsigned not null,\n"
@@ -57,7 +58,7 @@ bool initialize_transaction_persistence() {
         "create table transaction_outpoint\n"
         "(\n"
         "    id                   int auto_increment,\n"
-        "    hash                 BLOB         not null,\n"
+        "    hash                 char(64)     not null,\n"
         "    idx                  int unsigned not null,\n"
         "    transaction_input_id int          not null,\n"
         "    primary key (id),\n"
@@ -79,7 +80,7 @@ bool save_transaction(transaction *tx) {
     // Save the transaction in table transaction.
     char sql_query[temp_sql_query_size];
     sprintf(sql_query,
-            "set @txid := 0x%s;\n"
+            "set @txid := '%s';\n"
             "set @version := %d;\n"
             "set @tx_in_count := %u;\n"
             "set @tx_out_count := %u;\n"
@@ -129,7 +130,7 @@ bool save_transaction(transaction *tx) {
                 "set @script_bytes = %u;\n"
                 "set @signature_script = 0x%s;\n"
                 "set @sequence = %u;\n"
-                "set @hash = 0x%s;\n"
+                "set @hash = '%s';\n"
                 "set @index = %u;\n"
                 "insert into transaction_input (id, script_bytes, signature_script, sequence, transaction_id)\n"
                 "values (NULL, @script_bytes, @signature_script, @sequence, @transaction_auto_id);\n"
@@ -151,7 +152,86 @@ bool save_transaction(transaction *tx) {
     return true;
 }
 
-transaction *get_transaction(char *txid);
+/**
+ * Get a transaction from the database by its txid.
+ * @param txid The transaction ID.
+ * @return A transaction.
+ * @author Ing Tian
+ */
+transaction *get_transaction(char *txid) {
+    transaction *tx = (transaction *)malloc(sizeof(transaction));
+
+    int temp_sql_query_size = 10000;
+    char sql_query[temp_sql_query_size];
+
+    sprintf(sql_query, "select * from transaction where txid='%s';", txid);
+    MYSQL_RES *res = mysql_read(sql_query);
+
+    // Read transaction.
+    MYSQL_ROW row;
+    int transaction_auto_id;
+    while ((row = mysql_fetch_row(res))) {
+        transaction_auto_id = atoi(row[0]);
+        tx->version = atoi(row[2]);
+        tx->tx_in_count = atoi(row[3]);
+        tx->tx_out_count = atoi(row[4]);
+        tx->lock_time = atoi(row[5]);
+    }
+    tx->tx_ins = (transaction_input *)malloc(tx->tx_in_count * sizeof(transaction_input));
+    tx->tx_outs = (transaction_output *)malloc(tx->tx_out_count * sizeof(transaction_output));
+    mysql_free_result(res);
+    memset(sql_query, '\0', temp_sql_query_size);
+
+    // Read transaction outputs.
+    sprintf(sql_query, "select * from transaction_output where transaction_id=%d;", transaction_auto_id);
+    res = mysql_read(sql_query);
+    int output_idx = 0;
+    while ((row = mysql_fetch_row(res))) {
+        transaction_output* current_output = &tx->tx_outs[output_idx];
+        current_output->value = atoi(row[1]);
+        current_output->pk_script_bytes = atoi(row[2]);
+        current_output->pk_script = (char *)malloc(current_output->pk_script_bytes);
+        memcpy(current_output->pk_script, row[3], current_output->pk_script_bytes);
+        output_idx++;
+    }
+    mysql_free_result(res);
+    memset(sql_query, '\0', temp_sql_query_size);
+
+    // Read transaction inputs.
+    sprintf(sql_query, "select * from transaction_input where transaction_id=%d;", transaction_auto_id);
+    res = mysql_read(sql_query);
+    int input_idx = 0;
+    int outpoint_input_ids[tx->tx_in_count];
+    memset(outpoint_input_ids, 0, tx->tx_in_count);
+    while ((row = mysql_fetch_row(res))) {
+        transaction_input* current_input = &tx->tx_ins[input_idx];
+        outpoint_input_ids[input_idx] = atoi(row[0]);
+        current_input->script_bytes = atoi(row[1]);
+        current_input->signature_script = (char *)malloc(current_input->script_bytes);
+        memcpy(current_input->signature_script, row[2], current_input->script_bytes);
+        current_input->sequence = atoi(row[3]);
+        input_idx++;
+    }
+    mysql_free_result(res);
+    memset(sql_query, '\0', temp_sql_query_size);
+
+    // Read transaction input's outpoints.
+    for (int outpoint_idx = 0; outpoint_idx < tx->tx_in_count; outpoint_idx++) {
+        sprintf(sql_query, "select * from transaction_outpoint where transaction_input_id=%d;", outpoint_input_ids[outpoint_idx]);
+        res = mysql_read(sql_query);
+
+        row = mysql_fetch_row(res);
+        transaction_outpoint* current_outpoint = &tx->tx_ins[outpoint_idx].previous_outpoint;
+        current_outpoint->index = atoi(row[2]);
+        memset(current_outpoint->hash, '\0', 64);
+        memcpy(current_outpoint->hash, row[1], 64);
+
+        mysql_free_result(res);
+        memset(sql_query, '\0', temp_sql_query_size);
+    }
+
+    return tx;
+}
 
 /**
  * Destroy the transaction persistence layer
