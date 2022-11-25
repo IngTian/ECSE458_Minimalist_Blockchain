@@ -6,12 +6,19 @@
 #include "utils/constants.h"
 #include "utils/cryptography.h"
 #include "utils/log_utils.h"
-#include "utils/sys_utils.h"
+#include "utils/mysql_util.h"
 
 #define LOG_SCOPE "performance test"
 
 int main() {
     // Initialize the whole system.
+    mysql_config config = {.host_addr = "localhost",
+                           .username = "root",
+                           .password = "Tzy1123581321!",
+                           .db = "test",
+                           .port_number = 3306,
+                           .client_flag = CLIENT_MULTI_STATEMENTS};
+    initialize_mysql_system(config);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *previous_transaction = initialize_transaction_system();
     char *previous_output_private_key = get_genesis_transaction_private_key();
@@ -89,7 +96,7 @@ int main() {
 
         transaction_create_shortcut_input input_large = {.previous_output_idx = i == 0 ? size : 0,
                                                          .previous_txid = previous_transaction_id,
-                                                         .private_key = i == 0 ? (char*)outputs_genesis_private_keys[size] : previous_private_key};
+                                                         .private_key = i == 0 ? (char*)outputs_genesis_private_keys[size] : (char *)previous_private_key};
 
         transaction_create_shortcut_output output_small = {.value = TOTAL_NUMBER_OF_COINS-size+1+i,
                                                            .public_key = ((char *)(new_public_key_output_small->data))};
