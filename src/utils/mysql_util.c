@@ -58,6 +58,20 @@ bool mysql_create_database(char *sql_query) {
 }
 
 /**
+ * Create tables.
+ * @param sql_query A SQL query.
+ * @return True for success and false otherwise.
+ * @author Luke E
+ */
+bool mysql_create_table(char *sql_query) {
+    if (mysql_query(g_mysql_connection, sql_query)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create tables (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
+        return false;
+    }
+    return true;
+}
+
+/**
  * Delete a table from the database.
  * @param sql_query A SQL query.
  * @return True for success and false otherwise.

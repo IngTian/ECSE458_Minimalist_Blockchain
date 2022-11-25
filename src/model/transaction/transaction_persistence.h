@@ -7,5 +7,6 @@
 bool initialize_transaction_persistence();
 bool save_transaction(transaction *);
 transaction *get_transaction(char *txid);
+bool destroy_transaction_persistence();
 
 #endif
