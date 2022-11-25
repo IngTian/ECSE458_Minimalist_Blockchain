@@ -10,6 +10,17 @@ MYSQL *g_mysql_connection;
 
 /*
  * -----------------------------------------------------------
+ * Helper methods.
+ * -----------------------------------------------------------
+ */
+void free_mysql_connection_result() {
+    while (mysql_more_results(g_mysql_connection)) mysql_next_result(g_mysql_connection);
+    MYSQL_RES *result = mysql_store_result(g_mysql_connection);
+    mysql_free_result(result);
+}
+
+/*
+ * -----------------------------------------------------------
  * APIs
  * -----------------------------------------------------------
  */
@@ -50,8 +61,9 @@ void initialize_mysql_system(mysql_config config) {
  * @author Luke E
  */
 bool mysql_create_database(char *sql_query) {
+    free_mysql_connection_result();
     if (mysql_query(g_mysql_connection, sql_query)) {
-        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to create database with SQL: %s", sql_query);
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create database (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
     }
     return true;
@@ -64,6 +76,7 @@ bool mysql_create_database(char *sql_query) {
  * @author Luke E
  */
 bool mysql_create_table(char *sql_query) {
+    free_mysql_connection_result();
     if (mysql_query(g_mysql_connection, sql_query)) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to create tables (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
@@ -78,8 +91,9 @@ bool mysql_create_table(char *sql_query) {
  * @author Luke E
  */
 bool mysql_delete_table(char *sql_query) {
+    free_mysql_connection_result();
     if (mysql_query(g_mysql_connection, sql_query)) {
-        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to delete tables with SQL: %s", sql_query);
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete tables with SQL: %s", sql_query);
         return false;
     }
     return true;
@@ -92,8 +106,9 @@ bool mysql_delete_table(char *sql_query) {
  * @author Luke E
  */
 bool mysql_insert(char *sql_query) {
+    free_mysql_connection_result();
     if (mysql_query(g_mysql_connection, sql_query)) {
-        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to insert into the database with SQL: %s", sql_query);
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert into the database (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
     }
     return true;
@@ -106,8 +121,9 @@ bool mysql_insert(char *sql_query) {
  * @author Luke E
  */
 MYSQL_RES *mysql_read(char *sql_query) {
+    free_mysql_connection_result();
     if (mysql_query(g_mysql_connection, sql_query)) {
-        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to read from the database with SQL: %s", sql_query);
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to read from the database (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return NULL;
     }
     return mysql_store_result(g_mysql_connection);
@@ -120,8 +136,9 @@ MYSQL_RES *mysql_read(char *sql_query) {
  * @author Luke E
  */
 bool mysql_update(char *sql_query) {
+    free_mysql_connection_result();
     if (mysql_query(g_mysql_connection, sql_query)) {
-        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to update data with SQL: %s", sql_query);
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to update data (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
     }
     return true;
@@ -134,8 +151,9 @@ bool mysql_update(char *sql_query) {
  * @auhtor Luke E
  */
 bool mysql_delete(char *sql_query) {
+    free_mysql_connection_result();
     if (mysql_query(g_mysql_connection, sql_query)) {
-        general_log(LOG_SCOPE, LOG_DEBUG, "Failed to delete entries with SQL: %s", sql_query);
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete entries (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
     }
     return true;
