@@ -211,7 +211,15 @@ char *hash_transaction_output(transaction_output *output) {
  * @return The SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_transaction_outpoint(transaction_outpoint *outpoint) { return hash_struct_in_hex(outpoint, sizeof(transaction_outpoint)); }
+char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
+    transaction_outpoint *copied_transaction_outpoint = (transaction_outpoint*)malloc(sizeof(transaction_outpoint));
+    memset(copied_transaction_outpoint, 0, sizeof(transaction_outpoint));
+    memcpy(copied_transaction_outpoint->hash, outpoint->hash, 65);
+    copied_transaction_outpoint->index = outpoint->index;
+    char *result = hash_struct_in_hex(copied_transaction_outpoint, sizeof(transaction_outpoint));
+    free(copied_transaction_outpoint);
+    return result;
+}
 
 /**
  * Get the total number of transactions in the system.
