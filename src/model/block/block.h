@@ -56,6 +56,7 @@ bool finalize_block(block *);
 block *get_block_by_hash(char *);
 bool append_transaction_into_block(block *, transaction *, unsigned int input_idx);
 bool verify_block_chain(block *);
+bool verify_block(block *);
 char *get_genesis_block_hash();
 bool verify_transaction(transaction *);
 bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest);

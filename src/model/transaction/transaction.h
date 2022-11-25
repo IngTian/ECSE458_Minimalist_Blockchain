@@ -12,7 +12,7 @@
  */
 
 typedef struct TransactionOutpoint {
-    char hash[64];       // The transaction ID (TXID) of the transaction holding the output to spend.
+    char hash[65];       // The transaction ID (TXID) of the transaction holding the output to spend.
     unsigned int index;  // The output index of the specific output to spend from the transaction. Starts from 0.
 } transaction_outpoint;
 

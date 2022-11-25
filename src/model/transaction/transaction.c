@@ -42,12 +42,15 @@ bool verify_transaction_input(transaction_input *i) {
     unsigned int output_idx = outpoint.index;
 
     if (!g_hash_table_contains(g_global_transaction_table, transaction_hash)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Could not find previous transaction");
         return false;
     }
 
     transaction *previous_transaction = g_hash_table_lookup(g_global_transaction_table, transaction_hash);
 
     if (output_idx >= previous_transaction->tx_out_count) {
+        general_log(LOG_SCOPE, LOG_ERROR, "The output index (%u) is bigger than the output size (%u).", output_idx,
+                    previous_transaction->tx_out_count);
         return false;
     }
 
@@ -58,7 +61,11 @@ bool verify_transaction_input(transaction_input *i) {
     memcpy(pubkey.data, previous_transaction_output.pk_script, 64);
     memcpy(signature.data, i->signature_script, 64);
 
-    char *utxo_key = hash_transaction_outpoint(&outpoint);
+    transaction_outpoint *copied_outpoint = (transaction_outpoint *)malloc(sizeof(transaction_outpoint));
+    memcpy(copied_outpoint->hash, outpoint.hash, 64);
+    copied_outpoint->hash[64] = '\0';
+    copied_outpoint->index = outpoint.index;
+    char *utxo_key = hash_transaction_outpoint(copied_outpoint);
     if (!g_hash_table_contains(g_utxo, utxo_key)) {
         general_log(LOG_SCOPE, LOG_ERROR, "UTXO is over spent.");
         return false;
@@ -67,6 +74,10 @@ bool verify_transaction_input(transaction_input *i) {
 
     bool result = verify(&pubkey, (unsigned char *)hash_msg, &signature);
     free(hash_msg);
+
+    if (!result) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to verify signature.");
+    }
 
     return result;
 }
@@ -115,8 +126,7 @@ void print_transaction(void *transaction_id, void *tx, void *user_data) {
 void print_utxo_entry(void *h, void *v, void *user_data) {
     char *hash = (char *)h;
     long int *value = (long int *)v;
-    printf("ID: %s VAL: %ld\n", convert_char_hexadecimal(hash, 32), *value);
-    printf("\n");
+    printf("ID: %s VAL: %ld\n", hash, *value);
 }
 
 void free_transaction_table_key(void *key) { free(key); }
@@ -331,10 +341,11 @@ bool finalize_transaction(transaction *t) {
     for (int i = 0; i < t->tx_out_count; i++) {
         long int *value = (long int *)malloc(sizeof(long int));
         *value = t->tx_outs[i].value;
-        transaction_outpoint outpoint;
-        memcpy(outpoint.hash, txid, sizeof(outpoint.hash));
-        outpoint.index = i;
-        char *outpoint_hash = hash_transaction_outpoint(&outpoint);
+        transaction_outpoint *outpoint = (transaction_outpoint *)malloc(sizeof(transaction_outpoint));
+        memcpy(outpoint->hash, txid, 64);
+        outpoint->hash[64] = '\0';
+        outpoint->index = i;
+        char *outpoint_hash = hash_transaction_outpoint(outpoint);
         g_hash_table_insert(g_utxo, outpoint_hash, value);
     }
 
@@ -404,6 +415,7 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
                                    .signature_script = (char *)malloc(65)};
         input.signature_script[64] = '\0';
         memcpy(input.previous_outpoint.hash, transaction_data->inputs[i].previous_txid, 64);
+        input.previous_outpoint.hash[64] = '\0';
         char *msg = hash_transaction_output(&previous_tx_output);
         secp256k1_ecdsa_signature *signature = sign((unsigned char *)curr_input_data.private_key, (unsigned char *)msg);
         memcpy(input.signature_script, signature->data, 64);
@@ -461,7 +473,7 @@ bool verify_transaction(transaction *t) {
     }
 
     if (input_sum != output_sum) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Input sum (%ld) does not equal to output sum (%ld).", input_sum, output_sum);
+        general_log(LOG_SCOPE, LOG_ERROR, "Transaction verify: Input sum (%ld) does not equal to output sum (%ld).", input_sum, output_sum);
         return false;
     }
 

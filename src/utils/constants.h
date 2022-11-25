@@ -6,7 +6,7 @@
 
 #define VERBOSE true
 #define LOG_LEVEL LOG_INFO
-#define TOTAL_NUMBER_OF_COINS 4096
+#define TOTAL_NUMBER_OF_COINS 40960
 #define LOG_TIME_FORMAT "%Y-%m-%d %H:%M:%S"
 #define LOG_TIME_LENGTH 26
 
