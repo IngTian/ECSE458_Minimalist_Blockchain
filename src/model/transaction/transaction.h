@@ -65,6 +65,5 @@ transaction *get_transaction_by_txid(char *);
 void destroy_transaction(transaction *);
 bool create_new_transaction_shortcut(transaction_create_shortcut *, transaction *);
 bool finalize_transaction(transaction *);
-void print_all_transactions();
 void print_utxo();
 #endif

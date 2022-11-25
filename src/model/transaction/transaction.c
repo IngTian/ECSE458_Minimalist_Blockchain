@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "transaction_persistence.h"
 #include "utils/constants.h"
 #include "utils/log_utils.h"
 #include "utils/sys_utils.h"
@@ -11,7 +12,6 @@
 #define LOG_SCOPE "transaction"
 
 static unsigned int g_total_number_of_transactions;  // The total number of transactions in the system.
-static GHashTable *g_global_transaction_table;       // The global transaction table, mapping TXID to transaction.
 static GHashTable *g_utxo;                           // Unspent Transaction Output. mapping each transaction output to its value left.
 char *g_genesis_private_key;
 secp256k1_pubkey *g_genesis_public_key;
@@ -41,16 +41,16 @@ bool verify_transaction_input(transaction_input *i) {
     char *transaction_hash = outpoint.hash;
     unsigned int output_idx = outpoint.index;
 
-    if (!g_hash_table_contains(g_global_transaction_table, transaction_hash)) {
+    if (!does_transaction_exist(transaction_hash)) {
         general_log(LOG_SCOPE, LOG_ERROR, "Could not find previous transaction");
         return false;
     }
 
-    transaction *previous_transaction = g_hash_table_lookup(g_global_transaction_table, transaction_hash);
+    transaction *previous_transaction = get_transaction(transaction_hash);
 
     if (output_idx >= previous_transaction->tx_out_count) {
-        general_log(LOG_SCOPE, LOG_ERROR, "The output index (%u) is bigger than the output size (%u).", output_idx,
-                    previous_transaction->tx_out_count);
+        general_log(
+            LOG_SCOPE, LOG_ERROR, "The output index (%u) is bigger than the output size (%u).", output_idx, previous_transaction->tx_out_count);
         return false;
     }
 
@@ -104,34 +104,11 @@ static void free_transaction_output(transaction_output *output) {
     free(output);
 }
 
-void print_transaction(void *transaction_id, void *tx, void *user_data) {
-    char *txid = (char *)transaction_id;
-    transaction *t = (transaction *)tx;
-    printf("TXID: %s VERSION: %d TX IN COUNT: %u TX OUT COUNT: %u LOCK: %u\n", txid, t->version, t->tx_in_count, t->tx_out_count, t->lock_time);
-    printf("<Printing Inputs>\n");
-    for (int i = 0; i < t->tx_in_count; i++) {
-        transaction_input input = t->tx_ins[i];
-        printf("SEQ: %u SIG: %s OUTPOINT HASH: %s OUTPOINT ID: %u\n", input.sequence, convert_char_hexadecimal(input.signature_script, 64),
-               input.previous_outpoint.hash, input.previous_outpoint.index);
-    }
-    printf("<Printing Outputs>\n");
-    for (int i = 0; i < t->tx_out_count; i++) {
-        transaction_output output = t->tx_outs[i];
-        char *pk_hex = convert_char_hexadecimal(output.pk_script, output.pk_script_bytes);
-        printf("VAL: %ld PK(HEX): %s\n", output.value, pk_hex);
-    }
-    printf("\n");
-}
-
 void print_utxo_entry(void *h, void *v, void *user_data) {
     char *hash = (char *)h;
     long int *value = (long int *)v;
     printf("ID: %s VAL: %ld\n", hash, *value);
 }
-
-void free_transaction_table_key(void *key) { free(key); }
-
-void free_transaction_table_val(void *val) { destroy_transaction(val); }
 
 void free_utxo_table_key(void *key) { free(key); }
 
@@ -150,14 +127,13 @@ void free_utxo_table_val(void *val) { free(val); }
  * @author Ing Tian
  */
 transaction *initialize_transaction_system() {
-    g_global_transaction_table = g_hash_table_new_full(g_str_hash, g_str_equal, free_transaction_table_key, free_transaction_table_val);
     g_utxo = g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
-
+    initialize_transaction_persistence();
     transaction *genesis_transaction = create_an_empty_transaction(1, 1);
     genesis_transaction->tx_ins[0].signature_script = (char *)malloc(65);
-    genesis_transaction->tx_ins[0].signature_script[64] = '\0';
+    genesis_transaction->tx_ins[0].signature_script[0] = 'A';
     genesis_transaction->tx_ins[0].sequence = 1;
-    genesis_transaction->tx_ins[0].script_bytes = 0;
+    genesis_transaction->tx_ins[0].script_bytes = 1;
     genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
     g_genesis_private_key = (char *)get_a_new_private_key();
     g_genesis_public_key = get_a_new_public_key(g_genesis_private_key);
@@ -175,7 +151,7 @@ transaction *initialize_transaction_system() {
     *genesis_balance = TOTAL_NUMBER_OF_COINS;
 
     g_hash_table_insert(g_utxo, outpoint_hash, genesis_balance);
-    g_hash_table_insert(g_global_transaction_table, genesis_txid, genesis_transaction);
+    save_transaction(genesis_transaction);
 
     general_log(LOG_SCOPE, LOG_INFO, "Initialized the transaction module. Genesis TXID: %s", genesis_txid);
 
@@ -187,10 +163,9 @@ transaction *initialize_transaction_system() {
  * @author Ing Tian
  */
 void destroy_transaction_system() {
-    g_hash_table_remove_all(g_global_transaction_table);
     g_hash_table_remove_all(g_utxo);
-    g_hash_table_destroy(g_global_transaction_table);
     g_hash_table_destroy(g_utxo);
+    destroy_transaction_persistence();
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the transaction module.");
 }
 
@@ -200,7 +175,17 @@ void destroy_transaction_system() {
  * @return The hash of the transaction (32 bytes).
  * @author Ing Tian
  */
-char *get_transaction_txid(transaction *t) { return hash_struct_in_hex(t, sizeof(transaction)); }
+char *get_transaction_txid(transaction *t) {
+    transaction *copied_tx = (transaction *)malloc(sizeof(transaction));
+    memset(copied_tx, 0, sizeof(transaction));
+    copied_tx->tx_out_count = t->tx_out_count;
+    copied_tx->tx_in_count = t->tx_in_count;
+    copied_tx->lock_time = t->lock_time;
+    copied_tx->version = t->version;
+    char *result = hash_struct_in_hex(copied_tx, sizeof(transaction));
+    free(copied_tx);
+    return result;
+}
 
 /**
  * Get the SHA256 hashcode of a transaction output.
@@ -208,7 +193,17 @@ char *get_transaction_txid(transaction *t) { return hash_struct_in_hex(t, sizeof
  * @return The SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_transaction_output(transaction_output *output) { return hash_struct_in_hex(output, sizeof(transaction_output)); }
+char *hash_transaction_output(transaction_output *output) {
+    unsigned long total_size_needed = sizeof(transaction_output) + output->pk_script_bytes;
+    transaction_output *copied_output = (transaction_output *)malloc(total_size_needed);
+    memset(copied_output, 0, total_size_needed);
+    copied_output->pk_script_bytes = output->pk_script_bytes;
+    copied_output->value = output->value;
+    memcpy(copied_output + sizeof(transaction_output), output->pk_script, output->pk_script_bytes);
+    char *result = hash_struct_in_hex(copied_output, total_size_needed);
+    free(copied_output);
+    return result;
+}
 
 /**
  * Get the SHA256 hashcode of a transaction outpoint.
@@ -248,11 +243,14 @@ secp256k1_pubkey *get_genesis_transaction_public_key() { return g_genesis_public
  */
 transaction *create_an_empty_transaction(unsigned int num_of_inputs, unsigned int num_of_outputs) {
     transaction *t = (transaction *)malloc(sizeof(transaction));
+    memset(t, 0, sizeof(transaction));
     t->version = 1;
     t->tx_in_count = num_of_inputs;
     t->tx_ins = (transaction_input *)malloc(sizeof(transaction_input) * num_of_inputs);
+    memset(t->tx_ins, 0, num_of_inputs * sizeof(transaction_input));
     t->tx_out_count = num_of_outputs;
     t->tx_outs = (transaction_output *)malloc(sizeof(transaction_output) * num_of_outputs);
+    memset(t->tx_outs, 0, num_of_outputs * sizeof(transaction_output));
     t->lock_time = get_timestamp();
     return t;
 }
@@ -314,7 +312,7 @@ bool finalize_transaction(transaction *t) {
         transaction_input input = t->tx_ins[i];
         char *previous_transaction_id = input.previous_outpoint.hash;
         unsigned int previous_output_id = input.previous_outpoint.index;
-        transaction *previous_transaction = g_hash_table_lookup(g_global_transaction_table, previous_transaction_id);
+        transaction *previous_transaction = get_transaction(previous_transaction_id);
         input_sum += previous_transaction->tx_outs[previous_output_id].value;
     }
 
@@ -329,7 +327,7 @@ bool finalize_transaction(transaction *t) {
 
     // Register this transaction in the system.
     char *txid = get_transaction_txid(t);
-    g_hash_table_insert(g_global_transaction_table, txid, t);
+    save_transaction(t);
 
     // Update UTXO.
     for (int i = 0; i < t->tx_in_count; i++) {
@@ -353,17 +351,6 @@ bool finalize_transaction(transaction *t) {
 }
 
 /**
- * Print every transaction inside the system.
- * @author Ing Tian
- */
-void print_all_transactions() {
-    printf("--------------------------- TX TABLE --------------------------\n");
-    printf("TOTAL TRANSACTION COUNT -------> %u\n", get_total_number_of_transactions());
-    g_hash_table_foreach(g_global_transaction_table, print_transaction, NULL);
-    printf("\n");
-}
-
-/**
  * Print UTXO inside the system.
  * @author Ing Tian
  */
@@ -379,7 +366,7 @@ void print_utxo() {
  * @author Junjian Chen
  */
 transaction *get_transaction_by_txid(char *txid) {
-    transaction *t = g_hash_table_lookup(g_global_transaction_table, txid);
+    transaction *t = get_transaction(txid);
     return t;
 }
 
@@ -396,14 +383,17 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
     for (int i = 0; i < transaction_data->num_of_inputs; i++) {
         transaction_create_shortcut_input curr_input_data = transaction_data->inputs[i];
 
-        if (!g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid)) {
+        if (!does_transaction_exist(curr_input_data.previous_txid)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to find the previous transaction with the given TXID: %s", curr_input_data.previous_txid);
             return false;
         }
-        transaction *previous_tx = g_hash_table_lookup(g_global_transaction_table, curr_input_data.previous_txid);
+        transaction *previous_tx = get_transaction(curr_input_data.previous_txid);
 
         if (curr_input_data.previous_output_idx >= previous_tx->tx_out_count) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Previous output index (%u) is out of scope (%u).", curr_input_data.previous_output_idx,
+            general_log(LOG_SCOPE,
+                        LOG_ERROR,
+                        "Previous output index (%u) is out of scope (%u).",
+                        curr_input_data.previous_output_idx,
                         previous_tx->tx_out_count);
             return false;
         }
@@ -463,7 +453,7 @@ bool verify_transaction(transaction *t) {
         }
 
         unsigned int previous_output_index = t->tx_ins[i].previous_outpoint.index;
-        transaction *previous_transaction = g_hash_table_lookup(g_global_transaction_table, t->tx_ins[i].previous_outpoint.hash);
+        transaction *previous_transaction = get_transaction(t->tx_ins[i].previous_outpoint.hash);
         input_sum += previous_transaction->tx_outs[previous_output_index].value;
     }
 
