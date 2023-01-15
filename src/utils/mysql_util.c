@@ -160,6 +160,13 @@ bool mysql_delete(char *sql_query) {
 }
 
 /**
+ * Get the last updated ID in the database.
+ * @return The last updated ID.
+ * @author Luke E
+ */
+unsigned long mysql_get_last_updated_id() { return mysql_insert_id(g_mysql_connection); }
+
+/**
  * Destroy the MySQL Util system.
  * @auhtor Luke E
  */
