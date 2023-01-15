@@ -1,6 +1,8 @@
 ---
 BasedOnStyle: Google
-ColumnLimit: 120
+BinPackArguments: false
+BinPackParameters: false
+ColumnLimit: 150
 DerivePointerAlignment: false
 IndentWidth: 4
 Language: Cpp

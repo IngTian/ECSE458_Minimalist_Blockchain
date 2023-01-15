@@ -1,0 +1,4 @@
+#ifndef MINIMALIST_BLOCKCHAIN_SYSTEM_CLI_SHELL_H
+#define MINIMALIST_BLOCKCHAIN_SYSTEM_CLI_SHELL_H
+int parseInput(char ui[]);
+#endif
