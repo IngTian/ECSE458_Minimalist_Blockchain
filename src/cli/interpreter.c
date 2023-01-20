@@ -216,7 +216,7 @@ int run(char *script) {
  * @return If run successfully, return 0.
  */
 int cli_transaction_list_all_transactions() {
-    print_all_transactions();
+//    print_all_transactions();
     return 0;
 }
 
