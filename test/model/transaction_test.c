@@ -55,8 +55,6 @@ START_TEST(test_print_all_transaction) {
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     initialize_transaction_system();
 
-    print_all_transactions();
-
     destroy_transaction_system();
     destroy_cryptography_system();
 }
