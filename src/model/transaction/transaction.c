@@ -90,7 +90,6 @@ bool verify_transaction_input(transaction_input *i) {
 void free_transaction_input(transaction_input *input) {
     if (input != NULL) {
         if (input->signature_script != NULL) free(input->signature_script);
-        free(input);
     }
 }
 
@@ -101,7 +100,6 @@ void free_transaction_input(transaction_input *input) {
  */
 static void free_transaction_output(transaction_output *output) {
     free(output->pk_script);
-    free(output);
 }
 
 void print_utxo_entry(void *h, void *v, void *user_data) {
@@ -273,7 +271,9 @@ transaction *create_an_empty_transaction(unsigned int num_of_inputs, unsigned in
  */
 void destroy_transaction(transaction *t) {
     for (int i = 0; i < t->tx_in_count; i++) free_transaction_input(&t->tx_ins[i]);
+    free(t->tx_ins);
     for (int i = 0; i < t->tx_out_count; i++) free_transaction_output(&t->tx_outs[i]);
+    free(t->tx_outs);
     free(t);
 }
 
