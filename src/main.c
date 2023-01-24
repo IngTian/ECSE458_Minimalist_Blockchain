@@ -14,7 +14,7 @@ int main() {
     // Initialize the whole system.
     mysql_config config = {.host_addr = "localhost",
                            .username = "root",
-                           .password = "Tzy1123581321!",
+                           .password = "Admin123/",
                            .db = "test",
                            .port_number = 3306,
                            .client_flag = CLIENT_MULTI_STATEMENTS};
