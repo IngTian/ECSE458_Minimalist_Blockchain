@@ -62,8 +62,12 @@ char *get_transaction_txid(transaction *);
 char *get_genesis_transaction_private_key();
 secp256k1_pubkey *get_genesis_transaction_public_key();
 transaction *get_transaction_by_txid(char *);
-void destroy_transaction(transaction *);
 bool create_new_transaction_shortcut(transaction_create_shortcut *, transaction *);
 bool finalize_transaction(transaction *);
 void print_utxo();
 #endif
+
+/**
+bool create_new_transaction_shortcut(transaction_create_shortcut *, transaction *);
+bool finalize_transaction(transaction *);
+ */
