@@ -1,0 +1,70 @@
+// Client side C/C++ program to demonstrate Socket
+// programming
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include "../model/block/block.h"
+#define PORT 8080
+
+int main(int argc, char const* argv[])
+{
+    block_header_shortcut block_header={
+        .prev_block_header_hash=NULL,
+        .version=123,
+        .nonce=0,
+        .nBits=0,
+        .merkle_root_hash=NULL,
+        .time=114514
+    };
+
+    //create a new block
+    block_create_shortcut block_data={
+        .header=&block_header,
+        .transaction_list=NULL
+    };
+
+    block* block1= (block *)malloc(sizeof(block));
+    create_new_block_shortcut(&block_data,block1);
+
+
+    int sock = 0, valread, client_fd;
+    struct sockaddr_in serv_addr;
+    char* hello = "Hello, this is message from client!!!!";
+    char buffer[1024] = { 0 };
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        return -1;
+    }
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+
+    // Convert IPv4 and IPv6 addresses from text to binary
+    // form
+    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)
+        <= 0) {
+        printf(
+            "\nInvalid address/ Address not supported \n");
+        return -1;
+    }
+
+    if ((client_fd
+         = connect(sock, (struct sockaddr*)&serv_addr,
+                   sizeof(serv_addr)))
+        < 0) {
+        printf("\nConnection Failed \n");
+        return -1;
+    }
+    send(sock, block1, strlen(hello), 0);
+    printf("Hello message sent\n");
+    valread = read(sock, buffer, 1024);
+    printf("%s\n", buffer);
+
+    // closing the connected socket
+    close(client_fd);
+    free(block1);
+    return 0;
+}
