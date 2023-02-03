@@ -6,28 +6,27 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include "../model/block/block.h"
 #define PORT 8080
 
 int main(int argc, char const* argv[])
 {
-    block_header_shortcut block_header={
-        .prev_block_header_hash=NULL,
-        .version=123,
-        .nonce=0,
-        .nBits=0,
-        .merkle_root_hash=NULL,
-        .time=114514
-    };
-
-    //create a new block
-    block_create_shortcut block_data={
-        .header=&block_header,
-        .transaction_list=NULL
-    };
-
-    block* block1= (block *)malloc(sizeof(block));
-    create_new_block_shortcut(&block_data,block1);
+//    block_header_shortcut block_header={
+//        .prev_block_header_hash=NULL,
+//        .version=123,
+//        .nonce=0,
+//        .nBits=0,
+//        .merkle_root_hash=NULL,
+//        .time=114514
+//    };
+//
+//    //create a new block
+//    block_create_shortcut block_data={
+//        .header=&block_header,
+//        .transaction_list=NULL
+//    };
+//
+//    block* block1= (block *)malloc(sizeof(block));
+//    create_new_block_shortcut(&block_data,block1);
 
 
     int sock = 0, valread, client_fd;
@@ -58,13 +57,12 @@ int main(int argc, char const* argv[])
         printf("\nConnection Failed \n");
         return -1;
     }
-    send(sock, block1, strlen(hello), 0);
+    send(sock, hello, strlen(hello), 0);
     printf("Hello message sent\n");
     valread = read(sock, buffer, 1024);
     printf("%s\n", buffer);
 
     // closing the connected socket
     close(client_fd);
-    free(block1);
     return 0;
 }
