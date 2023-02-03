@@ -161,7 +161,7 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
  * @author Ing Tian
  */
 char *hash_struct_in_hex(void *ptr, unsigned int size) {
-    unsigned char *hash_msg = (unsigned char *)malloc(32);
+    unsigned char *hash_msg = (unsigned char *)malloc(33);
     g_sha256_ctx = malloc(sizeof(SHA256_CTX));
     sha256_init(g_sha256_ctx);
     sha256_update(g_sha256_ctx, (unsigned char *)ptr, size);

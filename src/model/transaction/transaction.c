@@ -431,7 +431,10 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
         free(signature);
         free(msg);
 
-        append_new_transaction_input(ret_tx, input, i);
+        if (!append_new_transaction_input(ret_tx, input, i)) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to append input to transaction.");
+            return false;
+        }
     }
 
     for (int i = 0; i < transaction_data->num_of_outputs; i++) {
