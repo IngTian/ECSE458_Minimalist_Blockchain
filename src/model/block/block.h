@@ -58,6 +58,6 @@ bool append_transaction_into_block(block *, transaction *, unsigned int input_id
 bool verify_block_chain(block *);
 bool verify_block(block *);
 char *get_genesis_block_hash();
-bool verify_transaction(transaction *);
 bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest);
+GList* get_all_blocks();
 #endif

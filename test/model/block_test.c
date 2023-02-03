@@ -24,7 +24,7 @@ START_TEST(test_block_system_init_and_destroy) {
 
     //Destroy.
     //TODO:destroy block
-    //destroy_block_system();
+    destroy_block_system();
     destroy_transaction_system();
     destroy_cryptography_system();
 }
@@ -45,7 +45,7 @@ START_TEST(test_create_empty_block){
 
     //Destroy.
     //TODO:destroy block
-    //destroy_block_system();
+    destroy_block_system();
     destroy_transaction_system();
     destroy_cryptography_system();
 }

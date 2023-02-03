@@ -64,7 +64,8 @@ block *initialize_block_system() {
  */
 void destroy_block_system() {
     g_hash_table_foreach(g_global_block_table, free_g_global_block_table_entry, NULL);
-    free(g_global_block_table);
+//    free(g_global_block_table);
+    g_hash_table_destroy(g_global_block_table);
     free(g_genesis_block_hash);
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the block module.");
 }
@@ -319,7 +320,30 @@ bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest){
     ret_block->txn_count=block_data->transaction_list->txn_count;
     ret_block->txns=block_data->transaction_list->txns;
     *dest = *ret_block;
-
     return true;
+}
 
+bool block_rollback(char* rollback_block_hash, char* current_block_hash){
+    if (rollback_block_hash==NULL) {
+        general_log(LOG_SCOPE, LOG_ERROR, "The block hash is null.");
+        return false;
+    }
+    block* rollback_block = get_block_by_hash(rollback_block_hash);
+    if (rollback_block == NULL){
+        general_log(LOG_SCOPE, LOG_ERROR, "The block is null.");
+        return false;
+    }
+    block* current_block = get_block_by_hash(current_block_hash);
+
+    while (strcmp(current_block_hash, rollback_block_hash)!=0){
+        current_block_hash = current_block->header->prev_block_header_hash;
+        destroy_block(current_block);
+        current_block = get_block_by_hash(current_block_hash);
+    }
+    return true;
+}
+
+GList* get_all_blocks(){
+    GList* block_list=g_hash_table_get_values(g_global_block_table);
+    return block_list;
 }

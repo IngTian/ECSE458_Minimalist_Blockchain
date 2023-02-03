@@ -5,7 +5,7 @@
 #include "utils/log_utils.h"
 
 #define VERBOSE true
-#define PERSISTENCE_MODE PERSISTENCE_MYSQL
+#define PERSISTENCE_MODE PERSISTENCE_RAM
 #define PERSISTENCE_MYSQL 1
 #define PERSISTENCE_RAM 0
 #define LOG_LEVEL LOG_INFO
