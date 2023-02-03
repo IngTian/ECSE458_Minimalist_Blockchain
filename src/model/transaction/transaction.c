@@ -145,6 +145,7 @@ transaction *initialize_transaction_system() {
 
     transaction_outpoint outpoint = {.index = 0};
     memcpy(outpoint.hash, genesis_txid, 64);
+    outpoint.hash[64] = '\0';
     char *outpoint_hash = hash_transaction_outpoint(&outpoint);
     long int *genesis_balance = (long int *)malloc(sizeof(long int));
     *genesis_balance = TOTAL_NUMBER_OF_COINS;
