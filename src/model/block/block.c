@@ -342,3 +342,8 @@ bool block_rollback(char* rollback_block_hash, char* current_block_hash){
     }
     return true;
 }
+
+GList* get_all_blocks(){
+    GList* block_list=g_hash_table_get_values(g_global_block_table);
+    return block_list;
+}

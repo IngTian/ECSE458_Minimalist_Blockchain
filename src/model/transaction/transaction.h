@@ -1,6 +1,7 @@
 #ifndef MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_MODEL_TRANSACTION_H
 #define MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_MODEL_TRANSACTION_H
 
+#include <glib.h>
 #include <stdbool.h>
 
 #include "utils/cryptography.h"
@@ -58,6 +59,7 @@ typedef struct TransactionCreateShortcut {
 
 transaction *initialize_transaction_system();
 void destroy_transaction_system();
+void destroy_transaction(transaction *);
 char *get_transaction_txid(transaction *);
 char *get_genesis_transaction_private_key();
 secp256k1_pubkey *get_genesis_transaction_public_key();
@@ -65,6 +67,9 @@ transaction *get_transaction_by_txid(char *);
 bool create_new_transaction_shortcut(transaction_create_shortcut *, transaction *);
 bool finalize_transaction(transaction *);
 void print_utxo();
+bool verify_transaction(transaction *);
+void print_target_utxo(GHashTable* target_utxo);
+GHashTable* generate_utxo(GList* block_list);
 #endif
 
 /**

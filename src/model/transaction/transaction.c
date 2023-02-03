@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "model/block/block.h"
 #include "transaction_persistence.h"
 #include "utils/constants.h"
 #include "utils/log_utils.h"
@@ -36,7 +37,7 @@ bool append_new_transaction_output(transaction *, transaction_output, unsigned i
  * @return True for valid, false otherwise
  * @author Ing Tian
  */
-bool verify_transaction_input(transaction_input *i) {
+bool verify_transaction_input(transaction_input *i, bool skip_UTXO_check) {
     transaction_outpoint outpoint = i->previous_outpoint;
     char *transaction_hash = outpoint.hash;
     unsigned int output_idx = outpoint.index;
@@ -66,7 +67,7 @@ bool verify_transaction_input(transaction_input *i) {
     copied_outpoint->hash[64] = '\0';
     copied_outpoint->index = outpoint.index;
     char *utxo_key = hash_transaction_outpoint(copied_outpoint);
-    if (!g_hash_table_contains(g_utxo, utxo_key)) {
+    if (!g_hash_table_contains(g_utxo, utxo_key) && !skip_UTXO_check) {
         general_log(LOG_SCOPE, LOG_ERROR, "UTXO is over spent.");
         return false;
     }
@@ -285,7 +286,7 @@ void destroy_transaction(transaction *t) {
  * @author Ing Tian
  */
 bool append_new_transaction_input(transaction *t, transaction_input input, unsigned int input_idx) {
-    if (!verify_transaction_input(&input)) return false;
+    if (!verify_transaction_input(&input,false)) return false;
     memcpy(&t->tx_ins[input_idx], &input, sizeof(transaction_input));
     return true;
 }
@@ -298,7 +299,6 @@ bool append_new_transaction_input(transaction *t, transaction_input input, unsig
  * @auhor Ing Tian
  */
 bool append_new_transaction_output(transaction *t, transaction_output output, unsigned int output_idx) {
-    if (t == NULL) return false;
     memcpy(&t->tx_outs[output_idx], &output, sizeof(transaction_output));
     return true;
 }
@@ -369,6 +369,16 @@ void print_utxo() {
 }
 
 /**
+ * Print UTXO inside the system.
+ * @author Ing Tian
+ */
+void print_target_utxo(GHashTable* target_utxo) {
+    printf("**************************** UTXO *****************************\n");
+    g_hash_table_foreach(target_utxo, print_utxo_entry, NULL);
+    printf("\n");
+}
+
+/**
  * Get a transaction by its txid.
  * @return A new transaction
  * @author Junjian Chen
@@ -420,10 +430,7 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
         free(signature);
         free(msg);
 
-        if (!append_new_transaction_input(ret_tx, input, i)) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Failed to append input to transaction.");
-            return false;
-        }
+        append_new_transaction_input(ret_tx, input, i);
     }
 
     for (int i = 0; i < transaction_data->num_of_outputs; i++) {
@@ -433,10 +440,7 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
         output.pk_script[64] = '\0';
         memcpy(output.pk_script, curr_output_data.public_key, 64);
 
-        if (!append_new_transaction_output(ret_tx, output, i)) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Failed to append transaction output.");
-            return false;
-        }
+        append_new_transaction_output(ret_tx, output, i);
     }
 
     *dest = *ret_tx;
@@ -445,17 +449,16 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
 }
 
 /**
- * Verify a transaction with a txid
- * @param txid txid of the transaction
- * @return True if it is valid. False otherwise
- * @author Junjian Chen
+ * Verify a transaction
+ * @param t the transaction being verified
+ * @return true if it is valid, false otherwise
  */
 bool verify_transaction(transaction *t) {
     unsigned long input_sum = 0, output_sum = 0;
 
     // Check the validity of each input, and record its unspent amount.
     for (int i = 0; i < t->tx_in_count; i++) {
-        if (!verify_transaction_input(&t->tx_ins[i])) {
+        if (!verify_transaction_input(&t->tx_ins[i], true)) {
             general_log(LOG_SCOPE, LOG_ERROR, "One of the transaction input is invalid.");
             return false;
         }
@@ -477,3 +480,30 @@ bool verify_transaction(transaction *t) {
 
     return true;
 }
+
+GHashTable* generate_utxo(GList* block_list){
+    GHashTable* new_utxo= g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
+    for (int i = 0; i < g_list_length(block_list); ++i) {
+        block* cur_block=g_list_nth(block_list, i);
+        transaction** txns=cur_block->txns;
+        int tx_count=cur_block->txn_count;
+        for(int j = 0; j < tx_count; j++){
+            transaction* t=txns[j];
+            char* txid= get_transaction_txid(t);
+            for(int k=0;k<t->tx_out_count;k++){
+                long int *value=(long int *)malloc(sizeof(long int));
+                *value = t->tx_outs[k].value;
+                transaction_outpoint *outpoint=(transaction_outpoint *)malloc(sizeof(transaction_outpoint));
+                memcpy(outpoint->hash,txid, 64);
+                outpoint->hash[64]='\0';
+                outpoint->index=k;
+                char *output_hash= hash_transaction_outpoint(outpoint);
+                g_hash_table_insert(new_utxo,output_hash,value);
+            }
+
+        }
+
+    }
+    return new_utxo;
+}
+

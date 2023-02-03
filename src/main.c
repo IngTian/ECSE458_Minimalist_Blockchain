@@ -32,7 +32,7 @@ int main() {
 
     // Start testing.
 
-    for (int i = 0; i < 10000; i++) {
+    for (int i = 0; i < 100; i++) {
         char *previous_transaction_id = get_transaction_txid(previous_transaction);
         transaction_create_shortcut_input input = {.previous_output_idx = 0,
                                                    .previous_txid = previous_transaction_id,
@@ -98,12 +98,13 @@ int main() {
     }
 
 
+    GList* block_list=get_all_blocks();
+    GHashTable* utxo= generate_utxo(block_list);
+    printf("%d\n", g_hash_table_size(utxo));
+    print_target_utxo(utxo);
+
+    g_hash_table_destroy(utxo);
 
 
-//    general_log(LOG_SCOPE, LOG_INFO, "-----------------------------");
-//    get_all_fork_block_hash();
-//    for(int i=0;i< g_list_length(get_all_fork_block_hash());i++){
-//        general_log(LOG_SCOPE, LOG_INFO,i);
-//    }
 
 }
