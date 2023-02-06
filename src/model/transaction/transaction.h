@@ -4,6 +4,7 @@
 #include <glib.h>
 #include <stdbool.h>
 
+#include "model/block/block.h"
 #include "utils/cryptography.h"
 
 /*
@@ -68,8 +69,8 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *, transaction 
 bool finalize_transaction(transaction *);
 void print_utxo();
 bool verify_transaction(transaction *);
-void print_target_utxo(GHashTable* target_utxo);
-GHashTable* generate_utxo(GList* block_list);
+void print_target_utxo(GHashTable *target_utxo);
+bool generate_utxo(block **, int, GHashTable*);
 #endif
 
 /**

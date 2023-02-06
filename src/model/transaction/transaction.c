@@ -99,9 +99,7 @@ void free_transaction_input(transaction_input *input) {
  * @param output
  * @author Ing Tian
  */
-static void free_transaction_output(transaction_output *output) {
-    free(output->pk_script);
-}
+static void free_transaction_output(transaction_output *output) { free(output->pk_script); }
 
 void print_utxo_entry(void *h, void *v, void *user_data) {
     char *hash = (char *)h;
@@ -212,7 +210,7 @@ char *hash_transaction_output(transaction_output *output) {
  * @author Ing Tian
  */
 char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
-    transaction_outpoint *copied_transaction_outpoint = (transaction_outpoint*)malloc(sizeof(transaction_outpoint));
+    transaction_outpoint *copied_transaction_outpoint = (transaction_outpoint *)malloc(sizeof(transaction_outpoint));
     memset(copied_transaction_outpoint, 0, sizeof(transaction_outpoint));
     memcpy(copied_transaction_outpoint->hash, outpoint->hash, 65);
     copied_transaction_outpoint->index = outpoint->index;
@@ -287,7 +285,7 @@ void destroy_transaction(transaction *t) {
  * @author Ing Tian
  */
 bool append_new_transaction_input(transaction *t, transaction_input input, unsigned int input_idx) {
-    if (!verify_transaction_input(&input,false)) return false;
+    if (!verify_transaction_input(&input, false)) return false;
     memcpy(&t->tx_ins[input_idx], &input, sizeof(transaction_input));
     return true;
 }
@@ -373,7 +371,7 @@ void print_utxo() {
  * Print UTXO inside the system.
  * @author Ing Tian
  */
-void print_target_utxo(GHashTable* target_utxo) {
+void print_target_utxo(GHashTable *target_utxo) {
     printf("**************************** UTXO *****************************\n");
     g_hash_table_foreach(target_utxo, print_utxo_entry, NULL);
     printf("\n");
@@ -485,29 +483,42 @@ bool verify_transaction(transaction *t) {
     return true;
 }
 
-GHashTable* generate_utxo(GList* block_list){
-    GHashTable* new_utxo= g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
-    for (int i = 0; i < g_list_length(block_list); ++i) {
-        block* cur_block=g_list_nth(block_list, i);
-        transaction** txns=cur_block->txns;
-        int tx_count=cur_block->txn_count;
-        for(int j = 0; j < tx_count; j++){
-            transaction* t=txns[j];
-            char* txid= get_transaction_txid(t);
-            for(int k=0;k<t->tx_out_count;k++){
-                long int *value=(long int *)malloc(sizeof(long int));
-                *value = t->tx_outs[k].value;
-                transaction_outpoint *outpoint=(transaction_outpoint *)malloc(sizeof(transaction_outpoint));
-                memcpy(outpoint->hash,txid, 64);
-                outpoint->hash[64]='\0';
-                outpoint->index=k;
-                char *output_hash= hash_transaction_outpoint(outpoint);
-                g_hash_table_insert(new_utxo,output_hash,value);
+/**
+ * Generate a new UTXO from a list of blocks.
+ * @param block_list A list of blocks, assume the block is ranked chronologically.
+ * @param num_of_blocks The number of blocks in the block array.
+ * @param utxo The result hashtable.
+ * @return True for success.
+ */
+bool generate_utxo(block **block_list, int num_of_blocks, GHashTable *utxo) {
+    for (int block_idx = 0; block_idx < num_of_blocks; block_idx++) {
+        block *current_block = block_list[block_idx];
+        for (int tx_idx = 0; tx_idx < current_block->txn_count; tx_idx++) {
+            transaction *current_tx = current_block->txns[tx_idx];
+
+            // Iterate over the inputs and delete all input entries.
+            for (int input_idx = 0; input_idx < current_tx->tx_in_count; input_idx++) {
+                transaction_input current_input = current_tx->tx_ins[input_idx];
+                char *outpoint_hash = hash_transaction_outpoint(&current_input.previous_outpoint);
+                g_hash_table_remove(utxo, outpoint_hash);
+                free(outpoint_hash);
             }
 
+            // Iterate over the outputs and add each to the UTXO.
+            char *txid = get_transaction_txid(current_tx);
+            for (int output_idx; output_idx < current_tx->tx_out_count; output_idx++) {
+                long *amount = malloc(sizeof(long));
+                *amount = current_tx->tx_outs[output_idx].value;
+                transaction_outpoint temp_outpoint = {.index = output_idx};
+                memcpy(temp_outpoint.hash, txid, 64);
+                temp_outpoint.hash[64] = '/0';
+                char *current_outpoint_hash = hash_transaction_outpoint(&temp_outpoint);
+                g_hash_table_insert(utxo, current_outpoint_hash, amount);
+                free(current_outpoint_hash);
+            }
+            free(txid);
         }
-
     }
-    return new_utxo;
-}
 
+    return true;
+}
