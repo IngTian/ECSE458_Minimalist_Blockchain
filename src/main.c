@@ -98,13 +98,10 @@ int main() {
     }
 
 
-    GList* block_list=get_all_blocks();
-    GHashTable* utxo= generate_utxo(block_list);
-    printf("%d\n", g_hash_table_size(utxo));
-    print_target_utxo(utxo);
-
-    g_hash_table_destroy(utxo);
-
-
-
+//    GList* block_list=get_all_blocks();
+//    GHashTable* utxo= generate_utxo(block_list);
+//    printf("%d\n", g_hash_table_size(utxo));
+//    print_target_utxo(utxo);
+//
+//    g_hash_table_destroy(utxo);
 }

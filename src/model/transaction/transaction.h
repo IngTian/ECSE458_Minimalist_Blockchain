@@ -4,7 +4,6 @@
 #include <glib.h>
 #include <stdbool.h>
 
-#include "model/block/block.h"
 #include "utils/cryptography.h"
 
 /*
@@ -70,7 +69,7 @@ bool finalize_transaction(transaction *);
 void print_utxo();
 bool verify_transaction(transaction *);
 void print_target_utxo(GHashTable *target_utxo);
-bool generate_utxo(block **, int, GHashTable*);
+char *hash_transaction_outpoint(transaction_outpoint *);
 #endif
 
 /**
