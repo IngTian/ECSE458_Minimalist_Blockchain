@@ -104,7 +104,6 @@ bool save_block(block *bl) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert block.");
             return false;
         };
-        unsigned long block_id = mysql_get_last_updated_id();
         memset(sql_query, '\0', temp_sql_query_size);
 
         // Insert block header.
@@ -133,6 +132,7 @@ bool save_block(block *bl) {
         memset(sql_query, '\0', temp_sql_query_size);
 
         // Update the block ID for all associated transactions.
+        unsigned long block_id = get_block_id_in_database(bl);
         for (int i = 0; i < bl->txn_count; i++) {
             transaction *current_transaction = bl->txns[i];
             char *txid = get_transaction_txid(current_transaction);
@@ -148,6 +148,26 @@ bool save_block(block *bl) {
     }
 
     return false;
+}
+
+/**
+ * Get the block ID of a specific block in the MySQL database.
+ * @param block The specific block.
+ * @return Its block ID.
+ */
+unsigned long get_block_id_in_database(block *block) {
+    char *header_hash = hash_block_header(block->header);
+    char sql_query[1000];
+    sprintf(sql_query, "select block_h_id from block_header where block_header_hash='%s';", header_hash);
+    MYSQL_RES *res = mysql_read(sql_query);
+
+    MYSQL_ROW row;
+    unsigned long block_header_id;
+    while ((row = mysql_fetch_row(res))) {
+        block_header_id = atoi(row[0]);
+    }
+    free(header_hash);
+    return block_header_id;
 }
 
 /**
