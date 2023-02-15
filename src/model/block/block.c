@@ -47,7 +47,6 @@ block *initialize_block_system() {
     initialize_block_persistence();
     block *genesis_block = create_an_empty_block(1);
     g_genesis_block_hash = hash_block_header(genesis_block->header);
-    finalize_block(genesis_block);
     general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.", g_genesis_block_hash);
     return genesis_block;
 }
@@ -78,7 +77,7 @@ block *create_an_empty_block(unsigned int transaction_amount) {
     header->nBits = 0;
     header->time = get_current_unix_time();
     block_create->header = header;
-    block_create->txn_count = 0;
+    block_create->txn_count = transaction_amount;
     block_create->txns = (transaction **)malloc(sizeof(transaction *) * transaction_amount);
     return block_create;
 }
