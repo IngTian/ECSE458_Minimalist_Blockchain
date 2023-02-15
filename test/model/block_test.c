@@ -1,4 +1,5 @@
 #include "../src/model/block/block.h"
+#include "../src/model/block/block_persistence.h"
 
 #include <check.h>
 #include <stdlib.h>
@@ -102,11 +103,11 @@ START_TEST(test_destroy_block2){
 //    printf("-------%s---------------\n",current_private_key);
 
     block_header_shortcut block_header={
-        .prev_block_header_hash=NULL,
+        .prev_block_header_hash="",
         .version=0,
         .nonce=0,
         .nBits=0,
-        .merkle_root_hash=NULL,
+        .merkle_root_hash="",
         .time=get_current_unix_time()
     };
     memcpy(block_header.prev_block_header_hash,get_genesis_block_hash(),65);
@@ -159,11 +160,11 @@ START_TEST(test_destroy_block3){
     create_new_transaction_shortcut(&create_data, new_t);
     finalize_transaction(new_t);
     block_header_shortcut block_header={
-        .prev_block_header_hash=NULL,
+        .prev_block_header_hash="",
         .version=0,
         .nonce=0,
         .nBits=0,
-        .merkle_root_hash=NULL,
+        .merkle_root_hash="",
         .time=get_current_unix_time()
     };
     memcpy(block_header.prev_block_header_hash,get_genesis_block_hash(),65);
@@ -317,11 +318,11 @@ START_TEST(test_verify_block_chain){
     create_new_transaction_shortcut(&create_data, new_t);
     finalize_transaction(new_t);
     block_header_shortcut block_header={
-        .prev_block_header_hash=NULL,
+        .prev_block_header_hash="",
         .version=0,
         .nonce=0,
         .nBits=0,
-        .merkle_root_hash=NULL,
+        .merkle_root_hash="",
         .time=get_current_unix_time()
     };
     memcpy(block_header.prev_block_header_hash,get_genesis_block_hash(),65);
@@ -417,13 +418,13 @@ Suite *transaction_suite(void) {
 
     /* tc_append_transaction_into_block test case */
     TCase *tc_append_transaction_into_block;
-    tc_append_transaction_into_block = tcase_create(tc_append_transaction_into_block);
+    tc_append_transaction_into_block = tcase_create("tc_append_transaction_into_block");
     tcase_add_test(tc_append_transaction_into_block, test_append_transaction_into_block);
     suite_add_tcase(s, tc_append_transaction_into_block);
 
     /* tc_verify_block_chain test case */
     TCase *tc_verify_block_chain;
-    tc_verify_block_chain = tcase_create(tc_verify_block_chain);
+    tc_verify_block_chain = tcase_create("tc_verify_block_chain");
     tcase_add_test(tc_verify_block_chain, test_verify_block_chain);
     suite_add_tcase(s, tc_verify_block_chain);
     return s;
