@@ -314,18 +314,22 @@ bool does_transaction_exist(char *txid) {
  * @author Ing Tian
  */
 bool destroy_transaction_persistence() {
+    bool res = false;
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
             "drop table transaction_outpoint;\n"
             "drop table transaction_input;\n"
             "drop table transaction_output;\n"
             "drop table transaction;";
-        return mysql_delete_table(sql_query);
+        res = mysql_delete_table(sql_query);
+        if (!res) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete tables.");
+        }
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_hash_table_remove_all(g_global_transaction_table);
         g_hash_table_destroy(g_global_transaction_table);
-        return true;
+        res = true;
     }
 
-    return false;
+    return res;
 }
