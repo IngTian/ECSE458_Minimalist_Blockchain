@@ -84,7 +84,8 @@ int main(int argc, char const *argv[]) {
 
     send(sock, (char *)&person, sizeof(person), 0);
     printf("Client: person sent\n");
-    valread = read(sock, buffer, 1024);
+//    valread = read(sock, buffer, 1024);
+    recv(sock, buffer, 1024, 0);
     printf("%s\n", buffer);
 
     // closing the connected socket
