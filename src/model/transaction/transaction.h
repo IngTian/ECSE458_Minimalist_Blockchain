@@ -114,4 +114,5 @@ bool finalize_transaction(transaction *);
 void print_utxo();
 socket_transaction *cast_to_socket_transaction(transaction*);
 transaction *cast_to_transaction(socket_transaction *);
+int get_socket_transaction_length(socket_transaction *);
 #endif

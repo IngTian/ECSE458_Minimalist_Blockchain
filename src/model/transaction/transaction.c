@@ -562,3 +562,14 @@ transaction *cast_to_transaction(socket_transaction *socket_transaction) {
 
     return tx;
 }
+
+/**
+ * Get the data length of a socket transaction.
+ * @param socket_tx A socket transaction.
+ * @return The data length.
+ * @author Junjian Chen
+ */
+int get_socket_transaction_length(socket_transaction *socket_tx) {
+    return sizeof(socket_tx) + socket_tx->tx_in_count * sizeof(socket_transaction_input) +
+           socket_tx->tx_out_count * sizeof(socket_transaction_output);
+}
