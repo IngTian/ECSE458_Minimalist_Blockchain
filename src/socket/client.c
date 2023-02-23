@@ -21,19 +21,8 @@
 
 #define LOG_SCOPE "Client"
 #define PORT 8080
-struct UsrData {
-    char usr_id[16];
-    char usr_pwd[16];
-    char usr_nickname[16];
-};
 
-struct Person {
-    int pid;
-    struct UsrData usrData;
-};
-
-
-
+char* combine_data_with_command(char *command, unsigned int command_length, const char* data, unsigned int data_length);
 
 int main(int argc, char const *argv[]) {
     // Initialize the whole system.
@@ -101,7 +90,6 @@ int main(int argc, char const *argv[]) {
     /** Create 10000*1 one to one transactions **/
 
     transaction *small_txs = malloc(size * sizeof(transaction));
-
     char *sub_genesis_transaction_id = get_transaction_txid(previous_transaction);
     general_log(LOG_SCOPE, LOG_INFO, "Sub genesis hash: %s, its length: %d", sub_genesis_transaction_id, strlen(sub_genesis_transaction_id));
     previous_transaction_id = sub_genesis_transaction_id;
@@ -133,9 +121,7 @@ int main(int argc, char const *argv[]) {
         if (!create_new_transaction_shortcut(&create_data_small, t_small)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction. + %d", i);
         }
-
         verify_transaction(t_small);
-
         if (!finalize_transaction(t_small)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction %d.", i);
         } else {
@@ -145,9 +131,6 @@ int main(int argc, char const *argv[]) {
         previous_transaction_id = get_transaction_txid(t_small);
         previous_private_key = new_private_key_output_small;
     }
-
-
-
 
 
     int sock = 0, valread, client_fd;
@@ -175,9 +158,22 @@ int main(int argc, char const *argv[]) {
     }
 
     print_hex(t_sub_genesis->tx_ins[0].signature_script,64);
+
     //    transaction previous
     socket_transaction *socket_tx = cast_to_socket_transaction(t_sub_genesis);
-    send(sock, (const char *)socket_tx, get_socket_transaction_length(socket_tx), 0);
+    char command[32];
+    memset(command, '\0', 32);
+    memcpy(command, "create transaction", strlen("create transaction"));
+
+    int send_size = get_socket_transaction_length(socket_tx)+ 32;
+    char* send_socket_tx = combine_data_with_command(command,
+                                                     32,
+                                                     (const char*)socket_tx,
+                                                     get_socket_transaction_length(socket_tx));
+
+
+//    send(sock, (const char *)socket_tx, get_socket_transaction_length(socket_tx), 0);
+    send(sock, send_socket_tx, send_size, 0);
     printf("---- Client: transaction sent ----\n");
     valread = read(sock, buffer, 1024);
 
@@ -186,3 +182,17 @@ int main(int argc, char const *argv[]) {
     close(client_fd);
     return 0;
 }
+
+char* combine_data_with_command(
+    char *command,
+    unsigned int command_length,
+    const char* data,
+    unsigned int data_length
+    ){
+    size_t n = command_length + data_length;
+    char *s = malloc( n );
+    memcpy(s, command, command_length);
+    memcpy(s + command_length, data, data_length);
+    return s;
+}
+

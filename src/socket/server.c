@@ -121,11 +121,13 @@ void* HandleTCPClient(void* arg){
     printf("%d\n", clientSock);
     char echoBuffer[8092];
 
-
-
     recv(clientSock, echoBuffer, sizeof(echoBuffer), 0);
-    socket_transaction *recv_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)echoBuffer));
-    memcpy(recv_socket_tx, echoBuffer, get_socket_transaction_length((socket_transaction *)echoBuffer));
+    char *command = echoBuffer;
+    char *data = command + 32;
+    printf("%s\n", command);
+
+    socket_transaction *recv_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)data));
+    memcpy(recv_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
     transaction *tx = cast_to_transaction(recv_socket_tx);
 
     printf("%d\n",tx->tx_out_count);
