@@ -11,11 +11,13 @@
 #include "signal.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "pthread.h"
 
 #define PORT 8080
 
 void DieWithError(char *errorMessage);
-void HandleTCPClient(int clntSocket);
+//void HandleTCPClient(int clntSocket);
+void* HandleTCPClient(void* arg);
 
 struct UsrData {
     char usr_id[16];
@@ -73,7 +75,11 @@ int main(int argc, char const *argv[]) {
             exit(EXIT_FAILURE);
         }
         printf("Handling client %s\n", inet_ntoa(echo_server_address.sin_addr));
-        HandleTCPClient(clientSock);
+//        HandleTCPClient(clientSock);
+        pthread_t thread_id;
+        int *arg = malloc(sizeof(*arg));
+        *arg = clientSock;
+        pthread_create(&thread_id, NULL, HandleTCPClient, arg);
     }
 
 
@@ -108,7 +114,29 @@ void DieWithError(char *errorMessage){
     printf("%s\n",errorMessage);
 }
 
-void HandleTCPClient(int clientSock){
+//void HandleTCPClient(int clientSock){
+//    char echoBuffer[1024];
+//    ssize_t recvMsgSize;
+//    transaction recvTx;
+//    struct UsrData recvUser;
+//    struct Person recvPerson;
+//
+//    //receiver message from client
+//    if ((recvMsgSize = recv(clientSock, echoBuffer, 1024, 0)) < 0)
+//        DieWithError("recv() failed");
+//    sleep(1);
+//    memcpy(&recvPerson,echoBuffer, sizeof(recvPerson));
+//    recvUser=recvPerson.usrData;
+//    printf("%s\n",recvUser.usr_id);
+//    printf("%s\n", recvUser.usr_nickname);
+//    memcpy(recvUser.usr_nickname, "Joeeeee", sizeof("Joeeeee"));
+//    send(clientSock, &recvPerson, sizeof(recvPerson), 0);
+//    close(clientSock);
+//}
+
+void* HandleTCPClient(void* arg){
+    int clientSock = ((int *)arg)[0];
+    printf("%d\n", clientSock);
     char echoBuffer[1024];
     ssize_t recvMsgSize;
     transaction recvTx;
@@ -118,7 +146,8 @@ void HandleTCPClient(int clientSock){
     //receiver message from client
     if ((recvMsgSize = recv(clientSock, echoBuffer, 1024, 0)) < 0)
         DieWithError("recv() failed");
-
+    printf("receive message size: %d\n", (int)recvMsgSize);
+    sleep(5);
     memcpy(&recvPerson,echoBuffer, sizeof(recvPerson));
     recvUser=recvPerson.usrData;
     printf("%s\n",recvUser.usr_id);
