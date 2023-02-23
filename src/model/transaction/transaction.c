@@ -98,9 +98,7 @@ void free_transaction_input(transaction_input *input) {
  * @param output
  * @author Ing Tian
  */
-static void free_transaction_output(transaction_output *output) {
-    free(output->pk_script);
-}
+static void free_transaction_output(transaction_output *output) { free(output->pk_script); }
 
 void print_utxo_entry(void *h, void *v, void *user_data) {
     char *hash = (char *)h;
@@ -210,7 +208,7 @@ char *hash_transaction_output(transaction_output *output) {
  * @author Ing Tian
  */
 char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
-    transaction_outpoint *copied_transaction_outpoint = (transaction_outpoint*)malloc(sizeof(transaction_outpoint));
+    transaction_outpoint *copied_transaction_outpoint = (transaction_outpoint *)malloc(sizeof(transaction_outpoint));
     memset(copied_transaction_outpoint, 0, sizeof(transaction_outpoint));
     memcpy(copied_transaction_outpoint->hash, outpoint->hash, 65);
     copied_transaction_outpoint->index = outpoint->index;
@@ -476,4 +474,91 @@ bool verify_transaction(transaction *t) {
     }
 
     return true;
+}
+
+/**
+ * Cast a transaction to socket transaction for transmitting.
+ * @param tx A transaction.
+ * @return A socket transaction for transmitting.
+ * @author Junjian Chen
+ */
+socket_transaction *cast_to_socket_transaction(transaction *tx) {
+    unsigned int tx_in_count = tx->tx_in_count;
+    unsigned int tx_out_count = tx->tx_out_count;
+    socket_transaction *socket_tx = (socket_transaction *)malloc(sizeof(socket_transaction) + tx_in_count * sizeof(socket_transaction_input) +
+                                                                 tx_out_count * sizeof(socket_transaction_output));
+
+    // Initialize transaction fields.
+    socket_tx->version = tx->version;
+    socket_tx->tx_in_count = tx->tx_in_count;
+    socket_tx->tx_out_count = tx->tx_out_count;
+    socket_tx->lock_time = tx->lock_time;
+
+    // Build inputs.
+    for (int i = 0; i < tx_in_count; i++) {
+        socket_transaction_input *current_socket_tx_in =
+            (socket_transaction_input *)(&socket_tx->transaction_input + i * sizeof(socket_transaction_input));
+        current_socket_tx_in->script_bytes = tx->tx_ins[i].script_bytes;
+        memcpy(current_socket_tx_in->signature_script, tx->tx_ins[i].signature_script, 64);
+        current_socket_tx_in->sequence = tx->tx_ins[i].sequence;
+    }
+
+    // Build Outputs
+    for (int i = 0; i < tx_out_count; i++) {
+        socket_transaction_output *current_socket_tx_out =
+            (socket_transaction_output *)(&socket_tx->transaction_input + tx_in_count * sizeof(socket_transaction_input) +
+                                          i * sizeof(socket_transaction_output));
+        current_socket_tx_out->pk_script_bytes = tx->tx_outs[i].pk_script_bytes;
+        current_socket_tx_out->value = tx->tx_outs[i].value;
+        memcpy(current_socket_tx_out->pk_script, tx->tx_outs[i].pk_script, 64);
+    }
+
+    return socket_tx;
+}
+
+/**
+ * Cast an input socket transaction into a transaction.
+ * @param socket_transaction A socket transaction.
+ * @return A transaction
+ * @author Junjian Chen
+ */
+transaction *cast_to_transaction(socket_transaction *socket_transaction) {
+    // Get general transaction fields.
+    transaction *tx = (transaction *)malloc(sizeof(transaction));
+    tx->version = socket_transaction->version;
+    tx->tx_in_count = socket_transaction->tx_in_count;
+    tx->tx_out_count = socket_transaction->tx_out_count;
+    tx->lock_time = socket_transaction->lock_time;
+    tx->tx_ins = (transaction_input *)malloc(tx->tx_in_count * sizeof(transaction_input));
+    tx->tx_outs = (transaction_output *)malloc(tx->tx_out_count * sizeof(transaction_output));
+
+    // Initialize inputs.
+    socket_transaction_input *socket_inputs = (socket_transaction_input *)socket_transaction->transaction_input;
+    for (int i = 0; i < tx->tx_in_count; i++) {
+        socket_transaction_input current_socket_input = socket_inputs[i];
+        transaction_input *current_input = &tx->tx_ins[i];
+        current_input->sequence = current_socket_input.sequence;
+        current_input->script_bytes = current_socket_input.script_bytes;
+        current_input->signature_script = (char *)malloc(65);
+        memcpy(current_input->signature_script, current_socket_input.signature_script, 64);
+        current_input->signature_script[64] = '\0';
+        current_input->previous_outpoint.index = current_socket_input.previous_outpoint.index;
+        memcpy(current_input->previous_outpoint.hash, current_socket_input.previous_outpoint.hash, 64);
+        current_input->previous_outpoint.hash[64] = '\0';
+    }
+
+    // Initialize outputs.
+    socket_transaction_output *socket_outputs =
+        (socket_transaction_output *)(socket_transaction->transaction_input + tx->tx_in_count * sizeof(socket_transaction_input));
+    for (int i = 0; i < tx->tx_out_count; i++) {
+        socket_transaction_output current_socket_output = socket_outputs[i];
+        transaction_output *current_output = &tx->tx_outs[i];
+        current_output->value = current_socket_output.value;
+        current_output->pk_script_bytes = current_socket_output.pk_script_bytes;
+        current_output->pk_script = (char *)malloc(65);
+        memcpy(current_output->pk_script, current_socket_output.pk_script, 64);
+        current_output->pk_script[64] = '\0';
+    }
+
+    return tx;
 }
