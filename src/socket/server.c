@@ -12,6 +12,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "pthread.h"
+#include "utils/log_utils.h"
 
 #define PORT 8080
 
@@ -114,45 +115,24 @@ void DieWithError(char *errorMessage){
     printf("%s\n",errorMessage);
 }
 
-//void HandleTCPClient(int clientSock){
-//    char echoBuffer[1024];
-//    ssize_t recvMsgSize;
-//    transaction recvTx;
-//    struct UsrData recvUser;
-//    struct Person recvPerson;
-//
-//    //receiver message from client
-//    if ((recvMsgSize = recv(clientSock, echoBuffer, 1024, 0)) < 0)
-//        DieWithError("recv() failed");
-//    sleep(1);
-//    memcpy(&recvPerson,echoBuffer, sizeof(recvPerson));
-//    recvUser=recvPerson.usrData;
-//    printf("%s\n",recvUser.usr_id);
-//    printf("%s\n", recvUser.usr_nickname);
-//    memcpy(recvUser.usr_nickname, "Joeeeee", sizeof("Joeeeee"));
-//    send(clientSock, &recvPerson, sizeof(recvPerson), 0);
-//    close(clientSock);
-//}
 
 void* HandleTCPClient(void* arg){
     int clientSock = ((int *)arg)[0];
     printf("%d\n", clientSock);
-    char echoBuffer[1024];
-    ssize_t recvMsgSize;
-    transaction recvTx;
-    struct UsrData recvUser;
-    struct Person recvPerson;
+    char echoBuffer[8092];
 
-    //receiver message from client
-    if ((recvMsgSize = recv(clientSock, echoBuffer, 1024, 0)) < 0)
-        DieWithError("recv() failed");
-    printf("receive message size: %d\n", (int)recvMsgSize);
-    sleep(5);
-    memcpy(&recvPerson,echoBuffer, sizeof(recvPerson));
-    recvUser=recvPerson.usrData;
-    printf("%s\n",recvUser.usr_id);
-    printf("%s\n", recvUser.usr_nickname);
-    memcpy(recvUser.usr_nickname, "Joeeeee", sizeof("Joeeeee"));
-    send(clientSock, &recvPerson, sizeof(recvPerson), 0);
+
+
+    recv(clientSock, echoBuffer, sizeof(echoBuffer), 0);
+    socket_transaction *recv_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)echoBuffer));
+    memcpy(recv_socket_tx, echoBuffer, get_socket_transaction_length((socket_transaction *)echoBuffer));
+    transaction *tx = cast_to_transaction(recv_socket_tx);
+
+    printf("%d\n",tx->tx_out_count);
+    printf("%d\n",tx->tx_in_count);
+    printf("%d\n",tx->lock_time);
+    printf("%d\n",tx->version);
+    print_hex(tx->tx_ins[0].signature_script,64);
+//    send(clientSock, &recvPerson, sizeof(recvPerson), 0);
     close(clientSock);
 }
