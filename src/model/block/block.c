@@ -54,7 +54,7 @@ block *initialize_block_system() {
     block *genesis_block = create_an_empty_block(1);
     g_genesis_block_hash = hash_block_header(genesis_block->header);
     finalize_block(genesis_block);
-    general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.",g_genesis_block_hash);
+    general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.", g_genesis_block_hash);
     return genesis_block;
 }
 
@@ -128,27 +128,26 @@ bool append_prev_block(block *prev_block, block *cur_block) {
  * @author Junjian Chen
  */
 bool check_block_valid(block *block1) {
-
-    //check if the block is NULL
+    // check if the block is NULL
     if (block1 == NULL) {
         general_log(LOG_SCOPE, LOG_ERROR, "The block is null.");
         return false;
     }
 
-    //check if the header is NULL
+    // check if the header is NULL
     block_header *header = block1->header;
     if (header == NULL) {
         general_log(LOG_SCOPE, LOG_ERROR, "The block header is null.");
         return false;
     }
 
-    //check if the previous block is NULL
-    if(strcmp(header->prev_block_header_hash,"")==0){
-        if(strcmp(hash_block_header(header),g_genesis_block_hash)!=0){
+    // check if the previous block is NULL
+    if (strcmp(header->prev_block_header_hash, "") == 0) {
+        if (strcmp(hash_block_header(header), g_genesis_block_hash) != 0) {
             general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid since the previous block is null.");
             return false;
         }
-    }else{
+    } else {
         block *prev_block = get_block_by_hash(header->prev_block_header_hash);
         if (prev_block == NULL) {
             general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid since the previous block is null.");
@@ -156,8 +155,7 @@ bool check_block_valid(block *block1) {
         }
     }
 
-
-    //check if the time is valid
+    // check if the time is valid
     if (header->time == 0) {
         return false;
     }
@@ -172,8 +170,7 @@ bool check_block_valid(block *block1) {
  * @author Junjian Chen
  */
 bool finalize_block(block *block_finalize) {
-
-    //check if the block is valid
+    // check if the block is valid
     if (!check_block_valid(block_finalize)) {
         return false;
     }
@@ -206,22 +203,20 @@ bool append_transaction_into_block(block *block1, transaction *transaction1, uns
     return true;
 }
 
-
 /**
  * Verify transactions in a block
  * @param block1  The block to verify transaction in it
  * @return True for the valid transactions in the block, false for invalid
  * @author Junjian Chen
  */
-bool verify_block_transaction(block *block1){
-    for(int i=0;i<block1->txn_count;i++){
-        if(!verify_transaction(block1->txns[i])){
+bool verify_block_transaction(block *block1) {
+    for (int i = 0; i < block1->txn_count; i++) {
+        if (!verify_transaction(block1->txns[i])) {
             return false;
         }
     }
 
     return true;
-
 }
 
 /**
@@ -233,12 +228,12 @@ bool verify_block_transaction(block *block1){
 bool verify_block_chain(block *chain_tail) {
     block *temp = chain_tail;
 
-    int i=0;
+    int i = 0;
 
     while (true) {
-
-        if(!verify_block_transaction(temp)){
-            general_log(LOG_SCOPE, LOG_ERROR,"The chain is invalid because one transaction in the block is invalid.\n Error block: the last %dth block",i);
+        if (!verify_block_transaction(temp)) {
+            general_log(
+                LOG_SCOPE, LOG_ERROR, "The chain is invalid because one transaction in the block is invalid.\n Error block: the last %dth block", i);
             return false;
         }
 
@@ -249,15 +244,17 @@ bool verify_block_chain(block *chain_tail) {
                 general_log(LOG_SCOPE, LOG_INFO, "The chain is valid!");
                 return true;
             } else {
-                general_log(LOG_SCOPE, LOG_ERROR,
-                            "The chain is invalid because the first block does not equal the genesis block.\n Error block: the last %dth block",i);
+                general_log(LOG_SCOPE,
+                            LOG_ERROR,
+                            "The chain is invalid because the first block does not equal the genesis block.\n Error block: the last %dth block",
+                            i);
                 return false;
             }
         } else {
             // When temp isn't genesis block
             block *prev_block = get_block_by_hash(temp->header->prev_block_header_hash);
             if (prev_block == NULL) {
-                general_log(LOG_SCOPE, LOG_ERROR, "The chain is invalid: no previous block found for a block!\n Error block: the last %dth block",i);
+                general_log(LOG_SCOPE, LOG_ERROR, "The chain is invalid: no previous block found for a block!\n Error block: the last %dth block", i);
                 return false;
             }
 
@@ -265,7 +262,7 @@ bool verify_block_chain(block *chain_tail) {
             if (strcmp(hash, temp->header->prev_block_header_hash) == 0) {
                 temp = get_block_by_hash(temp->header->prev_block_header_hash);
             } else {
-                general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid: previous block hash doesn't match!\n Error block: the last %dth block",i);
+                general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid: previous block hash doesn't match!\n Error block: the last %dth block", i);
                 return false;
             }
         }
@@ -282,12 +279,12 @@ bool verify_block_chain(block *chain_tail) {
  * @return True if valid. False otherwise
  * @author Junjian Chen
  */
-bool verify_block(block *block1){
-    if(!verify_block_transaction(block1)){
+bool verify_block(block *block1) {
+    if (!verify_block_transaction(block1)) {
         return false;
     }
 
-    if(!check_block_valid(block1)){
+    if (!check_block_valid(block1)) {
         return false;
     }
 
@@ -308,18 +305,108 @@ char *get_genesis_block_hash() { return g_genesis_block_hash; }
  * @return True for success, false otherwise.
  * @author Junjian Chen
  */
-bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest){
-    block *ret_block= create_an_empty_block(block_data->transaction_list->txn_count);
-    memcpy(ret_block->header->prev_block_header_hash,block_data->header->prev_block_header_hash,65);
-    ret_block->header->time=block_data->header->time;
-    memcpy(ret_block->header->merkle_root_hash,block_data->header->merkle_root_hash,65);
-    ret_block->header->nBits=block_data->header->nBits;
-    ret_block->header->nonce=block_data->header->nonce;
-    ret_block->header->version=block_data->header->version;
-    ret_block->txn_count=block_data->transaction_list->txn_count;
-    ret_block->txns=block_data->transaction_list->txns;
+bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest) {
+    block *ret_block = create_an_empty_block(block_data->transaction_list->txn_count);
+    memcpy(ret_block->header->prev_block_header_hash, block_data->header->prev_block_header_hash, 65);
+    ret_block->header->time = block_data->header->time;
+    memcpy(ret_block->header->merkle_root_hash, block_data->header->merkle_root_hash, 65);
+    ret_block->header->nBits = block_data->header->nBits;
+    ret_block->header->nonce = block_data->header->nonce;
+    ret_block->header->version = block_data->header->version;
+    ret_block->txn_count = block_data->transaction_list->txn_count;
+    ret_block->txns = block_data->transaction_list->txns;
     *dest = *ret_block;
 
     return true;
+}
 
+/**
+ * Cast a block to a socket block
+ * @param b A block
+ * @return A socket block for transmitting
+ * @author Junjian Chen
+ */
+socket_block *cast_to_socket_block(block *b) {
+    int txns_total_length = 0;
+    int txns_ptr_deviation[b->txn_count + 1];
+
+    for (int i = 0; i < b->txn_count; i++) {
+        txns_ptr_deviation[i] = txns_total_length;
+        socket_transaction *tmp = cast_to_socket_transaction(b->txns[i]);
+        txns_total_length += get_socket_transaction_length(tmp);
+        free(tmp);
+    }
+    txns_ptr_deviation[b->txn_count] = txns_total_length;
+
+    socket_block *socket_blk = (socket_block *)malloc(sizeof(socket_block) + txns_total_length);
+    socket_blk->version = b->header->version;
+    socket_blk->nonce = b->header->version;
+    socket_blk->txn_count = b->txn_count;
+    socket_blk->nBits = b->header->nBits;
+    socket_blk->time = b->header->time;
+    memcpy(socket_blk->prev_block_header_hash, b->header->prev_block_header_hash, 65);
+    memcpy(socket_blk->merkle_root_hash, b->header->merkle_root_hash, 65);
+
+    for (int i = 0; i < b->txn_count; i++) {
+        char *tx_starting_address = socket_blk->txns + txns_ptr_deviation[i];
+        socket_transaction *current_socket_tx = (socket_transaction *)(tx_starting_address);
+        socket_transaction *tmp = cast_to_socket_transaction(b->txns[i]);
+        memcpy(current_socket_tx, tmp, txns_ptr_deviation[i + 1] - txns_ptr_deviation[i]);
+        free(tmp);
+    }
+
+    return socket_blk;
+}
+
+/**
+ * Cast to a block from a socket block.
+ * @param socket_blk A socket block.
+ * @return A block.
+ * @author Junjian Chen
+ */
+block *cast_to_block(socket_block *socket_blk) {
+    // Initialize a block header.
+    block_header *blk_header = (block_header *)malloc(sizeof(block_header));
+    blk_header->time = socket_blk->time;
+    blk_header->version = socket_blk->version;
+    blk_header->nBits = socket_blk->nBits;
+    blk_header->nonce = socket_blk->nonce;
+    memcpy(blk_header->prev_block_header_hash, socket_blk->prev_block_header_hash, 65);
+    memcpy(blk_header->merkle_root_hash, socket_blk->merkle_root_hash, 65);
+
+    // Initialize a block.
+    block *blk = (block *)malloc(sizeof(block));
+    blk->txn_count = socket_blk->txn_count;
+    blk->header = blk_header;
+    blk->txns = (transaction**) malloc(blk->txn_count * sizeof(transaction*));
+
+    // Get the total length of txns.
+    int total_length = 0;
+    for (int i = 0; i < socket_blk->txn_count; i++) {
+        // Get current socket transaction.
+        socket_transaction *current_socket_tx = (socket_transaction *)(socket_blk->txns + total_length);
+        int current_socket_transaction_length = get_socket_transaction_length(current_socket_tx);
+        total_length += current_socket_transaction_length;
+
+        // Initialize current tx.
+        blk->txns[i] = cast_to_transaction(current_socket_tx);
+    }
+
+    return blk;
+}
+
+/**
+ * Get the socket block length.
+ * @param b A block.
+ * @return The length of it if it was a socket block.
+ * @author Junjian Chen
+ */
+int get_socket_block_length(block *b) {
+    int txns_total_length = sizeof(socket_block);
+    for (int i = 0; i < b->txn_count; i++) {
+        socket_transaction *tmp = cast_to_socket_transaction(b->txns[i]);
+        txns_total_length += get_socket_transaction_length(tmp);
+        free(tmp);
+    }
+    return txns_total_length;
 }

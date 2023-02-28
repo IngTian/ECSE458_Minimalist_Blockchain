@@ -497,7 +497,7 @@ socket_transaction *cast_to_socket_transaction(transaction *tx) {
     // Build inputs.
     for (int i = 0; i < tx_in_count; i++) {
         socket_transaction_input *current_socket_tx_in =
-            (socket_transaction_input *)(&socket_tx->transaction_input + i * sizeof(socket_transaction_input));
+            (socket_transaction_input *)(socket_tx->transaction_input + i * sizeof(socket_transaction_input));
         current_socket_tx_in->script_bytes = tx->tx_ins[i].script_bytes;
         memcpy(current_socket_tx_in->signature_script, tx->tx_ins[i].signature_script, 64);
         current_socket_tx_in->sequence = tx->tx_ins[i].sequence;
@@ -506,7 +506,7 @@ socket_transaction *cast_to_socket_transaction(transaction *tx) {
     // Build Outputs
     for (int i = 0; i < tx_out_count; i++) {
         socket_transaction_output *current_socket_tx_out =
-            (socket_transaction_output *)(&socket_tx->transaction_input + tx_in_count * sizeof(socket_transaction_input) +
+            (socket_transaction_output *)(socket_tx->transaction_input + tx_in_count * sizeof(socket_transaction_input) +
                                           i * sizeof(socket_transaction_output));
         current_socket_tx_out->pk_script_bytes = tx->tx_outs[i].pk_script_bytes;
         current_socket_tx_out->value = tx->tx_outs[i].value;
@@ -548,6 +548,7 @@ transaction *cast_to_transaction(socket_transaction *socket_transaction) {
     }
 
     // Initialize outputs.
+    //todo
     socket_transaction_output *socket_outputs =
         (socket_transaction_output *)(socket_transaction->transaction_input + tx->tx_in_count * sizeof(socket_transaction_input));
     for (int i = 0; i < tx->tx_out_count; i++) {
