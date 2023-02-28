@@ -60,6 +60,7 @@ typedef struct SocketBlock{
     unsigned int nBits;               // An encoded version of the target threshold this block’s header hash must be less than or equal to.
     unsigned int nonce;               // An arbitrary number miners change to modify the header hash for the PoW.
     unsigned int txn_count;           // Number of transaction
+    unsigned int txns_size;           // Size of the txns
     char txns[0];                     // Script of Transactions
 }socket_block;
 
@@ -78,5 +79,6 @@ char *get_genesis_block_hash();
 bool verify_transaction(transaction *);
 bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest);
 socket_block *cast_to_socket_block(block *);
+block *cast_to_block(socket_block *);
 int get_socket_block_length(block *);
 #endif

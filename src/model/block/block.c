@@ -355,6 +355,8 @@ socket_block *cast_to_socket_block(block *b) {
         free(tmp);
     }
 
+    socket_blk->txns_size=txns_total_length;
+
     return socket_blk;
 }
 
