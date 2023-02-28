@@ -85,7 +85,7 @@ block *create_an_empty_block(unsigned int transaction_amount) {
     header->nBits = 0;
     header->time = get_current_unix_time();
     block_create->header = header;
-    block_create->txn_count = 0;
+    block_create->txn_count = transaction_amount;
     block_create->txns = (transaction **)malloc(sizeof(transaction *) * transaction_amount);
     return block_create;
 }
@@ -313,8 +313,7 @@ bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest) {
     ret_block->header->nBits = block_data->header->nBits;
     ret_block->header->nonce = block_data->header->nonce;
     ret_block->header->version = block_data->header->version;
-    ret_block->txn_count = block_data->transaction_list->txn_count;
-    ret_block->txns = block_data->transaction_list->txns;
+    memcpy(ret_block->txns, block_data->transaction_list->txns, ret_block->txn_count * sizeof(transaction*));
     *dest = *ret_block;
 
     return true;

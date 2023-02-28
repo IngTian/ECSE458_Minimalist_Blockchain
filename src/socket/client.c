@@ -33,6 +33,7 @@ int main(int argc, char const *argv[]) {
     block *block_under_test;
 
     char *previous_block_header_hash = get_genesis_block_hash();
+    transaction **txns;
 
     // Start testing.
 
@@ -60,7 +61,7 @@ int main(int argc, char const *argv[]) {
 
         memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 65);
 
-        transaction **txns = malloc(sizeof(txns));
+        txns = malloc(sizeof(transaction *));
         txns[0] = t;
 
         transactions_shortcut txns_shortcut = {.txns = txns, .txn_count = 1};
