@@ -7,6 +7,6 @@
 
 char *convert_char_hexadecimal(char *, unsigned int);
 void general_log(char *, int, char *, ...);
-void print_hex(unsigned char*, int size);
+void print_hex(unsigned char *, int size);
 
 #endif

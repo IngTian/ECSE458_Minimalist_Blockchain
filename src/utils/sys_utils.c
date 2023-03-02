@@ -1,9 +1,7 @@
 #include "sys_utils.h"
 
 #include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <time.h>
 
 /// Convert seconds to milliseconds
@@ -14,11 +12,11 @@
 #define SEC_TO_NS(sec) ((sec)*1000000000)
 
 /// Convert nanoseconds to seconds
-#define NS_TO_SEC(ns)   ((ns)/1000000000)
+#define NS_TO_SEC(ns) ((ns) / 1000000000)
 /// Convert nanoseconds to milliseconds
-#define NS_TO_MS(ns)    ((ns)/1000000)
+#define NS_TO_MS(ns) ((ns) / 1000000)
 /// Convert nanoseconds to microseconds
-#define NS_TO_US(ns)    ((ns)/1000)
+#define NS_TO_US(ns) ((ns) / 1000)
 
 /**
  * Get the timestamp now in milliseconds.
