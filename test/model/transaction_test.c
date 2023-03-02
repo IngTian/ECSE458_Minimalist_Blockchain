@@ -3,6 +3,7 @@
 #include <check.h>
 #include <stdlib.h>
 
+#include "../src/model/transaction/transaction_persistence.h"
 #include "../src/utils/constants.h"
 #include "../src/utils/mysql_util.h"
 
@@ -100,13 +101,13 @@ START_TEST(test_create_new_transaction_shortcut1) {
     ck_assert_msg(create_new_transaction_shortcut(&create_data, new_t1), "Assert create new transaction successfully, but receive returning false!");
     ck_assert_msg(finalize_transaction(new_t1), "Assert create new transaction successfully, but receive returning false!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
 
-START_TEST(test_create_new_transaction_shortcut2){
+START_TEST(test_create_new_transaction_shortcut2) {
     printf("%s\n", "test_create_new_transaction_shortcut2 start!");
 
     initialize_mysql_system();
@@ -119,8 +120,8 @@ START_TEST(test_create_new_transaction_shortcut2){
      * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: false.
      * input_sum != output_sum: false.
      */
-    char* previous_transaction_id = get_transaction_txid(genesis_t);
-    previous_transaction_id[0]='a';
+    char *previous_transaction_id = get_transaction_txid(genesis_t);
+    previous_transaction_id[0] = 'a';
     transaction_create_shortcut_input input2 = {
         .previous_output_idx = 0, .previous_txid = previous_transaction_id, .private_key = get_genesis_transaction_private_key()};
     unsigned char *new_private_key2 = get_a_new_private_key();
@@ -131,13 +132,13 @@ START_TEST(test_create_new_transaction_shortcut2){
 
     ck_assert_msg(!create_new_transaction_shortcut(&create_data2, new_t2), "Assert create new transaction fail, but receive returning true!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
 
-START_TEST(test_create_new_transaction_shortcut3){
+START_TEST(test_create_new_transaction_shortcut3) {
     printf("%s\n", "test_create_new_transaction_shortcut3 start!");
 
     initialize_mysql_system();
@@ -149,7 +150,7 @@ START_TEST(test_create_new_transaction_shortcut3){
      * !g_hash_table_contains(g_global_transaction_table, curr_input_data.previous_txid): false.
      * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: true.
      */
-    char* previous_transaction_id = get_transaction_txid(genesis_t);
+    char *previous_transaction_id = get_transaction_txid(genesis_t);
     transaction_create_shortcut_input input3 = {
         .previous_output_idx = 2, .previous_txid = previous_transaction_id, .private_key = get_genesis_transaction_private_key()};
     unsigned char *new_private_key3 = get_a_new_private_key();
@@ -160,13 +161,13 @@ START_TEST(test_create_new_transaction_shortcut3){
 
     ck_assert_msg(!create_new_transaction_shortcut(&create_data3, new_t3), "Assert create new transaction fail, but receive returning true!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
 
-START_TEST(test_create_new_transaction_shortcut4){
+START_TEST(test_create_new_transaction_shortcut4) {
     printf("%s\n", "test_create_new_transaction_shortcut4 start!");
 
     initialize_mysql_system();
@@ -179,7 +180,7 @@ START_TEST(test_create_new_transaction_shortcut4){
      * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: false.
      * !append_new_transaction_input(ret_tx, input, i): true -> utxo false
      */
-    char* previous_transaction_id = get_transaction_txid(genesis_t);
+    char *previous_transaction_id = get_transaction_txid(genesis_t);
     transaction_create_shortcut_input input4 = {
         .previous_output_idx = 0, .previous_txid = previous_transaction_id, .private_key = get_genesis_transaction_private_key()};
     unsigned char *new_private_key4 = get_a_new_private_key();
@@ -190,7 +191,6 @@ START_TEST(test_create_new_transaction_shortcut4){
 
     ck_assert_msg(create_new_transaction_shortcut(&create_data4, new_t4), "Assert create new transaction fail, but receive returning true!");
     ck_assert_msg(finalize_transaction(new_t4), "Assert create new transaction fail, but receive returning pass!");
-
 
     previous_transaction_id = get_transaction_txid(genesis_t);
     transaction_create_shortcut_input input5 = {
@@ -203,13 +203,13 @@ START_TEST(test_create_new_transaction_shortcut4){
 
     ck_assert_msg(!create_new_transaction_shortcut(&create_data5, new_t5), "Assert create new transaction fail, but receive returning true!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
 
-START_TEST(test_create_new_transaction_shortcut5){
+START_TEST(test_create_new_transaction_shortcut5) {
     printf("%s\n", "test_create_new_transaction_shortcut5 start!");
 
     initialize_mysql_system();
@@ -222,7 +222,7 @@ START_TEST(test_create_new_transaction_shortcut5){
      * curr_input_data.previous_output_idx >= previous_tx->tx_out_count: false.
      * !append_new_transaction_input(ret_tx, input, i): true -> signature fail due to public key
      */
-    char* previous_transaction_id = get_transaction_txid(genesis_t);
+    char *previous_transaction_id = get_transaction_txid(genesis_t);
     transaction_create_shortcut_input input4 = {
         .previous_output_idx = 0, .previous_txid = previous_transaction_id, .private_key = get_genesis_transaction_private_key()};
     unsigned char *new_private_key4 = get_a_new_private_key();
@@ -234,7 +234,7 @@ START_TEST(test_create_new_transaction_shortcut5){
     memcpy(genesis_t->tx_outs[0].pk_script, new_public_key4->data, 64);
     ck_assert_msg(!create_new_transaction_shortcut(&create_data4, new_t4), "Assert create new transaction fail, but receive returning true!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
@@ -245,7 +245,7 @@ START_TEST(test_get_transaction_txid) {
 
     initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction* genesis_t = initialize_transaction_system();
+    transaction *genesis_t = initialize_transaction_system();
 
     char *previous_transaction_id = get_transaction_txid(genesis_t);
     transaction_create_shortcut_input input = {
@@ -280,7 +280,7 @@ START_TEST(test_get_transaction_by_txid) {
 
     initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction* genesis_t = initialize_transaction_system();
+    transaction *genesis_t = initialize_transaction_system();
 
     char *previous_transaction_id = get_transaction_txid(genesis_t);
     transaction_create_shortcut_input input = {
@@ -314,7 +314,7 @@ START_TEST(test_get_transaction_by_txid) {
 }
 END_TEST
 
-START_TEST(test_verify_transaction1){
+START_TEST(test_verify_transaction1) {
     printf("%s\n", "test_verify_transaction1 start!");
 
     initialize_mysql_system();
@@ -339,13 +339,13 @@ START_TEST(test_verify_transaction1){
     ck_assert_msg(finalize_transaction(new_t1), "Assert create new transaction successfully, but receive returning false!");
     ck_assert_msg(verify_transaction(new_t1), "Assert verify the transaction successfully, but receiving false!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
 
-START_TEST(test_verify_transaction2){
+START_TEST(test_verify_transaction2) {
     printf("%s\n", "test_verify_transaction2 start!");
 
     initialize_mysql_system();
@@ -373,13 +373,13 @@ START_TEST(test_verify_transaction2){
     new_t1->tx_ins[0].previous_outpoint.hash[64] = '\0';
     ck_assert_msg(!verify_transaction(new_t1), "Assert verify the transaction fail, but receiving pass!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
 
-START_TEST(test_verify_transaction3){
+START_TEST(test_verify_transaction3) {
     printf("%s\n", "test_verify_transaction3 start!");
 
     initialize_mysql_system();
@@ -403,16 +403,16 @@ START_TEST(test_verify_transaction3){
     ck_assert_msg(create_new_transaction_shortcut(&create_data, new_t1), "Assert create new transaction successfully, but receive returning false!");
     ck_assert_msg(finalize_transaction(new_t1), "Assert create new transaction successfully, but receive returning false!");
 
-    new_t1->tx_ins[0].previous_outpoint.index =2;
+    new_t1->tx_ins[0].previous_outpoint.index = 2;
     ck_assert_msg(!verify_transaction(new_t1), "Assert verify the transaction fail, but receiving pass!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
 
-START_TEST(test_verify_transaction4){
+START_TEST(test_verify_transaction4) {
     printf("%s\n", "test_verify_transaction4 start!");
 
     initialize_mysql_system();
@@ -439,13 +439,13 @@ START_TEST(test_verify_transaction4){
     memcpy(genesis_t->tx_outs[0].pk_script, new_public_key->data, 64);
     ck_assert_msg(!verify_transaction(new_t1), "Assert verify the transaction fail, but receiving pass!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
 
-START_TEST(test_verify_transaction5){
+START_TEST(test_verify_transaction5) {
     printf("%s\n", "test_verify_transaction5 start!");
 
     initialize_mysql_system();
@@ -469,16 +469,16 @@ START_TEST(test_verify_transaction5){
     ck_assert_msg(create_new_transaction_shortcut(&create_data, new_t1), "Assert create new transaction successfully, but receive returning false!");
     ck_assert_msg(finalize_transaction(new_t1), "Assert create new transaction successfully, but receive returning false!");
 
-    new_t1->tx_outs[0].value = TOTAL_NUMBER_OF_COINS-1;
+    new_t1->tx_outs[0].value = TOTAL_NUMBER_OF_COINS - 1;
     ck_assert_msg(!verify_transaction(new_t1), "Assert verify the transaction fail, but receiving pass!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
 
-START_TEST(test_finalize_transaction2){
+START_TEST(test_finalize_transaction2) {
     printf("%s\n", "test_finalize_transaction2 start!");
 
     initialize_mysql_system();
@@ -489,7 +489,7 @@ START_TEST(test_finalize_transaction2){
      * Test case:
      * 1. input_sum != output_sum : true
      */
-    char* previous_transaction_id = get_transaction_txid(genesis_t);
+    char *previous_transaction_id = get_transaction_txid(genesis_t);
     transaction_create_shortcut_input input4 = {
         .previous_output_idx = 0, .previous_txid = previous_transaction_id, .private_key = get_genesis_transaction_private_key()};
     unsigned char *new_private_key4 = get_a_new_private_key();
@@ -500,17 +500,14 @@ START_TEST(test_finalize_transaction2){
 
     ck_assert_msg(create_new_transaction_shortcut(&create_data4, new_t4), "Assert create new transaction fail, but receive returning true!");
 
-    new_t4->tx_outs[0].value = TOTAL_NUMBER_OF_COINS-1;
+    new_t4->tx_outs[0].value = TOTAL_NUMBER_OF_COINS - 1;
     ck_assert_msg(!finalize_transaction(new_t4), "Assert create new transaction fail, but receive returning pass!");
 
-    //Destroy.
+    // Destroy.
     destroy_transaction_system();
     destroy_cryptography_system();
 }
 END_TEST
-
-
-
 
 Suite *transaction_suite(void) {
     Suite *s;

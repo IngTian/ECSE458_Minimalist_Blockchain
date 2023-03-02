@@ -141,7 +141,7 @@ void general_log(char *scope, int log_level, char *format, ...) {
  * @param data Incoming data.
  * @param size The size of the incoming data in bytes.
  */
-void print_hex(unsigned char* data, int size) {
+void print_hex(unsigned char *data, int size) {
     size_t i;
     printf("0x");
     for (i = 0; i < size; i++) {

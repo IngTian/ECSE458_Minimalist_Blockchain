@@ -51,7 +51,7 @@ typedef struct BlockCreateShortcut {
  * -----------------------------------------------------------
  */
 
-typedef struct SocketBlock{
+typedef struct SocketBlock {
     int version;                      // The block version number indicates which set of block validation rules to follow.
     char prev_block_header_hash[65];  // A SHA256(SHA256()) hash in internal byte order of the previous block’s header.
     char merkle_root_hash[65];        // A SHA256(SHA256()) hash in internal byte order.
@@ -61,7 +61,7 @@ typedef struct SocketBlock{
     unsigned int txn_count;           // Number of transaction
     unsigned int txns_size;           // Size of the txns
     char txns[0];                     // Script of Transactions
-}socket_block;
+} socket_block;
 
 char *hash_block_header(block_header *header);
 block *initialize_block_system();

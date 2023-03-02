@@ -2,6 +2,7 @@
 #define MINIMALIST_BLOCK_CHAIN_SYSTEM_SRC_UTILS_CONSTANTS_H
 
 #include <stdbool.h>
+
 #include "utils/log_utils.h"
 
 // General

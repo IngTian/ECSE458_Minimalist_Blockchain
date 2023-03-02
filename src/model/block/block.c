@@ -352,7 +352,7 @@ socket_block *cast_to_socket_block(block *b) {
         free(tmp);
     }
 
-    socket_blk->txns_size=txns_total_length;
+    socket_blk->txns_size = txns_total_length;
 
     return socket_blk;
 }
@@ -377,7 +377,7 @@ block *cast_to_block(socket_block *socket_blk) {
     block *blk = (block *)malloc(sizeof(block));
     blk->txn_count = socket_blk->txn_count;
     blk->header = blk_header;
-    blk->txns = (transaction**) malloc(blk->txn_count * sizeof(transaction*));
+    blk->txns = (transaction **)malloc(blk->txn_count * sizeof(transaction *));
 
     // Get the total length of txns.
     int total_length = 0;
