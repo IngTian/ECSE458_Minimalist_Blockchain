@@ -11,6 +11,7 @@
 #define LOG_SCOPE "block_persistence"
 
 static GHashTable *g_global_block_table;  // The global block table that maps block header hash to the block.
+block *g_genesis_block = NULL;            // The genesis block.
 
 /**
  * Free the memory space of a block.
@@ -88,6 +89,11 @@ bool initialize_block_persistence() {
  * @auhtor Luke E
  */
 bool save_block(block *bl) {
+    // Save the genesis block.
+    if (get_total_number_of_blocks() == 0) {
+        g_genesis_block = bl;
+    }
+
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         int temp_sql_query_size = 10000;
 
@@ -255,7 +261,35 @@ block *get_block(char *block_header_hash) {
     }
 }
 
-block **get_all_blocks() { return NULL; }
+/**
+ * Get the genesis block in the system.
+ * @return The genesis block.
+ * @author Ing Tian
+ */
+block *get_genesis_block() {
+    if (g_genesis_block != NULL) {
+        return g_genesis_block;
+    }
+
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *sql_query = "select block_header_hash from block_header where block_h_id=1;";
+        MYSQL_RES *res = mysql_read(sql_query);
+
+        MYSQL_ROW row;
+        char genesis_block_header_id[65];
+        genesis_block_header_id[64] = '\0';
+        while ((row = mysql_fetch_row(res))) {
+            strcpy(genesis_block_header_id, row[0]);
+        }
+
+        mysql_free_result(res);
+        block *genesis_block = get_block(genesis_block_header_id);
+        g_genesis_block = genesis_block;
+        return g_genesis_block;
+    }
+
+    return NULL;
+}
 
 /**
  * Destroy the block persistence layer
@@ -276,3 +310,30 @@ bool destroy_block_persistence() {
     }
     return false;
 }
+
+/**
+ * Get total number of blocks in the system.
+ * @return The total number of blocks in the system.
+ * @author Ing Tian
+ */
+unsigned int get_total_number_of_blocks() {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *sql_query = "select count(*) as count from block;";
+        MYSQL_RES *res = mysql_read(sql_query);
+
+        // Read number.
+        MYSQL_ROW row;
+        unsigned int answer = 0;
+        while ((row = mysql_fetch_row(res))) {
+            answer = atoi(row[0]);
+        }
+
+        mysql_free_result(res);
+
+        return answer;
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        return g_hash_table_size(g_global_block_table);
+    }
+
+    return -1;
+};
