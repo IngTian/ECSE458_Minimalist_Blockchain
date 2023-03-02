@@ -32,6 +32,11 @@ char *hash_block_header(block_header *header) {
     return ret_val;
 }
 
+void free_g_global_block_table_entry(void *block_id, void *blk, void *user_data) {
+    free(block_id);
+    destroy_block(blk);
+}
+
 /*
  * -----------------------------------------------------------
  * APIs
@@ -318,41 +323,94 @@ bool block_rollback(char *rollback_block_hash, char *current_block_hash) {
 }
 
 /**
- * Generate a new UTXO from a list of blocks.
- * @param block_list A list of blocks, assume the block is ranked chronologically.
- * @param num_of_blocks The number of blocks in the block array.
- * @param utxo The result hashtable.
- * @return True for success.
+ * Cast a block to a socket block
+ * @param b A block
+ * @return A socket block for transmitting
+ * @author Junjian Chen
  */
-bool generate_utxo(block **block_list, int num_of_blocks, GHashTable *utxo) {
-    for (int block_idx = 0; block_idx < num_of_blocks; block_idx++) {
-        block *current_block = block_list[block_idx];
-        for (int tx_idx = 0; tx_idx < current_block->txn_count; tx_idx++) {
-            transaction *current_tx = current_block->txns[tx_idx];
+socket_block *cast_to_socket_block(block *b) {
+    int txns_total_length = 0;
+    int txns_ptr_deviation[b->txn_count + 1];
 
-            // Iterate over the inputs and delete all input entries.
-            for (int input_idx = 0; input_idx < current_tx->tx_in_count; input_idx++) {
-                transaction_input current_input = current_tx->tx_ins[input_idx];
-                char *outpoint_hash = hash_transaction_outpoint(&current_input.previous_outpoint);
-                g_hash_table_remove(utxo, outpoint_hash);
-                free(outpoint_hash);
-            }
+    for (int i = 0; i < b->txn_count; i++) {
+        txns_ptr_deviation[i] = txns_total_length;
+        socket_transaction *tmp = cast_to_socket_transaction(b->txns[i]);
+        txns_total_length += get_socket_transaction_length(tmp);
+        free(tmp);
+    }
+    txns_ptr_deviation[b->txn_count] = txns_total_length;
 
-            // Iterate over the outputs and add each to the UTXO.
-            char *txid = get_transaction_txid(current_tx);
-            for (int output_idx; output_idx < current_tx->tx_out_count; output_idx++) {
-                long *amount = malloc(sizeof(long));
-                *amount = current_tx->tx_outs[output_idx].value;
-                transaction_outpoint temp_outpoint = {.index = output_idx};
-                memcpy(temp_outpoint.hash, txid, 64);
-                temp_outpoint.hash[64] = '/0';
-                char *current_outpoint_hash = hash_transaction_outpoint(&temp_outpoint);
-                g_hash_table_insert(utxo, current_outpoint_hash, amount);
-                free(current_outpoint_hash);
-            }
-            free(txid);
-        }
+    socket_block *socket_blk = (socket_block *)malloc(sizeof(socket_block) + txns_total_length);
+    socket_blk->version = b->header->version;
+    socket_blk->nonce = b->header->version;
+    socket_blk->txn_count = b->txn_count;
+    socket_blk->nBits = b->header->nBits;
+    socket_blk->time = b->header->time;
+    memcpy(socket_blk->prev_block_header_hash, b->header->prev_block_header_hash, 65);
+    memcpy(socket_blk->merkle_root_hash, b->header->merkle_root_hash, 65);
+
+    for (int i = 0; i < b->txn_count; i++) {
+        char *tx_starting_address = socket_blk->txns + txns_ptr_deviation[i];
+        socket_transaction *current_socket_tx = (socket_transaction *)(tx_starting_address);
+        socket_transaction *tmp = cast_to_socket_transaction(b->txns[i]);
+        memcpy(current_socket_tx, tmp, txns_ptr_deviation[i + 1] - txns_ptr_deviation[i]);
+        free(tmp);
     }
 
-    return true;
+    socket_blk->txns_size=txns_total_length;
+
+    return socket_blk;
+}
+
+/**
+ * Cast to a block from a socket block.
+ * @param socket_blk A socket block.
+ * @return A block.
+ * @author Junjian Chen
+ */
+block *cast_to_block(socket_block *socket_blk) {
+    // Initialize a block header.
+    block_header *blk_header = (block_header *)malloc(sizeof(block_header));
+    blk_header->time = socket_blk->time;
+    blk_header->version = socket_blk->version;
+    blk_header->nBits = socket_blk->nBits;
+    blk_header->nonce = socket_blk->nonce;
+    memcpy(blk_header->prev_block_header_hash, socket_blk->prev_block_header_hash, 65);
+    memcpy(blk_header->merkle_root_hash, socket_blk->merkle_root_hash, 65);
+
+    // Initialize a block.
+    block *blk = (block *)malloc(sizeof(block));
+    blk->txn_count = socket_blk->txn_count;
+    blk->header = blk_header;
+    blk->txns = (transaction**) malloc(blk->txn_count * sizeof(transaction*));
+
+    // Get the total length of txns.
+    int total_length = 0;
+    for (int i = 0; i < socket_blk->txn_count; i++) {
+        // Get current socket transaction.
+        socket_transaction *current_socket_tx = (socket_transaction *)(socket_blk->txns + total_length);
+        int current_socket_transaction_length = get_socket_transaction_length(current_socket_tx);
+        total_length += current_socket_transaction_length;
+
+        // Initialize current tx.
+        blk->txns[i] = cast_to_transaction(current_socket_tx);
+    }
+
+    return blk;
+}
+
+/**
+ * Get the socket block length.
+ * @param b A block.
+ * @return The length of it if it was a socket block.
+ * @author Junjian Chen
+ */
+int get_socket_block_length(block *b) {
+    int txns_total_length = sizeof(socket_block);
+    for (int i = 0; i < b->txn_count; i++) {
+        socket_transaction *tmp = cast_to_socket_transaction(b->txns[i]);
+        txns_total_length += get_socket_transaction_length(tmp);
+        free(tmp);
+    }
+    return txns_total_length;
 }

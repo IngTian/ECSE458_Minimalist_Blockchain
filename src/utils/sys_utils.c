@@ -28,7 +28,7 @@
 unsigned long get_timestamp() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    return ts.tv_nsec;
+    return SEC_TO_NS((unsigned long)ts.tv_sec) + ts.tv_nsec;
 }
 
 /**
