@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "../src/utils/constants.h"
+#include "../src/utils/mysql_util.h"
 
 START_TEST(test_transaction_system_create) {
     printf("%s\n", "test_transaction_system_create start!");
@@ -493,6 +494,7 @@ END_TEST
 Suite *transaction_suite(void) {
     Suite *s;
     s = suite_create("Transaction");
+    initialize_mysql_system();
 
     /* system_create test case */
     TCase *tc_system_create;
@@ -596,7 +598,7 @@ Suite *transaction_suite(void) {
     tcase_add_test(tc_finalize_transaction2, test_finalize_transaction2);
     suite_add_tcase(s, tc_finalize_transaction2);
 
-
+    destroy_mysql_system();
     return s;
 }
 

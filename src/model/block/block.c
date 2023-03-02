@@ -32,11 +32,6 @@ char *hash_block_header(block_header *header) {
     return ret_val;
 }
 
-void free_g_global_block_table_entry(void *block_id, void *blk, void *user_data) {
-    free(block_id);
-    destroy_block(blk);
-}
-
 /*
  * -----------------------------------------------------------
  * APIs
