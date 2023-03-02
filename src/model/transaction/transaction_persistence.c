@@ -11,6 +11,7 @@
 #define LOG_SCOPE "transaction_persistence"
 
 static GHashTable *g_global_transaction_table;  // The global transaction table, mapping TXID to transaction.
+static GHashTable *g_utxo;                      // Unspent Transaction Output. mapping each transaction output to its value left.
 
 /*
  * -----------------------------------------------------------
@@ -20,6 +21,16 @@ static GHashTable *g_global_transaction_table;  // The global transaction table,
 void free_transaction_table_key(void *key) { free(key); }
 
 void free_transaction_table_val(void *val) { destroy_transaction(val); }
+
+void free_utxo_table_key(void *key) { free(key); }
+
+void free_utxo_table_val(void *val) { free(val); }
+
+void print_utxo_entry(void *h, void *v, void *user_data) {
+    char *hash = (char *)h;
+    long int *value = (long int *)v;
+    printf("ID: %s VAL: %ld\n", hash, *value);
+}
 
 /*
  * -----------------------------------------------------------
@@ -81,6 +92,7 @@ bool initialize_transaction_persistence() {
         return mysql_create_table(sql_query);
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_global_transaction_table = g_hash_table_new_full(g_str_hash, g_str_equal, free_transaction_table_key, free_transaction_table_val);
+        g_utxo = g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
     }
 
     return false;
@@ -177,6 +189,51 @@ bool save_transaction(transaction *tx) {
     }
 
     return false;
+}
+
+/**
+ * Save a utxo entry.
+ * @param key The key.
+ * @param value The value.
+ * @return True for success and false otherwise.
+ * @author Ing Tian
+ */
+bool save_utxo_entry(char *key, long int *value) {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        return false;
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        g_hash_table_insert(g_utxo, key, value);
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Remove a UTXO entry.
+ * @param key A key.
+ * @return True for success and false otherwise.
+ * @author Ing Tian
+ */
+bool remove_utxo_entry(char *key) {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        return false;
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        g_hash_table_remove(g_utxo, key);
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Print UTXO inside the system.
+ * @author Ing Tian
+ */
+void print_utxo() {
+    printf("**************************** UTXO *****************************\n");
+    g_hash_table_foreach(g_utxo, print_utxo_entry, NULL);
+    printf("\n");
 }
 
 /**
@@ -308,6 +365,22 @@ bool does_transaction_exist(char *txid) {
 };
 
 /**
+ * Check if a key exists in UTXO.
+ * @param key A UTXO key.
+ * @return True for exists and false otherwise.
+ * @author Ing Tian
+ */
+bool does_utxo_entry_exist(char *key) {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        return false;
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        return g_hash_table_contains(g_utxo, key);
+    }
+
+    return false;
+}
+
+/**
  * Destroy the transaction persistence layer
  * by destroying all the tables.
  * @return True for success and false otherwise.
@@ -326,6 +399,8 @@ bool destroy_transaction_persistence() {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete tables.");
         }
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        g_hash_table_remove_all(g_utxo);
+        g_hash_table_destroy(g_utxo);
         g_hash_table_remove_all(g_global_transaction_table);
         g_hash_table_destroy(g_global_transaction_table);
         res = true;

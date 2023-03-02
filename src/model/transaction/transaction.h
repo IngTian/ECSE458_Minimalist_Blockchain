@@ -112,7 +112,6 @@ secp256k1_pubkey *get_genesis_transaction_public_key();
 transaction *get_transaction_by_txid(char *);
 bool create_new_transaction_shortcut(transaction_create_shortcut *, transaction *);
 bool finalize_transaction(transaction *);
-void print_utxo();
 socket_transaction *cast_to_socket_transaction(transaction*);
 transaction *cast_to_transaction(socket_transaction *);
 int get_socket_transaction_length(socket_transaction *);

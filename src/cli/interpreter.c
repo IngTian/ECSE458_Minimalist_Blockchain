@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "../model/transaction/transaction.h"
+#include "../model/transaction/transaction_persistence.h"
 #include "../model/block/block.h"
 #include "../utils/log_utils.h"
 #include "../utils/mjson.h"

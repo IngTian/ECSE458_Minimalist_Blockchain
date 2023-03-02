@@ -1,4 +1,5 @@
 #include "../src/model/transaction/transaction.h"
+#include "../src/model/transaction/transaction_persistence.h"
 
 #include <check.h>
 #include <stdlib.h>

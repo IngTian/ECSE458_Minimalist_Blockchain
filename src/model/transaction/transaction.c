@@ -13,7 +13,6 @@
 #define LOG_SCOPE "transaction"
 
 static unsigned int g_total_number_of_transactions;  // The total number of transactions in the system.
-static GHashTable *g_utxo;                           // Unspent Transaction Output. mapping each transaction output to its value left.
 char *g_genesis_private_key;
 secp256k1_pubkey *g_genesis_public_key;
 
@@ -67,7 +66,7 @@ bool verify_transaction_input(transaction_input *i, bool skip_UTXO_check) {
     copied_outpoint->hash[64] = '\0';
     copied_outpoint->index = outpoint.index;
     char *utxo_key = hash_transaction_outpoint(copied_outpoint);
-    if (!g_hash_table_contains(g_utxo, utxo_key) && !skip_UTXO_check) {
+    if (!does_utxo_entry_exist(utxo_key) && !skip_UTXO_check) {
         general_log(LOG_SCOPE, LOG_ERROR, "UTXO is over spent.");
         return false;
     }
@@ -101,16 +100,6 @@ void free_transaction_input(transaction_input *input) {
  */
 static void free_transaction_output(transaction_output *output) { free(output->pk_script); }
 
-void print_utxo_entry(void *h, void *v, void *user_data) {
-    char *hash = (char *)h;
-    long int *value = (long int *)v;
-    printf("ID: %s VAL: %ld\n", hash, *value);
-}
-
-void free_utxo_table_key(void *key) { free(key); }
-
-void free_utxo_table_val(void *val) { free(val); }
-
 /*
  * -----------------------------------------------------------
  * Functionalities
@@ -124,7 +113,6 @@ void free_utxo_table_val(void *val) { free(val); }
  * @author Ing Tian
  */
 transaction *initialize_transaction_system() {
-    g_utxo = g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
     initialize_transaction_persistence();
     transaction *genesis_transaction = create_an_empty_transaction(1, 1);
     genesis_transaction->tx_ins[0].signature_script = (char *)malloc(65);
@@ -148,7 +136,7 @@ transaction *initialize_transaction_system() {
     long int *genesis_balance = (long int *)malloc(sizeof(long int));
     *genesis_balance = TOTAL_NUMBER_OF_COINS;
 
-    g_hash_table_insert(g_utxo, outpoint_hash, genesis_balance);
+    save_utxo_entry(outpoint_hash, genesis_balance);
     save_transaction(genesis_transaction);
 
     general_log(LOG_SCOPE, LOG_INFO, "Initialized the transaction module. Genesis TXID: %s", genesis_txid);
@@ -161,8 +149,6 @@ transaction *initialize_transaction_system() {
  * @author Ing Tian
  */
 void destroy_transaction_system() {
-    g_hash_table_remove_all(g_utxo);
-    g_hash_table_destroy(g_utxo);
     destroy_transaction_persistence();
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the transaction module.");
 }
@@ -340,7 +326,7 @@ bool finalize_transaction(transaction *t) {
     // Update UTXO.
     for (int i = 0; i < t->tx_in_count; i++) {
         char *outpoint_hash = hash_transaction_outpoint(&t->tx_ins[i].previous_outpoint);
-        g_hash_table_remove(g_utxo, outpoint_hash);
+        remove_utxo_entry(outpoint_hash);
         free(outpoint_hash);
     }
 
@@ -352,30 +338,10 @@ bool finalize_transaction(transaction *t) {
         outpoint->hash[64] = '\0';
         outpoint->index = i;
         char *outpoint_hash = hash_transaction_outpoint(outpoint);
-        g_hash_table_insert(g_utxo, outpoint_hash, value);
+        save_utxo_entry(outpoint_hash, value);
     }
 
     return true;
-}
-
-/**
- * Print UTXO inside the system.
- * @author Ing Tian
- */
-void print_utxo() {
-    printf("**************************** UTXO *****************************\n");
-    g_hash_table_foreach(g_utxo, print_utxo_entry, NULL);
-    printf("\n");
-}
-
-/**
- * Print UTXO inside the system.
- * @author Ing Tian
- */
-void print_target_utxo(GHashTable *target_utxo) {
-    printf("**************************** UTXO *****************************\n");
-    g_hash_table_foreach(target_utxo, print_utxo_entry, NULL);
-    printf("\n");
 }
 
 /**
@@ -560,7 +526,6 @@ transaction *cast_to_transaction(socket_transaction *socket_transaction) {
     }
 
     // Initialize outputs.
-    //todo
     socket_transaction_output *socket_outputs =
         (socket_transaction_output *)(socket_transaction->transaction_input + tx->tx_in_count * sizeof(socket_transaction_input));
     for (int i = 0; i < tx->tx_out_count; i++) {
