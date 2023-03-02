@@ -10,6 +10,7 @@ START_TEST(test_transaction_system_create) {
     printf("%s\n", "test_transaction_system_create start!");
 
     // Init.
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
     // Start testing whether the genesis transaction's data is true.
@@ -33,6 +34,7 @@ END_TEST
 START_TEST(test_genesis_transaction_private_key) {
     printf("%s\n", "test_genesis_transaction_private_key start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     initialize_transaction_system();
     // Start testing whether the genesis transaction's private key is null.
@@ -47,6 +49,7 @@ END_TEST
 START_TEST(test_genesis_transaction_public_key) {
     printf("%s\n", "test_genesis_transaction_public_key start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     initialize_transaction_system();
     // Start testing whether the genesis transaction's public key is null.
@@ -61,6 +64,7 @@ END_TEST
 START_TEST(test_print_utxo) {
     printf("%s\n", "test_print_utxo start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     initialize_transaction_system();
 
@@ -74,6 +78,7 @@ END_TEST
 START_TEST(test_create_new_transaction_shortcut1) {
     printf("%s\n", "test_create_new_transaction_shortcut1 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -104,6 +109,7 @@ END_TEST
 START_TEST(test_create_new_transaction_shortcut2){
     printf("%s\n", "test_create_new_transaction_shortcut2 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -134,6 +140,7 @@ END_TEST
 START_TEST(test_create_new_transaction_shortcut3){
     printf("%s\n", "test_create_new_transaction_shortcut3 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -162,6 +169,7 @@ END_TEST
 START_TEST(test_create_new_transaction_shortcut4){
     printf("%s\n", "test_create_new_transaction_shortcut4 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -204,6 +212,7 @@ END_TEST
 START_TEST(test_create_new_transaction_shortcut5){
     printf("%s\n", "test_create_new_transaction_shortcut5 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -234,6 +243,7 @@ END_TEST
 START_TEST(test_get_transaction_txid) {
     printf("%s\n", "test_get_transaction_txid start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction* genesis_t = initialize_transaction_system();
 
@@ -268,6 +278,7 @@ END_TEST
 START_TEST(test_get_transaction_by_txid) {
     printf("%s\n", "test_get_transaction_by_txid start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction* genesis_t = initialize_transaction_system();
 
@@ -290,7 +301,11 @@ START_TEST(test_get_transaction_by_txid) {
     copied_tx->lock_time = new_t1->lock_time;
     copied_tx->version = new_t1->version;
 
-    ck_assert_ptr_eq(get_transaction_by_txid(hash_struct_in_hex(copied_tx, sizeof(transaction))), new_t1);
+    transaction *retrieved_tx = get_transaction_by_txid(hash_struct_in_hex(copied_tx, sizeof(transaction)));
+    ck_assert_int_eq(retrieved_tx->tx_in_count, new_t1->tx_in_count);
+    ck_assert_int_eq(retrieved_tx->tx_out_count, new_t1->tx_out_count);
+    ck_assert_int_eq(retrieved_tx->lock_time, new_t1->lock_time);
+    ck_assert_int_eq(retrieved_tx->version, new_t1->version);
 
     free(copied_tx);
 
@@ -302,6 +317,7 @@ END_TEST
 START_TEST(test_verify_transaction1){
     printf("%s\n", "test_verify_transaction1 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -332,6 +348,7 @@ END_TEST
 START_TEST(test_verify_transaction2){
     printf("%s\n", "test_verify_transaction2 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -365,6 +382,7 @@ END_TEST
 START_TEST(test_verify_transaction3){
     printf("%s\n", "test_verify_transaction3 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -397,6 +415,7 @@ END_TEST
 START_TEST(test_verify_transaction4){
     printf("%s\n", "test_verify_transaction4 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -429,6 +448,7 @@ END_TEST
 START_TEST(test_verify_transaction5){
     printf("%s\n", "test_verify_transaction5 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -461,6 +481,7 @@ END_TEST
 START_TEST(test_finalize_transaction2){
     printf("%s\n", "test_finalize_transaction2 start!");
 
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
 
@@ -494,7 +515,6 @@ END_TEST
 Suite *transaction_suite(void) {
     Suite *s;
     s = suite_create("Transaction");
-    initialize_mysql_system();
 
     /* system_create test case */
     TCase *tc_system_create;
@@ -598,7 +618,6 @@ Suite *transaction_suite(void) {
     tcase_add_test(tc_finalize_transaction2, test_finalize_transaction2);
     suite_add_tcase(s, tc_finalize_transaction2);
 
-    destroy_mysql_system();
     return s;
 }
 
