@@ -1,18 +1,17 @@
 #include "block.h"
 
-#include <glib.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "model/block/block_persistence.h"
 #include "utils/constants.h"
 #include "utils/cryptography.h"
 #include "utils/sys_utils.h"
 
 #define LOG_SCOPE "block"
 
-static GHashTable *g_global_block_table;  // The global block table that maps block header hash to the block.
-char *g_genesis_block_hash;               // The hash of the header of the genesis block.
+char *g_genesis_block_hash;  // The hash of the header of the genesis block.
 
 /*
  * -----------------------------------------------------------
@@ -33,11 +32,6 @@ char *hash_block_header(block_header *header) {
     return ret_val;
 }
 
-void free_g_global_block_table_entry(void *block_id, void *blk, void *user_data) {
-    free(block_id);
-    destroy_block(blk);
-}
-
 /*
  * -----------------------------------------------------------
  * APIs
@@ -50,11 +44,10 @@ void free_g_global_block_table_entry(void *block_id, void *blk, void *user_data)
  * @author Junjian Chen
  */
 block *initialize_block_system() {
-    g_global_block_table = g_hash_table_new(g_str_hash, g_str_equal);
+    initialize_block_persistence();
     block *genesis_block = create_an_empty_block(1);
     g_genesis_block_hash = hash_block_header(genesis_block->header);
-    finalize_block(genesis_block);
-    general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.",g_genesis_block_hash);
+    general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.", g_genesis_block_hash);
     return genesis_block;
 }
 
@@ -63,9 +56,7 @@ block *initialize_block_system() {
  * @author Junjian Chen
  */
 void destroy_block_system() {
-    g_hash_table_foreach(g_global_block_table, free_g_global_block_table_entry, NULL);
-//    free(g_global_block_table);
-    g_hash_table_destroy(g_global_block_table);
+    destroy_block_persistence();
     free(g_genesis_block_hash);
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the block module.");
 }
@@ -86,19 +77,9 @@ block *create_an_empty_block(unsigned int transaction_amount) {
     header->nBits = 0;
     header->time = get_current_unix_time();
     block_create->header = header;
-    block_create->txn_count = 0;
+    block_create->txn_count = transaction_amount;
     block_create->txns = (transaction **)malloc(sizeof(transaction *) * transaction_amount);
     return block_create;
-}
-
-/**
- * Free the memory space of a block.
- * @param block_destroy The block to be destroyed.
- * @author Junjian Chen
- */
-void destroy_block(block *block_destroy) {
-    free(block_destroy->header);
-    free(block_destroy);
 }
 
 /**
@@ -129,27 +110,26 @@ bool append_prev_block(block *prev_block, block *cur_block) {
  * @author Junjian Chen
  */
 bool check_block_valid(block *block1) {
-
-    //check if the block is NULL
+    // check if the block is NULL
     if (block1 == NULL) {
         general_log(LOG_SCOPE, LOG_ERROR, "The block is null.");
         return false;
     }
 
-    //check if the header is NULL
+    // check if the header is NULL
     block_header *header = block1->header;
     if (header == NULL) {
         general_log(LOG_SCOPE, LOG_ERROR, "The block header is null.");
         return false;
     }
 
-    //check if the previous block is NULL
-    if(strcmp(header->prev_block_header_hash,"")==0){
-        if(strcmp(hash_block_header(header),g_genesis_block_hash)!=0){
+    // check if the previous block is NULL
+    if (strcmp(header->prev_block_header_hash, "") == 0) {
+        if (strcmp(hash_block_header(header), g_genesis_block_hash) != 0) {
             general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid since the previous block is null.");
             return false;
         }
-    }else{
+    } else {
         block *prev_block = get_block_by_hash(header->prev_block_header_hash);
         if (prev_block == NULL) {
             general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid since the previous block is null.");
@@ -157,8 +137,7 @@ bool check_block_valid(block *block1) {
         }
     }
 
-
-    //check if the time is valid
+    // check if the time is valid
     if (header->time == 0) {
         return false;
     }
@@ -173,17 +152,12 @@ bool check_block_valid(block *block1) {
  * @author Junjian Chen
  */
 bool finalize_block(block *block_finalize) {
-
-    //check if the block is valid
+    // check if the block is valid
     if (!check_block_valid(block_finalize)) {
         return false;
     }
 
-    // sha256(current block header) twice
-    char *cur_block_header_hash = hash_block_header(block_finalize->header);
-    g_hash_table_insert(g_global_block_table, cur_block_header_hash, block_finalize);
-
-    return true;
+    return save_block(block_finalize);
 }
 
 /**
@@ -192,7 +166,7 @@ bool finalize_block(block *block_finalize) {
  * @return The block.
  * @author Junjian Chen
  */
-block *get_block_by_hash(char *hash) { return g_hash_table_lookup(g_global_block_table, hash); }
+block *get_block_by_hash(char *hash) { return get_block(hash); }
 
 /**
  * Add transaction into the block.
@@ -207,22 +181,20 @@ bool append_transaction_into_block(block *block1, transaction *transaction1, uns
     return true;
 }
 
-
 /**
  * Verify transactions in a block
  * @param block1  The block to verify transaction in it
  * @return True for the valid transactions in the block, false for invalid
  * @author Junjian Chen
  */
-bool verify_block_transaction(block *block1){
-    for(int i=0;i<block1->txn_count;i++){
-        if(!verify_transaction(block1->txns[i])){
+bool verify_block_transaction(block *block1) {
+    for (int i = 0; i < block1->txn_count; i++) {
+        if (!verify_transaction(block1->txns[i])) {
             return false;
         }
     }
 
     return true;
-
 }
 
 /**
@@ -234,12 +206,12 @@ bool verify_block_transaction(block *block1){
 bool verify_block_chain(block *chain_tail) {
     block *temp = chain_tail;
 
-    int i=0;
+    int i = 0;
 
     while (true) {
-
-        if(!verify_block_transaction(temp)){
-            general_log(LOG_SCOPE, LOG_ERROR,"The chain is invalid because one transaction in the block is invalid.\n Error block: the last %dth block",i);
+        if (!verify_block_transaction(temp)) {
+            general_log(
+                LOG_SCOPE, LOG_ERROR, "The chain is invalid because one transaction in the block is invalid.\n Error block: the last %dth block", i);
             return false;
         }
 
@@ -250,15 +222,17 @@ bool verify_block_chain(block *chain_tail) {
                 general_log(LOG_SCOPE, LOG_INFO, "The chain is valid!");
                 return true;
             } else {
-                general_log(LOG_SCOPE, LOG_ERROR,
-                            "The chain is invalid because the first block does not equal the genesis block.\n Error block: the last %dth block",i);
+                general_log(LOG_SCOPE,
+                            LOG_ERROR,
+                            "The chain is invalid because the first block does not equal the genesis block.\n Error block: the last %dth block",
+                            i);
                 return false;
             }
         } else {
             // When temp isn't genesis block
             block *prev_block = get_block_by_hash(temp->header->prev_block_header_hash);
             if (prev_block == NULL) {
-                general_log(LOG_SCOPE, LOG_ERROR, "The chain is invalid: no previous block found for a block!\n Error block: the last %dth block",i);
+                general_log(LOG_SCOPE, LOG_ERROR, "The chain is invalid: no previous block found for a block!\n Error block: the last %dth block", i);
                 return false;
             }
 
@@ -266,7 +240,7 @@ bool verify_block_chain(block *chain_tail) {
             if (strcmp(hash, temp->header->prev_block_header_hash) == 0) {
                 temp = get_block_by_hash(temp->header->prev_block_header_hash);
             } else {
-                general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid: previous block hash doesn't match!\n Error block: the last %dth block",i);
+                general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid: previous block hash doesn't match!\n Error block: the last %dth block", i);
                 return false;
             }
         }
@@ -283,12 +257,12 @@ bool verify_block_chain(block *chain_tail) {
  * @return True if valid. False otherwise
  * @author Junjian Chen
  */
-bool verify_block(block *block1){
-    if(!verify_block_transaction(block1)){
+bool verify_block(block *block1) {
+    if (!verify_block_transaction(block1)) {
         return false;
     }
 
-    if(!check_block_valid(block1)){
+    if (!check_block_valid(block1)) {
         return false;
     }
 
@@ -309,33 +283,33 @@ char *get_genesis_block_hash() { return g_genesis_block_hash; }
  * @return True for success, false otherwise.
  * @author Junjian Chen
  */
-bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest){
-    block *ret_block= create_an_empty_block(block_data->transaction_list->txn_count);
-    memcpy(ret_block->header->prev_block_header_hash,block_data->header->prev_block_header_hash,65);
-    ret_block->header->time=block_data->header->time;
-    memcpy(ret_block->header->merkle_root_hash,block_data->header->merkle_root_hash,65);
-    ret_block->header->nBits=block_data->header->nBits;
-    ret_block->header->nonce=block_data->header->nonce;
-    ret_block->header->version=block_data->header->version;
-    ret_block->txn_count=block_data->transaction_list->txn_count;
-    ret_block->txns=block_data->transaction_list->txns;
+bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest) {
+    block *ret_block = create_an_empty_block(block_data->transaction_list->txn_count);
+    memcpy(ret_block->header->prev_block_header_hash, block_data->header->prev_block_header_hash, 65);
+    ret_block->header->time = block_data->header->time;
+    memcpy(ret_block->header->merkle_root_hash, block_data->header->merkle_root_hash, 65);
+    ret_block->header->nBits = block_data->header->nBits;
+    ret_block->header->nonce = block_data->header->nonce;
+    ret_block->header->version = block_data->header->version;
+    ret_block->txn_count = block_data->transaction_list->txn_count;
+    ret_block->txns = block_data->transaction_list->txns;
     *dest = *ret_block;
     return true;
 }
 
-bool block_rollback(char* rollback_block_hash, char* current_block_hash){
-    if (rollback_block_hash==NULL) {
+bool block_rollback(char *rollback_block_hash, char *current_block_hash) {
+    if (rollback_block_hash == NULL) {
         general_log(LOG_SCOPE, LOG_ERROR, "The block hash is null.");
         return false;
     }
-    block* rollback_block = get_block_by_hash(rollback_block_hash);
-    if (rollback_block == NULL){
+    block *rollback_block = get_block_by_hash(rollback_block_hash);
+    if (rollback_block == NULL) {
         general_log(LOG_SCOPE, LOG_ERROR, "The block is null.");
         return false;
     }
-    block* current_block = get_block_by_hash(current_block_hash);
+    block *current_block = get_block_by_hash(current_block_hash);
 
-    while (strcmp(current_block_hash, rollback_block_hash)!=0){
+    while (strcmp(current_block_hash, rollback_block_hash) != 0) {
         current_block_hash = current_block->header->prev_block_header_hash;
         destroy_block(current_block);
         current_block = get_block_by_hash(current_block_hash);
@@ -343,7 +317,42 @@ bool block_rollback(char* rollback_block_hash, char* current_block_hash){
     return true;
 }
 
-GList* get_all_blocks(){
-    GList* block_list=g_hash_table_get_values(g_global_block_table);
-    return block_list;
+/**
+ * Generate a new UTXO from a list of blocks.
+ * @param block_list A list of blocks, assume the block is ranked chronologically.
+ * @param num_of_blocks The number of blocks in the block array.
+ * @param utxo The result hashtable.
+ * @return True for success.
+ */
+bool generate_utxo(block **block_list, int num_of_blocks, GHashTable *utxo) {
+    for (int block_idx = 0; block_idx < num_of_blocks; block_idx++) {
+        block *current_block = block_list[block_idx];
+        for (int tx_idx = 0; tx_idx < current_block->txn_count; tx_idx++) {
+            transaction *current_tx = current_block->txns[tx_idx];
+
+            // Iterate over the inputs and delete all input entries.
+            for (int input_idx = 0; input_idx < current_tx->tx_in_count; input_idx++) {
+                transaction_input current_input = current_tx->tx_ins[input_idx];
+                char *outpoint_hash = hash_transaction_outpoint(&current_input.previous_outpoint);
+                g_hash_table_remove(utxo, outpoint_hash);
+                free(outpoint_hash);
+            }
+
+            // Iterate over the outputs and add each to the UTXO.
+            char *txid = get_transaction_txid(current_tx);
+            for (int output_idx; output_idx < current_tx->tx_out_count; output_idx++) {
+                long *amount = malloc(sizeof(long));
+                *amount = current_tx->tx_outs[output_idx].value;
+                transaction_outpoint temp_outpoint = {.index = output_idx};
+                memcpy(temp_outpoint.hash, txid, 64);
+                temp_outpoint.hash[64] = '/0';
+                char *current_outpoint_hash = hash_transaction_outpoint(&temp_outpoint);
+                g_hash_table_insert(utxo, current_outpoint_hash, amount);
+                free(current_outpoint_hash);
+            }
+            free(txid);
+        }
+    }
+
+    return true;
 }

@@ -49,7 +49,7 @@ START_TEST(test_genesis_transaction_public_key) {
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     initialize_transaction_system();
     // Start testing whether the genesis transaction's public key is null.
-    char *genesis_pub_key = get_genesis_transaction_public_key();
+    secp256k1_pubkey *genesis_pub_key = get_genesis_transaction_public_key();
     ck_assert_ptr_nonnull(genesis_pub_key);
 
     destroy_transaction_system();
