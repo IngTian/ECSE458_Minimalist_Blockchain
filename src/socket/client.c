@@ -30,6 +30,8 @@ int main(int argc, char const *argv[]) {
     char *previous_output_private_key = get_genesis_transaction_private_key();
 
     block *genesis_block = initialize_block_system();
+    append_transaction_into_block(genesis_block, previous_transaction, 0);
+    finalize_block(genesis_block);
     block *block_under_test;
 
     char *previous_block_header_hash = get_genesis_block_hash();
@@ -57,7 +59,7 @@ int main(int argc, char const *argv[]) {
         previous_output_private_key = (char *)new_private_key;
 
         block_header_shortcut block_header = {
-            .prev_block_header_hash = NULL, .version = i, .nonce = 0, .nBits = 0, .merkle_root_hash = NULL, .time = get_current_unix_time()};
+            .prev_block_header_hash = NULL, .version = i, .nonce = 0, .nBits = 0, .merkle_root_hash = NULL, .time = get_timestamp()};
 
         memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 65);
 

@@ -19,8 +19,8 @@
 #define NS_TO_US(ns) ((ns) / 1000)
 
 /**
- * Get the timestamp now in milliseconds.
- * @return Timestamp in milliseconds.
+ * Get the timestamp now in ns.
+ * @return Timestamp in ns.
  * @auhtor Ing Tian
  */
 unsigned long get_timestamp() {
