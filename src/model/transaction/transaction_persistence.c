@@ -10,8 +10,9 @@
 
 #define LOG_SCOPE "transaction_persistence"
 
-static GHashTable *g_global_transaction_table;  // The global transaction table, mapping TXID to transaction.
-static GHashTable *g_utxo;                      // Unspent Transaction Output. mapping each transaction output to its value left.
+static GHashTable *g_global_transaction_table;     // The global transaction table, mapping TXID to transaction.
+static GHashTable *g_utxo;                         // Unspent Transaction Output. mapping each transaction output to its value left.
+static transaction *g_genesis_transaction = NULL;  // The genesis transaction.
 
 /*
  * -----------------------------------------------------------
@@ -113,6 +114,11 @@ bool initialize_transaction_persistence() {
  * @auhtor Ing Tian
  */
 bool save_transaction(transaction *tx) {
+    // Save the genesis transaction.
+    if (get_total_number_of_transactions() == 0) {
+        g_genesis_transaction = tx;
+    }
+
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *txid = get_transaction_txid(tx);
         int temp_sql_query_size = 10000;
@@ -382,6 +388,36 @@ transaction *get_transaction(char *txid) {
 }
 
 /**
+ * Get the genesis transaction.
+ * @return The genesis transaction.
+ * @author Ing Tian
+ */
+transaction *get_genesis_transaction() {
+    if (g_genesis_transaction != NULL) {
+        return g_genesis_transaction;
+    }
+
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *sql_query = "select txid from transaction where id=1;";
+        MYSQL_RES *res = mysql_read(sql_query);
+
+        MYSQL_ROW row;
+        char genesis_txid[65];
+        genesis_txid[64] = '\0';
+        while ((row = mysql_fetch_row(res))) {
+            strcpy(genesis_txid, row[0]);
+        }
+
+        mysql_free_result(res);
+        transaction *genesis_transaction = get_transaction(genesis_txid);
+        g_genesis_transaction = genesis_transaction;
+        return genesis_transaction;
+    }
+
+    return NULL;
+}
+
+/**
  * Determines if a transaction exists.
  * @param txid The transaction ID.
  * @return True if the transaction exists and false otherwise.
@@ -452,4 +488,30 @@ bool destroy_transaction_persistence() {
     }
 
     return res;
+}
+
+/**
+ * Get the total number of transactions in the system.
+ * @return The total number of transactions in the system.
+ * @author Ing Tian
+ */
+unsigned int get_total_number_of_transactions() {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *sql_query = "select count(*) as count from transaction;";
+        MYSQL_RES *res = mysql_read(sql_query);
+
+        // Read number.
+        MYSQL_ROW row;
+        unsigned int answer = 0;
+        while ((row = mysql_fetch_row(res))) {
+            answer = atoi(row[0]);
+        }
+
+        mysql_free_result(res);
+
+        return answer;
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        return g_hash_table_size(g_global_transaction_table);
+    }
+    return -1;
 }

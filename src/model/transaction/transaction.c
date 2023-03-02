@@ -12,13 +12,11 @@
 
 #define LOG_SCOPE "transaction"
 
-static unsigned int g_total_number_of_transactions;  // The total number of transactions in the system.
 char *g_genesis_private_key;
 secp256k1_pubkey *g_genesis_public_key;
 
 char *hash_transaction_outpoint(transaction_outpoint *);
 char *hash_transaction_output(transaction_output *);
-unsigned int get_total_number_of_transactions();
 transaction *create_an_empty_transaction(unsigned int, unsigned int);
 bool append_new_transaction_input(transaction *, transaction_input, unsigned int);
 bool append_new_transaction_output(transaction *, transaction_output, unsigned int);
@@ -114,34 +112,40 @@ static void free_transaction_output(transaction_output *output) { free(output->p
  */
 transaction *initialize_transaction_system() {
     initialize_transaction_persistence();
-    transaction *genesis_transaction = create_an_empty_transaction(1, 1);
-    genesis_transaction->tx_ins[0].signature_script = (char *)malloc(65);
-    genesis_transaction->tx_ins[0].signature_script[0] = 'A';
-    genesis_transaction->tx_ins[0].sequence = 1;
-    genesis_transaction->tx_ins[0].script_bytes = 1;
-    genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
-    g_genesis_private_key = (char *)get_a_new_private_key();
-    g_genesis_public_key = get_a_new_public_key(g_genesis_private_key);
-    genesis_transaction->tx_outs->pk_script = (char *)malloc(65);
-    genesis_transaction->tx_outs->pk_script[64] = '\0';
-    memcpy(genesis_transaction->tx_outs->pk_script, g_genesis_public_key->data, 64);
-    genesis_transaction->tx_outs[0].pk_script_bytes = 64;
+    unsigned int existing_number_of_transactions = get_total_number_of_transactions();
 
-    char *genesis_txid = get_transaction_txid(genesis_transaction);
+    if (existing_number_of_transactions == 0) {
+        transaction *genesis_transaction = create_an_empty_transaction(1, 1);
+        genesis_transaction->tx_ins[0].signature_script = (char *)malloc(65);
+        genesis_transaction->tx_ins[0].signature_script[0] = 'A';
+        genesis_transaction->tx_ins[0].sequence = 1;
+        genesis_transaction->tx_ins[0].script_bytes = 1;
+        genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
+        g_genesis_private_key = (char *)get_a_new_private_key();
+        g_genesis_public_key = get_a_new_public_key(g_genesis_private_key);
+        genesis_transaction->tx_outs->pk_script = (char *)malloc(65);
+        genesis_transaction->tx_outs->pk_script[64] = '\0';
+        memcpy(genesis_transaction->tx_outs->pk_script, g_genesis_public_key->data, 64);
+        genesis_transaction->tx_outs[0].pk_script_bytes = 64;
 
-    transaction_outpoint outpoint = {.index = 0};
-    memcpy(outpoint.hash, genesis_txid, 64);
-    outpoint.hash[64] = '\0';
-    char *outpoint_hash = hash_transaction_outpoint(&outpoint);
-    long int *genesis_balance = (long int *)malloc(sizeof(long int));
-    *genesis_balance = TOTAL_NUMBER_OF_COINS;
+        char *genesis_txid = get_transaction_txid(genesis_transaction);
 
-    save_utxo_entry(outpoint_hash, genesis_balance);
-    save_transaction(genesis_transaction);
+        transaction_outpoint outpoint = {.index = 0};
+        memcpy(outpoint.hash, genesis_txid, 64);
+        outpoint.hash[64] = '\0';
+        char *outpoint_hash = hash_transaction_outpoint(&outpoint);
+        long int *genesis_balance = (long int *)malloc(sizeof(long int));
+        *genesis_balance = TOTAL_NUMBER_OF_COINS;
 
-    general_log(LOG_SCOPE, LOG_INFO, "Initialized the transaction module. Genesis TXID: %s", genesis_txid);
+        save_utxo_entry(outpoint_hash, genesis_balance);
+        save_transaction(genesis_transaction);
 
-    return genesis_transaction;
+        general_log(LOG_SCOPE, LOG_INFO, "Initialized the transaction module. Genesis TXID: %s", genesis_txid);
+
+        return genesis_transaction;
+    } else {
+        return get_genesis_transaction();
+    }
 }
 
 /**
@@ -204,13 +208,6 @@ char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
     free(copied_transaction_outpoint);
     return result;
 }
-
-/**
- * Get the total number of transactions in the system.
- * @return The total number of transactions in the system.
- * @author Ing Tian
- */
-unsigned int get_total_number_of_transactions() { return g_total_number_of_transactions; }
 
 /**
  * Get the private key of the genesis transaction.

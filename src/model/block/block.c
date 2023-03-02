@@ -45,10 +45,17 @@ char *hash_block_header(block_header *header) {
  */
 block *initialize_block_system() {
     initialize_block_persistence();
-    block *genesis_block = create_an_empty_block(1);
-    g_genesis_block_hash = hash_block_header(genesis_block->header);
-    general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.", g_genesis_block_hash);
-    return genesis_block;
+
+    unsigned int total_number_of_blocks = get_total_number_of_blocks();
+
+    if (total_number_of_blocks == 0) {
+        block *genesis_block = create_an_empty_block(1);
+        g_genesis_block_hash = hash_block_header(genesis_block->header);
+        general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.", g_genesis_block_hash);
+        return genesis_block;
+    } else {
+        return get_genesis_block();
+    }
 }
 
 /**
