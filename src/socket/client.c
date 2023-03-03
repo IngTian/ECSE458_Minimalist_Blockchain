@@ -41,6 +41,7 @@ int main(int argc, char const *argv[]) {
     }
 
     //create the transaction
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *previous_transaction = initialize_transaction_system();
     char *previous_transaction_id = get_transaction_txid(previous_transaction);

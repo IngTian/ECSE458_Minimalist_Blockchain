@@ -17,11 +17,12 @@ transaction *create_a_new_single_in_single_out_transaction(
 block* create_a_new_block(char* previous_block_header_hash, transaction* transaction, char** result_header_hash);
 
 int main(int argc, char const *argv[]) {
-
+    initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_t = initialize_transaction_system();
     char *previous_transaction_id = get_transaction_txid(genesis_t);
     char *previous_output_private_key = get_genesis_transaction_private_key();
+    printf("genesis private key: %s", previous_output_private_key );
     char *res_txid;
     char *res_private_key;
     transaction *tx = create_a_new_single_in_single_out_transaction(previous_transaction_id, previous_output_private_key, 0, TOTAL_NUMBER_OF_COINS, &res_txid, &res_private_key);

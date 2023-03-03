@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include "../model/transaction/transaction.h"
 #include "../model/block/block.h"
+#include "../model/transaction/transaction_persistence.h"
+#include "../model/block/block_persistence.h"
 #include "signal.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -130,11 +132,14 @@ void* HandleTCPClient(void* arg){
     print_hex(tx->tx_ins[0].signature_script,64);
 
     //create the block and append transaction into it
+    bool flag = get_total_number_of_blocks() == 0 ;
     block *genesis_block = initialize_block_system();
-    append_transaction_into_block(genesis_block, NULL, 0);
-    finalize_block(genesis_block);
+    if (flag) {
+        append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
+        finalize_block(genesis_block);
+    }
     char* result_block_hash;
-    block* block1 = create_a_new_block(get_genesis_block_hash(), tx, result_block_hash);
+    block* block1 = create_a_new_block(get_genesis_block_hash(), tx, &result_block_hash);
     
 //    print block info
     printf("Block txns count: %d\n", block1->txn_count);
