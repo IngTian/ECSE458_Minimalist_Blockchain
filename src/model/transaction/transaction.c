@@ -113,6 +113,7 @@ static void free_transaction_output(transaction_output *output) { free(output->p
 transaction *initialize_transaction_system() {
     initialize_transaction_persistence();
     unsigned int existing_number_of_transactions = get_total_number_of_transactions();
+    g_genesis_private_key = (char *)convert_hex_back_to_data_array(GENESIS_PRIVATE_KEY);
 
     if (existing_number_of_transactions == 0) {
         transaction *genesis_transaction = create_an_empty_transaction(1, 1);
@@ -121,7 +122,6 @@ transaction *initialize_transaction_system() {
         genesis_transaction->tx_ins[0].sequence = 1;
         genesis_transaction->tx_ins[0].script_bytes = 1;
         genesis_transaction->tx_outs[0].value = TOTAL_NUMBER_OF_COINS;
-        g_genesis_private_key = (char *)get_a_new_private_key();
         g_genesis_public_key = get_a_new_public_key(g_genesis_private_key);
         genesis_transaction->tx_outs->pk_script = (char *)malloc(65);
         genesis_transaction->tx_outs->pk_script[64] = '\0';

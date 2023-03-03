@@ -515,3 +515,27 @@ unsigned int get_total_number_of_transactions() {
     }
     return -1;
 }
+
+/**
+ * Get last inserted block from the database.
+ * @return A block.
+ * @author Ing Tian
+ */
+transaction *get_last_inserted_transaction() {
+    unsigned int last_tx_idx = get_total_number_of_transactions();
+
+    char sql_query[1000];
+    sprintf(sql_query, "select txid from transaction where id=%u;", last_tx_idx);
+    MYSQL_RES *res = mysql_read(sql_query);
+
+    MYSQL_ROW row;
+    char temp_txid[65];
+    temp_txid[64] = '\0';
+    while ((row = mysql_fetch_row(res))) {
+        strcpy(temp_txid, row[0]);
+    }
+
+    mysql_free_result(res);
+    transaction *tx = get_transaction(temp_txid);
+    return tx;
+}

@@ -337,3 +337,27 @@ unsigned int get_total_number_of_blocks() {
 
     return -1;
 };
+
+/**
+ * Get last inserted block from the database.
+ * @return A block.
+ * @author Ing Tian
+ */
+block *get_last_inserted_block() {
+    unsigned int last_block_idx = get_total_number_of_blocks();
+
+    char sql_query[1000];
+    sprintf(sql_query, "select block_header_hash from block_header where block_h_id=%u;", last_block_idx);
+    MYSQL_RES *res = mysql_read(sql_query);
+
+    MYSQL_ROW row;
+    char temp_header_id[65];
+    temp_header_id[64] = '\0';
+    while ((row = mysql_fetch_row(res))) {
+        strcpy(temp_header_id, row[0]);
+    }
+
+    mysql_free_result(res);
+    block *blk = get_block(temp_header_id);
+    return blk;
+}

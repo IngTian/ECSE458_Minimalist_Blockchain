@@ -12,6 +12,7 @@ bool remove_utxo_entry(char *);
 bool update_transaction_block_id(unsigned long, char *);
 transaction *get_transaction(char *);
 transaction *get_genesis_transaction();
+transaction *get_last_inserted_transaction();
 bool does_transaction_exist(char *);
 bool does_utxo_entry_exist(char *);
 bool destroy_transaction_persistence();
