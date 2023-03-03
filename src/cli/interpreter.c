@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "../model/transaction/transaction.h"
+#include "../model/transaction/transaction_persistence.h"
 #include "../model/block/block.h"
 #include "../utils/log_utils.h"
 #include "../utils/mjson.h"
@@ -216,7 +217,7 @@ int run(char *script) {
  * @return If run successfully, return 0.
  */
 int cli_transaction_list_all_transactions() {
-    print_all_transactions();
+//    print_all_transactions();
     return 0;
 }
 

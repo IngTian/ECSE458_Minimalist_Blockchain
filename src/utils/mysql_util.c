@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 
+#include "constants.h"
 #include "log_utils.h"
 
 #define LOG_SCOPE "mysql_util"
@@ -30,27 +31,36 @@ void free_mysql_connection_result() {
  * @param config The config passed on to initialize the MySQL.
  * @author Luke E
  */
-void initialize_mysql_system(mysql_config config) {
-    general_log(LOG_SCOPE, LOG_INFO, "MySQL client version detected: %s\n", mysql_get_client_info());
+void initialize_mysql_system() {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        general_log(LOG_SCOPE, LOG_INFO, "MySQL client version detected: %s\n", mysql_get_client_info());
 
-    g_mysql_connection = mysql_init(NULL);
+        g_mysql_connection = mysql_init(NULL);
 
-    if (g_mysql_connection == NULL) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to initialize the MYSQL object: %s", mysql_error(g_mysql_connection));
-        exit(1);
-    }
+        if (g_mysql_connection == NULL) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to initialize the MYSQL object: %s", mysql_error(g_mysql_connection));
+            exit(1);
+        }
 
-    if (mysql_real_connect(g_mysql_connection,
-                           config.host_addr,
-                           config.username,
-                           config.password,
-                           config.db,
-                           config.port_number,
-                           config.unix_socket,
-                           config.client_flag) == NULL) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Error in connecting to MySQL: %s", mysql_error(g_mysql_connection));
-        mysql_close(g_mysql_connection);
-        exit(1);
+        mysql_config config = {.host_addr = MYSQL_HOST_ADDR,
+                               .username = MYSQL_USERNAME,
+                               .password = MYSQL_PASSWORD,
+                               .db = MYSQL_DB_NAME,
+                               .port_number = MYSQL_PORT_NUMBER,
+                               .client_flag = CLIENT_MULTI_STATEMENTS};
+
+        if (mysql_real_connect(g_mysql_connection,
+                               config.host_addr,
+                               config.username,
+                               config.password,
+                               config.db,
+                               config.port_number,
+                               config.unix_socket,
+                               config.client_flag) == NULL) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Error in connecting to MySQL: %s", mysql_error(g_mysql_connection));
+            mysql_close(g_mysql_connection);
+            exit(1);
+        }
     }
 }
 
@@ -158,6 +168,13 @@ bool mysql_delete(char *sql_query) {
     }
     return true;
 }
+
+/**
+ * Get the last updated ID in the database.
+ * @return The last updated ID.
+ * @author Luke E
+ */
+unsigned long mysql_get_last_updated_id() { return mysql_insert_id(g_mysql_connection); }
 
 /**
  * Destroy the MySQL Util system.

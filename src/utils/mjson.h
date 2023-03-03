@@ -93,8 +93,7 @@ int mjson_get_string(const char *buf, int len, const char *path, char *to, int n
 int mjson_get_hex(const char *buf, int len, const char *path, char *to, int n);
 
 #if MJSON_ENABLE_NEXT
-int mjson_next(const char *buf, int len, int offset, int *key_offset, int *key_len, int *val_offset, int *val_len,
-               int *vale_type);
+int mjson_next(const char *buf, int len, int offset, int *key_offset, int *key_len, int *val_offset, int *val_len, int *vale_type);
 #endif
 
 #if MJSON_ENABLE_BASE64
@@ -182,16 +181,14 @@ struct jsonrpc_ctx {
 void jsonrpc_ctx_init(struct jsonrpc_ctx *ctx, mjson_print_fn_t response_cb, void *response_cb_data);
 void jsonrpc_return_error(struct jsonrpc_request *r, int code, const char *message, const char *data_fmt, ...);
 void jsonrpc_return_success(struct jsonrpc_request *r, const char *result_fmt, ...);
-void jsonrpc_ctx_process(struct jsonrpc_ctx *ctx, const char *req, int req_sz, mjson_print_fn_t fn, void *fn_data,
-                         void *userdata);
+void jsonrpc_ctx_process(struct jsonrpc_ctx *ctx, const char *req, int req_sz, mjson_print_fn_t fn, void *fn_data, void *userdata);
 
 extern struct jsonrpc_ctx jsonrpc_default_context;
 extern void jsonrpc_list(struct jsonrpc_request *r);
 
 #define jsonrpc_export(name, fn) jsonrpc_ctx_export(&jsonrpc_default_context, (name), (fn))
 
-#define jsonrpc_process(buf, len, fn, fnd, ud) \
-    jsonrpc_ctx_process(&jsonrpc_default_context, (buf), (len), (fn), (fnd), (ud))
+#define jsonrpc_process(buf, len, fn, fnd, ud) jsonrpc_ctx_process(&jsonrpc_default_context, (buf), (len), (fn), (fnd), (ud))
 
 #define JSONRPC_ERROR_INVALID -32700    /* Invalid JSON was received */
 #define JSONRPC_ERROR_NOT_FOUND -32601  /* The method does not exist */
