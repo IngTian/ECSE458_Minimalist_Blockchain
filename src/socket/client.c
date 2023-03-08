@@ -8,10 +8,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "../model/block/block.h"
-#include "../model/transaction/transaction.h"
 #include "model/block//block.h"
 #include "model/transaction/transaction.h"
+#include "model/transaction/transaction_persistence.h"
 #include "utils/constants.h"
 #include "utils/cryptography.h"
 #include "utils/log_utils.h"
@@ -19,12 +18,16 @@
 #include "utils/sys_utils.h"
 #include "utils/socket_util.h"
 
-#define LOG_SCOPE "Client"
+#define LOG_SCOPE "Miner"
 
 transaction *create_a_new_single_in_single_out_transaction(
     char *previous_transaction_id, char *previous_output_private_key, int previous_tx_output_idx, int previous_value, char **res_txid, char **res_private_key);
 
+block* create_a_new_block(char* previous_block_header_hash, transaction* transaction, char** result_header_hash);
+
 int main(int argc, char const *argv[]) {
+
+    //listener's address and port configuration
     char *server_address_str = "127.0.0.1";
     int server_port = 8080;
     if (argc > 1) {
@@ -36,87 +39,94 @@ int main(int argc, char const *argv[]) {
             general_log(LOG_SCOPE, LOG_ERROR, "Input port is invalid!");
         } else {
             server_port = (int)conv;
-            printf("%d\n", server_port);
+            general_log(LOG_SCOPE, LOG_INFO, "Server port: %d", server_port);
         }
     }
 
-    //create the transaction
-    initialize_mysql_system();
+    //send socket data configuration
+    char sendCommand[32]; //the command to tell listener to accept a block or transaction
+    memset(sendCommand, '\0', 32);
+    const char* send_model;
+    int send_size;
+    char* send_data;
+    socket_block *socket_blk = NULL;
+    socket_transaction *socket_tx = NULL;
+
+    //initialize system
+    initialize_mysql_system(MYSQL_DB_MINER);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     destroy_transaction_system();
-    transaction *previous_transaction = initialize_transaction_system();
+    destroy_block_system();
+    transaction *previous_transaction = initialize_transaction_system(false);
+    block *genesis_block = initialize_block_system(false);
+
+    printf("%d\n", previous_transaction->tx_out_count);
+    printf("%d\n", previous_transaction->tx_in_count);
+    printf("%u\n", previous_transaction->lock_time);
+    print_hex(previous_transaction->tx_ins[0].signature_script, 64);
+
+    //send genesis transaction to listener
+    memcpy(sendCommand, "genesis transaction", strlen("genesis transaction"));
+    socket_tx = cast_to_socket_transaction(previous_transaction);
+    send_model = (const char*)socket_tx;
+    send_size = get_socket_transaction_length(socket_tx)+ COMMAND_LENGTH;
+    send_data = combine_data_with_command(sendCommand,COMMAND_LENGTH,send_model,send_size);
+    send_model_by_socket(server_address_str, server_port, send_data, send_size);
+    usleep(1000);//sleep for 1ms
+
+
+
+    //create the transaction
     char *previous_transaction_id = get_transaction_txid(previous_transaction);
     char *previous_output_private_key = get_genesis_transaction_private_key();
     char *res_txid;
     char *res_private_key;
     transaction *transaction = create_a_new_single_in_single_out_transaction(previous_transaction_id, previous_output_private_key, 0, TOTAL_NUMBER_OF_COINS, &res_txid, &res_private_key);
 
-    int sock = 0, valread, client_fd;
-    struct sockaddr_in serv_addr;
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        printf("\n Socket creation error \n");
-        return -1;
-    }
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(server_port);
-    // Convert IPv4 and IPv6 addresses from text to binary, set the ip address
-    if (inet_pton(AF_INET, server_address_str, &serv_addr.sin_addr) <= 0) {
-        printf("\nInvalid address/ Address not supported \n");
-        return -1;
-    }
-
-    //connect the socket
-    if ((client_fd = connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr))) < 0) {
-        printf("\nConnection Failed \n");
-        return -1;
-    }
-
     //print transaction info
     printf("%d\n", transaction->tx_out_count);
     printf("%d\n", transaction->tx_in_count);
     printf("%u\n", transaction->lock_time);
-    printf("%d\n", transaction->version);
     print_hex(transaction->tx_ins[0].signature_script, 64);
+    printf("previous txid: %s\n", transaction->tx_ins[0].previous_outpoint.hash);
 
-    //send transaction
-    socket_transaction *socket_tx = cast_to_socket_transaction(transaction);
-    char sendCommand[32];
-    memset(sendCommand, '\0', 32);
-    memcpy(sendCommand, "create transaction", strlen("create transaction"));
-    int send_size = get_socket_transaction_length(socket_tx)+ 32;
-    char* send_socket_tx = combine_data_with_command(sendCommand,
-                                                     32,
-                                                     (const char*)socket_tx,
-                                                     get_socket_transaction_length(socket_tx));
-    send(sock, send_socket_tx, send_size, 0);
-    printf("---- Client: transaction sent ----\n");
+    if (TEST_CREATE_BLOCK){
+        //create the block
+        append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
+        finalize_block(genesis_block);
 
-    //receive the block back
-    char receiveBuffer[8092];
-    recv(sock, receiveBuffer, sizeof(receiveBuffer), 0);
-    char *receiveCommand = receiveBuffer;
-    char *data = receiveCommand + 32;
-    general_log(LOG_SCOPE, LOG_INFO, receiveCommand);
-    socket_block *recv_socket_blk = (socket_block *)malloc(sizeof(socket_block )+((socket_block *)data)->txns_size);
-    memcpy(recv_socket_blk, data, sizeof(socket_block )+((socket_block *)data)->txns_size);
-    block* blk= cast_to_block(recv_socket_blk);
-    printf("Print Recevied Block Information: \n");
-    printf("Block txns count: %d\n",blk->txn_count);
-    printf("Block header version: %d\n",blk->header->version);
-    printf("Block header hash: ");
-    print_hex(blk->header->prev_block_header_hash,64);
-    printf("Block txns[0] in[0] signature script: ");
-    print_hex(blk->txns[0]->tx_ins[0].signature_script,64);
+        char* result_block_hash;
+        block* block1 = create_a_new_block(get_genesis_block_hash(), transaction, &result_block_hash);
 
-    //save to database
+        //    print block info
+        printf("Block txns count: %d\n", block1->txn_count);
+        printf("Block header version: %d\n", block1->header->version);
+        printf("Block header hash: ");
+        print_hex(block1->header->prev_block_header_hash, 64);
+        printf("Block txns[0] in[0] signature script: ");
+        print_hex(block1->txns[0]->tx_ins[0].signature_script, 64);
 
+        memcpy(sendCommand, "create block", strlen("create block"));
+        socket_blk = cast_to_socket_block(block1);
+        send_model = (const char*)socket_blk;
+        send_size = get_socket_transaction_length(socket_blk)+ COMMAND_LENGTH;
+    }else{
+        memcpy(sendCommand, "create transaction", strlen("create transaction"));
+        socket_tx = cast_to_socket_transaction(transaction);
+        printf("socket tx previous hash: %s \n", ((socket_transaction_input*) &socket_tx->transaction_input[0])->previous_outpoint.hash);
+        send_model = (const char*)socket_tx;
+        send_size = get_socket_transaction_length(socket_tx)+ COMMAND_LENGTH;
+    }
 
-    // closing the connected socket
-    free(socket_tx);
-    close(client_fd);
+    send_data = combine_data_with_command(sendCommand,COMMAND_LENGTH,send_model,send_size);
+
+    //create and send the socket
+    send_model_by_socket(server_address_str, server_port, send_data, send_size);
+
     return 0;
 }
+
+
 
 transaction *create_a_new_single_in_single_out_transaction(
     char *previous_transaction_id, char *previous_output_private_key, int previous_tx_output_idx, int previous_value, char **res_txid, char **res_private_key) {
@@ -133,16 +143,34 @@ transaction *create_a_new_single_in_single_out_transaction(
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
     }
 
-    printf("Clock Time After Creation: %ld\n", t->lock_time);
-
     if (!finalize_transaction(t)) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
     }
-
-    printf("Clock Time After Finalize: %ld\n", t->lock_time);
 
     *res_txid = get_transaction_txid(t);
     *res_private_key = new_private_key;
 
     return t;
+}
+
+block* create_a_new_block(char* previous_block_header_hash, transaction* transaction, char** result_header_hash){
+    block_header_shortcut block_header = {
+        .prev_block_header_hash = "", .version = 0, .nonce = 0, .nBits = 0, .merkle_root_hash = "", .time = get_current_unix_time()};
+    memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 65);
+    struct transaction** txns = malloc(sizeof(txns));
+    txns[0] = transaction;
+    transactions_shortcut txns_shortcut = {.txns = txns, .txn_count = 1};
+    block_create_shortcut block_data = {.header = &block_header, .transaction_list = &txns_shortcut};
+
+    block *block1 = (block *)malloc(sizeof(block));
+    if (!create_new_block_shortcut(&block_data, block1)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a block.");
+    }
+
+    if (!finalize_block(block1)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a block.");
+    }
+
+    *result_header_hash = hash_block_header(block1->header);
+    return block1;
 }

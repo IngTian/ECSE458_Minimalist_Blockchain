@@ -15,9 +15,11 @@ MYSQL *g_mysql_connection;
  * -----------------------------------------------------------
  */
 void free_mysql_connection_result() {
-    while (mysql_more_results(g_mysql_connection)) mysql_next_result(g_mysql_connection);
-    MYSQL_RES *result = mysql_store_result(g_mysql_connection);
-    mysql_free_result(result);
+    while (mysql_more_results(g_mysql_connection)) {
+        MYSQL_RES *result = mysql_store_result(g_mysql_connection);
+        mysql_free_result(result);
+        mysql_next_result(g_mysql_connection);
+    }
 }
 
 /*
@@ -29,11 +31,12 @@ void free_mysql_connection_result() {
 /**
  * Initialize the MySQL system.
  * @param config The config passed on to initialize the MySQL.
+ * @param db_name The database name.
  * @author Luke E
  */
-void initialize_mysql_system() {
+void initialize_mysql_system(char* db_name) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
-        general_log(LOG_SCOPE, LOG_INFO, "MySQL client version detected: %s\n", mysql_get_client_info());
+        general_log(LOG_SCOPE, LOG_INFO, "MySQL client version detected: %s", mysql_get_client_info());
 
         g_mysql_connection = mysql_init(NULL);
 
@@ -45,7 +48,7 @@ void initialize_mysql_system() {
         mysql_config config = {.host_addr = MYSQL_HOST_ADDR,
                                .username = MYSQL_USERNAME,
                                .password = MYSQL_PASSWORD,
-                               .db = MYSQL_DB_NAME,
+                               .db = db_name,
                                .port_number = MYSQL_PORT_NUMBER,
                                .client_flag = CLIENT_MULTI_STATEMENTS};
 

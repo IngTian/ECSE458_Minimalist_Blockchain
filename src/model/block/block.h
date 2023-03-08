@@ -64,7 +64,7 @@ typedef struct SocketBlock {
 } socket_block;
 
 char *hash_block_header(block_header *header);
-block *initialize_block_system();
+block *initialize_block_system(bool skip_genesis);
 void destroy_block_system();
 block *create_an_empty_block(unsigned int);
 bool append_prev_block(block *prev_block, block *cur_block);

@@ -7,6 +7,7 @@
 
 // General
 #define TOTAL_NUMBER_OF_COINS 40960
+#define TEST_CREATE_BLOCK 0
 
 // Persistence Definition
 #define PERSISTENCE_RAM 0
@@ -15,7 +16,8 @@
 #define MYSQL_HOST_ADDR "localhost"
 #define MYSQL_USERNAME "root"
 #define MYSQL_PASSWORD "Admin123/"
-#define MYSQL_DB_NAME "test"
+#define MYSQL_DB_MINER "miner"
+#define MYSQL_DB_LISTENER "listener"
 #define MYSQL_PORT_NUMBER 3306
 
 // Logging
@@ -26,5 +28,8 @@
 
 // Cryptography
 #define GENESIS_PRIVATE_KEY "FEB634D1D31157FF39BAA3551406BC8D15373AA3D54A6670CDBD28018161969C"
+
+// Socket
+#define COMMAND_LENGTH 32
 
 #endif

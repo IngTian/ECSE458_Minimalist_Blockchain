@@ -17,12 +17,13 @@
 #include "utils/log_utils.h"
 #include "utils/sys_utils.h"
 #include "utils/socket_util.h"
+#include "utils/constants.h"
+#include "utils/mysql_util.h"
 
-#define LOG_SCOPE "Server"
+#define LOG_SCOPE "Listener"
 
 void DieWithError(char *errorMessage);
 void* HandleTCPClient(void* arg);
-block* create_a_new_block(char* previous_block_header_hash, transaction* transaction, char** result_header_hash);
 
 int main(int argc, char const *argv[]) {
     int serverSock, clientSock;
@@ -43,7 +44,7 @@ int main(int argc, char const *argv[]) {
             general_log(LOG_SCOPE, LOG_ERROR, "Input port is invalid!");
         } else {
             echo_server_port = (int)conv;
-            printf("%d\n", echo_server_port);
+            general_log(LOG_SCOPE, LOG_INFO, "Server port: %d", echo_server_port);
         }
     }
 
@@ -65,6 +66,7 @@ int main(int argc, char const *argv[]) {
 
     if (inet_pton(AF_INET, server_address_str, &echo_server_address.sin_addr) <= 0) {
         printf("\nInvalid address/ Address not supported \n");
+        general_log(LOG_SCOPE, LOG_ERROR, "Invalid address/ Address not supported \n");
         return -1;
     }
 
@@ -78,6 +80,14 @@ int main(int argc, char const *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    //link to the database
+    initialize_mysql_system(MYSQL_DB_LISTENER);
+    initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    destroy_transaction_system();
+    destroy_block_system();
+    initialize_transaction_system(true);
+    initialize_block_system(true);
+
     //keep running for listening
     while (true){
         cli_addr_len = sizeof(echo_server_address);
@@ -86,7 +96,8 @@ int main(int argc, char const *argv[]) {
             perror("accept");
             exit(EXIT_FAILURE);
         }
-        printf("Handling client %s\n", inet_ntoa(echo_server_address.sin_addr));
+//        printf("Handling client %s\n", inet_ntoa(echo_server_address.sin_addr));
+        general_log(LOG_SCOPE, LOG_INFO, "Handling client %s", inet_ntoa(echo_server_address.sin_addr));
         pthread_t thread_id;
         int *arg = malloc(sizeof(*arg));
         *arg = clientSock;
@@ -113,73 +124,59 @@ void DieWithError(char *errorMessage){
 
 void* HandleTCPClient(void* arg){
     int clientSock = ((int *)arg)[0];
-    printf("%d\n", clientSock);
     char echoBuffer[8092];
 
     recv(clientSock, echoBuffer, sizeof(echoBuffer), 0);
     char *receiveCommand = echoBuffer;
     char *data = receiveCommand + 32;
+    general_log(LOG_SCOPE,LOG_INFO, "Server: model received, Timestamp: %ul", get_timestamp());
     general_log(LOG_SCOPE, LOG_INFO, "Receive the command: %s: ", receiveCommand);
 
-    //receive the transaction
-    socket_transaction *recv_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)data));
-    memcpy(recv_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
-    transaction *tx = cast_to_transaction(recv_socket_tx);
-    printf("%d\n",tx->tx_out_count);
-    printf("%d\n",tx->tx_in_count);
-    printf("%u\n",tx->lock_time);
-    printf("%d\n",tx->version);
-    print_hex(tx->tx_ins[0].signature_script,64);
+    if (TEST_CREATE_BLOCK){
+        //receive the block
+        socket_block *recv_socket_blk = (socket_block *)malloc(sizeof(socket_block )+((socket_block *)data)->txns_size);
+        memcpy(recv_socket_blk, data, sizeof(socket_block )+((socket_block *)data)->txns_size);
+        block* block1= cast_to_block(recv_socket_blk);
 
-    //create the block and append transaction into it
-    destroy_block_system();
-    block *genesis_block = initialize_block_system();
-    append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
-    finalize_block(genesis_block);
+        //print block info
+        printf("Block txns count: %d\n", block1->txn_count);
+        printf("Block header version: %d\n", block1->header->version);
+        printf("Block header hash: ");
+        print_hex(block1->header->prev_block_header_hash, 64);
+        printf("Block txns[0] in[0] signature script: ");
+        print_hex(block1->txns[0]->tx_ins[0].signature_script, 64);
 
-    char* result_block_hash;
-    block* block1 = create_a_new_block(get_genesis_block_hash(), tx, &result_block_hash);
-    
-//    print block info
-    printf("Block txns count: %d\n", block1->txn_count);
-    printf("Block header version: %d\n", block1->header->version);
-    printf("Block header hash: ");
-    print_hex(block1->header->prev_block_header_hash, 64);
-    printf("Block txns[0] in[0] signature script: ");
-    print_hex(block1->txns[0]->tx_ins[0].signature_script, 64);
+        //verification
+        verify_block(block1);
+        general_log(LOG_SCOPE,LOG_INFO, "Verification done. Timestamp: %ul", get_timestamp());
 
-    //send the block to client
-    socket_block *socket_blk = cast_to_socket_block(block1);
-    char sendCommand[32];
-    memset(sendCommand, '\0', 32);
-    memcpy(sendCommand, "create block", strlen("create block"));
+        //save to database
+        save_block(block1);
+    }else{
+        //receive the transaction
+        socket_transaction *recv_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)data));
+        memcpy(recv_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
+        transaction *tx = cast_to_transaction(recv_socket_tx);
 
-    int send_size = get_socket_block_length(block1) + 32;
-    char *send_socket_tx = combine_data_with_command(sendCommand, 32, (const char *)socket_blk, get_socket_block_length(block1));
-    send(clientSock, send_socket_tx, send_size, 0);
-    printf("---- Server: blcok sent ----\n");
+        //print receive socket tx info
+        printf("%d\n",tx->tx_out_count);
+        printf("%d\n",tx->tx_in_count);
+        printf("%u\n",tx->lock_time);
+        print_hex(tx->tx_ins[0].signature_script,64);
+
+        receiveCommand = str_trim(receiveCommand);
+        if (strcmp(receiveCommand, "genesis transaction") != 0){
+            printf("previous hash: %s\n", tx->tx_ins[0].previous_outpoint.hash);
+            //verification
+            verify_transaction(tx);
+            general_log(LOG_SCOPE,LOG_INFO, "Verification done. Timestamp: %ul", get_timestamp());
+        }
+        printf("current_hash: %s\n", get_transaction_txid(tx));
+        free(receiveCommand);
+
+        //save to database
+        save_transaction(tx);
+    }
 
     close(clientSock);
-}
-
-block* create_a_new_block(char* previous_block_header_hash, transaction* transaction, char** result_header_hash){
-    block_header_shortcut block_header = {
-        .prev_block_header_hash = "", .version = 0, .nonce = 0, .nBits = 0, .merkle_root_hash = "", .time = get_current_unix_time()};
-    memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 65);
-    struct transaction** txns = malloc(sizeof(txns));
-    txns[0] = transaction;
-    transactions_shortcut txns_shortcut = {.txns = txns, .txn_count = 1};
-    block_create_shortcut block_data = {.header = &block_header, .transaction_list = &txns_shortcut};
-
-    block *block1 = (block *)malloc(sizeof(block));
-    if (!create_new_block_shortcut(&block_data, block1)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a block.");
-    }
-    verify_block(block1);
-    if (!finalize_block(block1)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a block.");
-    }
-
-    *result_header_hash = hash_block_header(block1->header);
-    return block1;
 }

@@ -110,8 +110,9 @@ static void free_transaction_output(transaction_output *output) { free(output->p
  * @return The first transaction in the system, known as the genesis transaction.
  * @author Ing Tian
  */
-transaction *initialize_transaction_system() {
+transaction *initialize_transaction_system(bool skip_genesis) {
     initialize_transaction_persistence();
+    if (skip_genesis) return NULL;
     unsigned int existing_number_of_transactions = get_total_number_of_transactions();
     g_genesis_private_key = (char *)convert_hex_back_to_data_array(GENESIS_PRIVATE_KEY);
 
@@ -476,6 +477,8 @@ socket_transaction *cast_to_socket_transaction(transaction *tx) {
         current_socket_tx_in->script_bytes = tx->tx_ins[i].script_bytes;
         memcpy(current_socket_tx_in->signature_script, tx->tx_ins[i].signature_script, 64);
         current_socket_tx_in->sequence = tx->tx_ins[i].sequence;
+        memcpy(current_socket_tx_in->previous_outpoint.hash, tx->tx_ins[i].previous_outpoint.hash, 64);
+        current_socket_tx_in->previous_outpoint.index = tx->tx_ins[i].previous_outpoint.index;
     }
 
     // Build Outputs

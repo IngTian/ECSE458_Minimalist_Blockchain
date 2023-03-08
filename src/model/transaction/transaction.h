@@ -103,7 +103,7 @@ typedef struct SocketTransaction {
  * -----------------------------------------------------------
  */
 
-transaction *initialize_transaction_system();
+transaction *initialize_transaction_system(bool skip_genesis);
 void destroy_transaction_system();
 void destroy_transaction(transaction *);
 char *get_transaction_txid(transaction *);

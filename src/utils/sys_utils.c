@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
+#include <ctype.h>
 
 /// Convert seconds to milliseconds
 #define SEC_TO_MS(sec) ((sec)*1000)
@@ -59,4 +61,23 @@ char *get_str_timestamp(char *format, unsigned int time_str_length) {
     strftime(buffer, time_str_length, format, tm_info);
 
     return buffer;
+}
+
+char* str_trim(char* str) {
+    unsigned long str_len = strlen(str);
+    unsigned long front_white_spaces, back_white_spaces;
+
+    // Get number of front white spaces.
+    for(front_white_spaces = 0; front_white_spaces < str_len; front_white_spaces++)
+        if (!isspace(str[front_white_spaces]))
+            break;
+
+    // Get number of back white spaces.
+    for(back_white_spaces = 0; str_len - 1 - back_white_spaces >= 0; back_white_spaces++)
+        if (!isspace(str[str_len - 1 - back_white_spaces]))
+            break;
+
+    char *res = (char*)malloc(str_len - front_white_spaces - back_white_spaces);
+    memcpy(res, &str[front_white_spaces], str_len-front_white_spaces-back_white_spaces);
+    return res;
 }
