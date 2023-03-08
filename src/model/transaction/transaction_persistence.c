@@ -221,7 +221,7 @@ bool save_utxo_entry(char *key, long int *value) {
         sprintf(sql_query,
                 "set @hash := '%s';\n"
                 "set @value := %ld;\n"
-                "insert into transaction (id, hash, value)\n"
+                "insert into utxo (id, hash, value)\n"
                 "values (NULL, @hash, @value);\n",
                 key,
                 *value);

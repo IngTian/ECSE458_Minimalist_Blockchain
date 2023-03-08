@@ -43,6 +43,7 @@ int main(int argc, char const *argv[]) {
     //create the transaction
     initialize_mysql_system();
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+    destroy_transaction_system();
     transaction *previous_transaction = initialize_transaction_system();
     char *previous_transaction_id = get_transaction_txid(previous_transaction);
     char *previous_output_private_key = get_genesis_transaction_private_key();
@@ -74,7 +75,7 @@ int main(int argc, char const *argv[]) {
     //print transaction info
     printf("%d\n", transaction->tx_out_count);
     printf("%d\n", transaction->tx_in_count);
-    printf("%ld\n", transaction->lock_time);
+    printf("%u\n", transaction->lock_time);
     printf("%d\n", transaction->version);
     print_hex(transaction->tx_ins[0].signature_script, 64);
 
@@ -92,21 +93,21 @@ int main(int argc, char const *argv[]) {
     printf("---- Client: transaction sent ----\n");
 
     //receive the block back
-//    char receiveBuffer[8092];
-//    recv(sock, receiveBuffer, sizeof(receiveBuffer), 0);
-//    char *receiveCommand = receiveBuffer;
-//    char *data = receiveCommand + 32;
-//    general_log(LOG_SCOPE, LOG_INFO, receiveCommand);
-//    socket_block *recv_socket_blk = (socket_block *)malloc(sizeof(socket_block )+((socket_block *)data)->txns_size);
-//    memcpy(recv_socket_blk, data, sizeof(socket_block )+((socket_block *)data)->txns_size);
-//    block* blk= cast_to_block(recv_socket_blk);
-//    printf("Print Recevied Block Information: \n");
-//    printf("Block txns count: %d\n",blk->txn_count);
-//    printf("Block header version: %d\n",blk->header->version);
-//    printf("Block header hash: ");
-//    print_hex(blk->header->prev_block_header_hash,64);
-//    printf("Block txns[0] in[0] signature script: ");
-//    print_hex(blk->txns[0]->tx_ins[0].signature_script,64);
+    char receiveBuffer[8092];
+    recv(sock, receiveBuffer, sizeof(receiveBuffer), 0);
+    char *receiveCommand = receiveBuffer;
+    char *data = receiveCommand + 32;
+    general_log(LOG_SCOPE, LOG_INFO, receiveCommand);
+    socket_block *recv_socket_blk = (socket_block *)malloc(sizeof(socket_block )+((socket_block *)data)->txns_size);
+    memcpy(recv_socket_blk, data, sizeof(socket_block )+((socket_block *)data)->txns_size);
+    block* blk= cast_to_block(recv_socket_blk);
+    printf("Print Recevied Block Information: \n");
+    printf("Block txns count: %d\n",blk->txn_count);
+    printf("Block header version: %d\n",blk->header->version);
+    printf("Block header hash: ");
+    print_hex(blk->header->prev_block_header_hash,64);
+    printf("Block txns[0] in[0] signature script: ");
+    print_hex(blk->txns[0]->tx_ins[0].signature_script,64);
 
     //save to database
 

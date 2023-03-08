@@ -53,14 +53,14 @@ void free_g_global_block_table_entry(void *block_id, void *blk, void *user_data)
 bool initialize_block_persistence() {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
-            "CREATE TABLE block\n"
+            "CREATE TABLE if not exists block\n"
             "(\n"
             "    block_id  int auto_increment,\n"
             "    txn_count int unsigned not null,\n"
             "    primary key (block_id)\n"
             ");\n"
             "\n"
-            "CREATE TABLE block_header\n"
+            "CREATE TABLE if not exists block_header\n"
             "(\n"
             "    block_h_id             int          not null,\n"
             "    version                int          not null,\n"

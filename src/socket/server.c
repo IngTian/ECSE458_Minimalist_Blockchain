@@ -127,17 +127,16 @@ void* HandleTCPClient(void* arg){
     transaction *tx = cast_to_transaction(recv_socket_tx);
     printf("%d\n",tx->tx_out_count);
     printf("%d\n",tx->tx_in_count);
-    printf("%d\n",tx->lock_time);
+    printf("%u\n",tx->lock_time);
     printf("%d\n",tx->version);
     print_hex(tx->tx_ins[0].signature_script,64);
 
     //create the block and append transaction into it
-    bool flag = get_total_number_of_blocks() == 0 ;
+    destroy_block_system();
     block *genesis_block = initialize_block_system();
-    if (flag) {
-        append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
-        finalize_block(genesis_block);
-    }
+    append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
+    finalize_block(genesis_block);
+
     char* result_block_hash;
     block* block1 = create_a_new_block(get_genesis_block_hash(), tx, &result_block_hash);
     
@@ -176,14 +175,11 @@ block* create_a_new_block(char* previous_block_header_hash, transaction* transac
     if (!create_new_block_shortcut(&block_data, block1)) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a block.");
     }
-
     verify_block(block1);
-
     if (!finalize_block(block1)) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a block.");
     }
 
     *result_header_hash = hash_block_header(block1->header);
-
     return block1;
 }
