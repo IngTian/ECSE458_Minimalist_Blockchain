@@ -108,17 +108,17 @@ int main(int argc, char const *argv[]) {
     close(serverSock);
     // closing the listening socket
     shutdown(server_fd, SHUT_RDWR);
-    printf("server disconnect!!! \n");
+    general_log(LOG_SCOPE, LOG_INFO, "server disconnect!!!");
     return 0;
 }
 
 void InterruptHandler (int signalType) {
-    printf("Interrupt received.Exiting program.\n");
+    general_log(LOG_SCOPE, LOG_ERROR, "Interrupt received.Exiting program.\n");
     exit(1);
 }
 
 void DieWithError(char *errorMessage){
-    printf("%s\n",errorMessage);
+    general_log(LOG_SCOPE, LOG_ERROR, "%s", errorMessage);
 }
 
 
@@ -163,15 +163,13 @@ void* HandleTCPClient(void* arg){
         printf("%d\n",tx->tx_in_count);
         printf("%u\n",tx->lock_time);
         print_hex(tx->tx_ins[0].signature_script,64);
-
+        
         receiveCommand = str_trim(receiveCommand);
         if (strcmp(receiveCommand, "genesis transaction") != 0){
-            printf("previous hash: %s\n", tx->tx_ins[0].previous_outpoint.hash);
             //verification
             verify_transaction(tx);
             general_log(LOG_SCOPE,LOG_INFO, "Verification done. Timestamp: %ul", get_timestamp());
         }
-        printf("current_hash: %s\n", get_transaction_txid(tx));
         free(receiveCommand);
 
         //save to database

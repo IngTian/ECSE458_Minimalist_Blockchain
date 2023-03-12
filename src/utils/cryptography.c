@@ -177,11 +177,10 @@ char *hash_struct_in_hex(void *ptr, unsigned int size) {
  */
 char *convert_hex_back_to_data_array(void *ptr) {
     unsigned int str_len = strlen(ptr);
-    unsigned int *res = (unsigned int *)malloc(str_len / 2 + 1);
+    char *res = (char*)malloc(str_len / 2 + 1);
     memset(res, '\0', str_len / 2 + 1);
     for (int i = 0; i < (str_len / 2); i++) {
         sscanf(ptr + 2*i, "%02x", &res[i]);
-        printf("bytearray %d: %02x\n", i, res[i]);
     }
     return res;
 }
