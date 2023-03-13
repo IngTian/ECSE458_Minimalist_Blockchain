@@ -103,7 +103,7 @@ int main(int argc, char const *argv[]) {
     int n = 1;
     int number_of_input = 2;
     int number_of_output = 2;
-    int transaction_type = 0;
+    int transaction_type = 1;
     char *previous_transaction_id = get_transaction_txid(previous_transaction);
     char *previous_output_private_key = get_genesis_transaction_private_key();
     char *res_txid;
@@ -131,10 +131,12 @@ int main(int argc, char const *argv[]) {
     if (!finalize_transaction(t)) general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
     previous_transaction = t;
     previous_output_private_key = new_private_key;
-    memcpy(sendCommand, "create transaction", strlen("create transaction"));
-    socket_tx = cast_to_socket_transaction(previous_transaction);
-    send_model = (const char *)socket_tx;
-    send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
+    block *block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
+    memcpy(previous_block_header_hash, result_block_hash, 64);
+    memcpy(sendCommand, "create block", strlen("create block"));
+    socket_blk = cast_to_socket_block(block1);
+    send_model = (const char *)socket_blk;
+    send_size = get_socket_block_length(block1) + COMMAND_LENGTH;
     send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
     send_model_by_socket(server_address_str, server_port, send_data, send_size);
     usleep(1000);  // sleep for 1ms
