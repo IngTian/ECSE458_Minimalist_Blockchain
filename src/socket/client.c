@@ -22,6 +22,15 @@ transaction *create_a_new_single_in_single_out_transaction(char *previous_transa
                                                            char **res_txid,
                                                            char **res_private_key);
 
+
+transaction *create_a_new_many_in_single_out_transaction(char **previous_transaction_id,
+                                                         char **previous_output_private_key,
+                                                         int *previous_tx_output_idx,
+                                                         int previous_value,
+                                                         char **res_txid,
+                                                         char **res_private_key,
+                                                         int input_num);
+
 block *create_a_new_block(char *previous_block_header_hash, transaction *transaction, char **result_header_hash);
 
 int main(int argc, char const *argv[]) {
@@ -160,6 +169,41 @@ transaction *create_a_new_single_in_single_out_transaction(char *previous_transa
     secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
     transaction_create_shortcut_output output = {.value = previous_value, .public_key = (char *)new_public_key->data};
     transaction_create_shortcut create_data = {.num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output, .inputs = &input};
+    transaction *t = (transaction *)malloc(sizeof(transaction));
+
+    if (!create_new_transaction_shortcut(&create_data, t)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
+    }
+
+    if (!finalize_transaction(t)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
+    }
+
+    *res_txid = get_transaction_txid(t);
+    *res_private_key = new_private_key;
+
+    return t;
+}
+
+transaction *create_a_new_many_in_single_out_transaction(char **previous_transaction_id,
+                                                         char **previous_output_private_key,
+                                                         int *previous_tx_output_idx,
+                                                         int previous_value,
+                                                         char **res_txid,
+                                                         char **res_private_key,
+                                                         int input_num) {
+    transaction_create_shortcut_input *inputs = malloc(input_num * sizeof(transaction_create_shortcut_input));
+    for (int i = 0; i < input_num; i++) {
+        transaction_create_shortcut_input input = {.previous_output_idx = previous_tx_output_idx[i],
+                                                   .previous_txid = previous_transaction_id[i],
+                                                   .private_key = previous_output_private_key[i]};
+        inputs[i] = input;
+    }
+
+    unsigned char *new_private_key = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
+    transaction_create_shortcut_output output = {.value = previous_value, .public_key = (char *)new_public_key->data};
+    transaction_create_shortcut create_data = {.num_of_inputs = input_num, .num_of_outputs = 1, .outputs = &output, .inputs = inputs};
     transaction *t = (transaction *)malloc(sizeof(transaction));
 
     if (!create_new_transaction_shortcut(&create_data, t)) {
