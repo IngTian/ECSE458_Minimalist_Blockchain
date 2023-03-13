@@ -10,7 +10,9 @@
 
 #define LOG_SCOPE "transaction_persistence"
 
-static GHashTable *g_global_transaction_table;  // The global transaction table, mapping TXID to transaction.
+static GHashTable *g_global_transaction_table;     // The global transaction table, mapping TXID to transaction.
+static GHashTable *g_utxo;                         // Unspent Transaction Output. mapping each transaction output to its value left.
+static transaction *g_genesis_transaction = NULL;  // The genesis transaction.
 
 /*
  * -----------------------------------------------------------
@@ -20,6 +22,16 @@ static GHashTable *g_global_transaction_table;  // The global transaction table,
 void free_transaction_table_key(void *key) { free(key); }
 
 void free_transaction_table_val(void *val) { destroy_transaction(val); }
+
+void free_utxo_table_key(void *key) { free(key); }
+
+void free_utxo_table_val(void *val) { free(val); }
+
+void print_utxo_entry(void *h, void *v, void *user_data) {
+    char *hash = (char *)h;
+    long int *value = (long int *)v;
+    printf("ID: %s VAL: %ld\n", hash, *value);
+}
 
 /*
  * -----------------------------------------------------------
@@ -35,7 +47,7 @@ void free_transaction_table_val(void *val) { destroy_transaction(val); }
 bool initialize_transaction_persistence() {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
-            "create table transaction\n"
+            "create table if not exists transaction\n"
             "(\n"
             "    id           int auto_increment,\n"
             "    txid         char(64)     not null unique,\n"
@@ -43,11 +55,11 @@ bool initialize_transaction_persistence() {
             "    tx_in_count  int unsigned not null,\n"
             "    tx_out_count int unsigned not null,\n"
             "    lock_time    int unsigned not null,\n"
-            "    block_id     int          not null default 0,"
+            "    block_id     int          not null default 0,\n"
             "    primary key (id)\n"
-            ");\n"
+            ") ENGINE = %s;\n"
             "\n"
-            "create table transaction_output\n"
+            "create table if not exists transaction_output\n"
             "(\n"
             "    id              int auto_increment,\n"
             "    value           bigint       not null,\n"
@@ -56,9 +68,9 @@ bool initialize_transaction_persistence() {
             "    transaction_id  int          not null,\n"
             "    primary key (id),\n"
             "    constraint foreign key (transaction_id) references transaction (id)\n"
-            ");\n"
+            ") ENGINE = %s;\n"
             "\n"
-            "create table transaction_input\n"
+            "create table if not exists transaction_input\n"
             "(\n"
             "    id               int auto_increment,\n"
             "    script_bytes     int unsigned not null,\n"
@@ -67,9 +79,9 @@ bool initialize_transaction_persistence() {
             "    transaction_id   int          not null,\n"
             "    primary key (id),\n"
             "    foreign key (transaction_id) references transaction (id)\n"
-            ");\n"
+            ") ENGINE = %s;\n"
             "\n"
-            "create table transaction_outpoint\n"
+            "create table if not exists transaction_outpoint\n"
             "(\n"
             "    id                   int auto_increment,\n"
             "    hash                 char(64)     not null,\n"
@@ -77,10 +89,21 @@ bool initialize_transaction_persistence() {
             "    transaction_input_id int          not null,\n"
             "    primary key (id),\n"
             "    foreign key (transaction_input_id) references transaction_input (id)\n"
-            ");";
-        return mysql_create_table(sql_query);
+            ") ENGINE = %s;\n"
+            "\n"
+            "create table if not exists utxo\n"
+            "(\n"
+            "    id    int auto_increment,\n"
+            "    hash  char(64) not null,\n"
+            "    value bigint   not null,\n"
+            "    primary key (id)\n"
+            ") ENGINE = %s;";
+        char filtered_query[10000];
+        sprintf(filtered_query, sql_query, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE);
+        return mysql_create_table(filtered_query);
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_global_transaction_table = g_hash_table_new_full(g_str_hash, g_str_equal, free_transaction_table_key, free_transaction_table_val);
+        g_utxo = g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
     }
 
     return false;
@@ -93,12 +116,18 @@ bool initialize_transaction_persistence() {
  * @auhtor Ing Tian
  */
 bool save_transaction(transaction *tx) {
+    // Save the genesis transaction.
+    if (get_total_number_of_transactions() == 0) {
+        g_genesis_transaction = tx;
+    }
+
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *txid = get_transaction_txid(tx);
         int temp_sql_query_size = 10000;
 
         // Save the transaction in table transaction.
         char sql_query[temp_sql_query_size];
+        memset(sql_query, '\0', temp_sql_query_size);
         sprintf(sql_query,
                 "set @txid := '%s';\n"
                 "set @version := %d;\n"
@@ -180,6 +209,79 @@ bool save_transaction(transaction *tx) {
 }
 
 /**
+ * Save a utxo entry.
+ * @param key The key.
+ * @param value The value.
+ * @return True for success and false otherwise.
+ * @author Ing Tian
+ */
+bool save_utxo_entry(char *key, long int *value) {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        int temp_sql_query_size = 10000;
+        char sql_query[temp_sql_query_size];
+        memset(sql_query, '\0', temp_sql_query_size);
+        sprintf(sql_query,
+                "set @hash := '%s';\n"
+                "set @value := %ld;\n"
+                "insert into utxo (id, hash, value)\n"
+                "values (NULL, @hash, @value);\n",
+                key,
+                *value);
+        if (!mysql_insert(sql_query)) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert UTXO entry.");
+            return false;
+        } else {
+            return true;
+        };
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        g_hash_table_insert(g_utxo, key, value);
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Remove a UTXO entry.
+ * @param key A key.
+ * @return True for success and false otherwise.
+ * @author Ing Tian
+ */
+bool remove_utxo_entry(char *key) {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        int temp_sql_query_size = 10000;
+        char sql_query[temp_sql_query_size];
+        memset(sql_query, '\0', temp_sql_query_size);
+        sprintf(sql_query, "delete from utxo where hash='%s';\n", key);
+        if (!mysql_delete(sql_query)) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete UTXO entry.");
+            return false;
+        } else {
+            return true;
+        };
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        g_hash_table_remove(g_utxo, key);
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Print UTXO inside the system.
+ * @author Ing Tian
+ */
+void print_utxo() {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        return;
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        printf("**************************** UTXO *****************************\n");
+        g_hash_table_foreach(g_utxo, print_utxo_entry, NULL);
+        printf("\n");
+    }
+}
+
+/**
  * Update the block ID in the transaction.
  * @param block_id The block ID to update to.
  * @param txid The transaction ID.
@@ -188,6 +290,7 @@ bool save_transaction(transaction *tx) {
  */
 bool update_transaction_block_id(unsigned long block_id, char *txid) {
     char sql_query[1000];
+    memset(sql_query, '\0', 1000);
     sprintf(sql_query, "update transaction set block_id=%lu where txid='%s';", block_id, txid);
     if (!mysql_update(sql_query)) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to update block ID (%d) for a transaction (%s).", block_id, txid);
@@ -208,6 +311,7 @@ transaction *get_transaction(char *txid) {
 
         int temp_sql_query_size = 10000;
         char sql_query[temp_sql_query_size];
+        memset(sql_query, '\0', temp_sql_query_size);
 
         sprintf(sql_query, "select * from transaction where txid='%s';", txid);
         MYSQL_RES *res = mysql_read(sql_query);
@@ -286,6 +390,36 @@ transaction *get_transaction(char *txid) {
 }
 
 /**
+ * Get the genesis transaction.
+ * @return The genesis transaction.
+ * @author Ing Tian
+ */
+transaction *get_genesis_transaction() {
+    if (g_genesis_transaction != NULL) {
+        return g_genesis_transaction;
+    }
+
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *sql_query = "select txid from transaction where id=1;";
+        MYSQL_RES *res = mysql_read(sql_query);
+
+        MYSQL_ROW row;
+        char genesis_txid[65];
+        genesis_txid[64] = '\0';
+        while ((row = mysql_fetch_row(res))) {
+            strcpy(genesis_txid, row[0]);
+        }
+
+        mysql_free_result(res);
+        transaction *genesis_transaction = get_transaction(genesis_txid);
+        g_genesis_transaction = genesis_transaction;
+        return genesis_transaction;
+    }
+
+    return NULL;
+}
+
+/**
  * Determines if a transaction exists.
  * @param txid The transaction ID.
  * @return True if the transaction exists and false otherwise.
@@ -308,24 +442,102 @@ bool does_transaction_exist(char *txid) {
 };
 
 /**
+ * Check if a key exists in UTXO.
+ * @param key A UTXO key.
+ * @return True for exists and false otherwise.
+ * @author Ing Tian
+ */
+bool does_utxo_entry_exist(char *key) {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char sql_query[1000];
+        memset(sql_query, '\0', 1000);
+        sprintf(sql_query, "select * from utxo where hash='%s';\n", key);
+        MYSQL_RES *res = mysql_read(sql_query);
+        bool result = res->row_count > 0;
+        mysql_free_result(res);
+        return result;
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        return g_hash_table_contains(g_utxo, key);
+    }
+
+    return false;
+}
+
+/**
  * Destroy the transaction persistence layer
  * by destroying all the tables.
  * @return True for success and false otherwise.
  * @author Ing Tian
  */
 bool destroy_transaction_persistence() {
+    bool res = false;
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
-            "drop table transaction_outpoint;\n"
-            "drop table transaction_input;\n"
-            "drop table transaction_output;\n"
-            "drop table transaction;";
-        return mysql_delete_table(sql_query);
+            "drop table if exists transaction_outpoint;\n"
+            "drop table if exists transaction_input;\n"
+            "drop table if exists transaction_output;\n"
+            "drop table if exists transaction;";
+        res = mysql_delete_table(sql_query);
+        if (!res) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete tables.");
+        }
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        g_hash_table_remove_all(g_utxo);
+        g_hash_table_destroy(g_utxo);
         g_hash_table_remove_all(g_global_transaction_table);
         g_hash_table_destroy(g_global_transaction_table);
-        return true;
+        res = true;
     }
 
-    return false;
+    return res;
+}
+
+/**
+ * Get the total number of transactions in the system.
+ * @return The total number of transactions in the system.
+ * @author Ing Tian
+ */
+unsigned int get_total_number_of_transactions() {
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *sql_query = "select count(*) as count from transaction;";
+        MYSQL_RES *res = mysql_read(sql_query);
+
+        // Read number.
+        MYSQL_ROW row;
+        unsigned int answer = 0;
+        while ((row = mysql_fetch_row(res))) {
+            answer = atoi(row[0]);
+        }
+
+        mysql_free_result(res);
+
+        return answer;
+    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
+        return g_hash_table_size(g_global_transaction_table);
+    }
+    return -1;
+}
+
+/**
+ * Get last inserted block from the database.
+ * @return A block.
+ * @author Ing Tian
+ */
+transaction *get_last_inserted_transaction() {
+    unsigned int last_tx_idx = get_total_number_of_transactions();
+
+    char sql_query[1000];
+    sprintf(sql_query, "select txid from transaction where id=%u;", last_tx_idx);
+    MYSQL_RES *res = mysql_read(sql_query);
+
+    MYSQL_ROW row;
+    char temp_txid[65];
+    temp_txid[64] = '\0';
+    while ((row = mysql_fetch_row(res))) {
+        strcpy(temp_txid, row[0]);
+    }
+
+    mysql_free_result(res);
+    transaction *tx = get_transaction(temp_txid);
+    return tx;
 }

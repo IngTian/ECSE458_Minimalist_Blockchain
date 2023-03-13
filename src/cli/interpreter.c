@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "../model/transaction/transaction.h"
+#include "../model/transaction/transaction_persistence.h"
 #include "../model/block/block.h"
 #include "../utils/log_utils.h"
 #include "../utils/mjson.h"
@@ -172,10 +173,10 @@ int quit() {
  */
 int init() {
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_transaction = initialize_transaction_system();
+    transaction *genesis_transaction = initialize_transaction_system(false);
     char *genesis_transaction_id = get_transaction_txid(genesis_transaction);
     printf("Genesis transaction id: %s\n", genesis_transaction_id);
-    initialize_block_system();
+    initialize_block_system(false);
     char* genesis_block_hash = get_genesis_block_hash();
     printf("Genesis block hash: %s\n", genesis_block_hash);
     return 0;
