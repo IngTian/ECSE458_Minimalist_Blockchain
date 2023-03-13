@@ -9,10 +9,10 @@
 
 START_TEST(test_block_system_init_and_destroy) {
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_transaction = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
+    transaction *genesis_transaction = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
     append_transaction_into_block(genesis_b, genesis_transaction, 0);
     finalize_block(genesis_b);
 
@@ -33,10 +33,10 @@ END_TEST
 
 START_TEST(test_create_empty_block) {
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_transaction = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
+    transaction *genesis_transaction = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
     append_transaction_into_block(genesis_b, genesis_transaction, 0);
     finalize_block(genesis_b);
 
@@ -60,10 +60,10 @@ START_TEST(test_destroy_block1) {
      * destroy an empty block that does not be added into the system
      */
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_transaction = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
+    transaction *genesis_transaction = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
     append_transaction_into_block(genesis_b, genesis_transaction, 0);
     finalize_block(genesis_b);
 
@@ -80,10 +80,10 @@ START_TEST(test_destroy_block2) {
      * Test create block but not finalize into the system
      */
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_t = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
+    transaction *genesis_t = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
     append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
 
@@ -123,10 +123,10 @@ START_TEST(test_destroy_block3) {
      * Test create a block and add into the system and then destroy it
      */
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_t = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
+    transaction *genesis_t = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
     append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
 
@@ -166,10 +166,10 @@ START_TEST(test_append_prev_block) {
      * Test append prev block
      */
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_t = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
+    transaction *genesis_t = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
     append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
 
@@ -187,12 +187,13 @@ END_TEST
 
 START_TEST(test_get_block_by_hash) {
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_transaction = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
-    append_transaction_into_block(genesis_b, genesis_transaction, 0);
+    transaction *genesis_t = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
+    append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
+
     char *block_header_hash = hash_block_header(genesis_b->header);
     block *retrieved_block = get_block_by_hash(block_header_hash);
     free(block_header_hash);
@@ -219,11 +220,11 @@ END_TEST
 
 START_TEST(test_get_genesis_block_hash) {
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_transaction = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
-    append_transaction_into_block(genesis_b, genesis_transaction, 0);
+    transaction *genesis_t = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
+    append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
 
     ck_assert_str_eq(hash_block_header(genesis_b->header), get_genesis_block_hash());
@@ -238,13 +239,13 @@ END_TEST
 
 START_TEST(test_hash_block_header) {
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_transaction = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
-    append_transaction_into_block(genesis_b, genesis_transaction, 0);
+    transaction *genesis_t = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
+    append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
-
+    
     ck_assert_str_eq(hash_block_header(genesis_b->header), get_genesis_block_hash());
 
     // Destroy.
@@ -257,11 +258,11 @@ END_TEST
 
 START_TEST(test_add_block_by_shortcut_and_finalize) {
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_transaction = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
-    append_transaction_into_block(genesis_b, genesis_transaction, 0);
+    transaction *genesis_t = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
+    append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
 
     // Destroy.
@@ -274,12 +275,13 @@ END_TEST
 
 START_TEST(test_append_transaction_into_block) {
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_t = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
+    transaction *genesis_t = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
     append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
+
     ck_assert_ptr_nonnull(genesis_b->txns);
 
     // Destroy.
@@ -292,10 +294,10 @@ END_TEST
 
 START_TEST(test_verify_block_chain) {
     // Init
-    initialize_mysql_system();
+    initialize_mysql_system("test");
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    transaction *genesis_t = initialize_transaction_system();
-    block *genesis_b = initialize_block_system();
+    transaction *genesis_t = initialize_transaction_system(false);
+    block *genesis_b = initialize_block_system(false);
     append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
 
