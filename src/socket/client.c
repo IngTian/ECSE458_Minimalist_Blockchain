@@ -100,19 +100,70 @@ int main(int argc, char const *argv[]) {
     usleep(1000);  // sleep for 1ms
 
     // send multiple transaction/block
-    int n = 10;
+    int n = 1;
+    int number_of_input = 2;
+    int number_of_output = 2;
+    int transaction_type = 0;
     char *previous_transaction_id = get_transaction_txid(previous_transaction);
     char *previous_output_private_key = get_genesis_transaction_private_key();
     char *res_txid;
     char *res_private_key;
     char *previous_block_header_hash = get_genesis_block_hash();
     char *result_block_hash;
+
+    //initialization for multiple input transaction or multiple output transaction
+    transaction_create_shortcut_input input = {.previous_output_idx = 0,
+                                               .previous_txid = previous_transaction_id,
+                                               .private_key = previous_output_private_key};
+    unsigned char *new_private_key = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
+    unsigned char *new_private_key1 = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key1 = get_a_new_public_key((char *)new_private_key1);
+    transaction_create_shortcut_output output1 = {.value = TOTAL_NUMBER_OF_COINS-1, .public_key = ((char *)(new_public_key->data))};
+    transaction_create_shortcut_output output2 = {.value = 1, .public_key = (char *)new_public_key1->data};
+    transaction_create_shortcut_output* outputs=malloc(2*sizeof(transaction_create_shortcut_output));
+    outputs[0]=output1;
+    outputs[1]=output2;
+    transaction_create_shortcut create_data = {
+        .num_of_inputs = 1, .num_of_outputs = 2, .outputs = outputs, .inputs = &input};
+    transaction *t = (transaction *)malloc(sizeof(transaction));
+    if (!create_new_transaction_shortcut(&create_data, t)) general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
+    if (!finalize_transaction(t)) general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
+    previous_transaction = t;
+    previous_output_private_key = new_private_key;
+    memcpy(sendCommand, "create transaction", strlen("create transaction"));
+    socket_tx = cast_to_socket_transaction(previous_transaction);
+    send_model = (const char *)socket_tx;
+    send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
+    send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
+    send_model_by_socket(server_address_str, server_port, send_data, send_size);
+    usleep(1000);  // sleep for 1ms
+
+    transaction* transaction;
     for (int i = 0; i < n; i++) {
-        // create the transaction
-        transaction *transaction = create_a_new_single_in_single_out_transaction(
-            previous_transaction_id, previous_output_private_key, 0, TOTAL_NUMBER_OF_COINS, &res_txid, &res_private_key);
-        memcpy(previous_transaction_id, res_txid, 64);
-        memcpy(previous_output_private_key, res_private_key, 64);
+        if (transaction_type == 0){
+            // create the one-to-one transaction
+            transaction = create_a_new_single_in_single_out_transaction(
+                previous_transaction_id, previous_output_private_key, 0, TOTAL_NUMBER_OF_COINS, &res_txid, &res_private_key);
+            memcpy(previous_transaction_id, res_txid, 64);
+            memcpy(previous_output_private_key, res_private_key, 64);
+        }else if (transaction_type == 1) {
+            //create multi-to-one transaction
+            char *previous_transaction_id_list[2];
+            previous_transaction_id_list[0]= get_transaction_txid(previous_transaction);
+            previous_transaction_id_list[1]=get_transaction_txid(previous_transaction);
+            char *previous_output_private_key_list[2];
+            previous_output_private_key_list[0]=new_private_key;
+            previous_output_private_key_list[1]=new_private_key1;
+            int previous_output_index_list[2];
+            previous_output_index_list[0]=0;
+            previous_output_index_list[1]=1;
+            transaction = create_a_new_many_in_single_out_transaction(previous_transaction_id_list, previous_output_private_key_list, previous_output_index_list, TOTAL_NUMBER_OF_COINS, &res_txid, &res_private_key,2);
+        }else if(transaction_type == 2) {
+            //create one-to-multi transaction
+        }else{
+            general_log(LOG_SCOPE, LOG_ERROR, "Type of test transaction is invalid!");
+        }
 
         if (TEST_CREATE_BLOCK) {
             // create the block

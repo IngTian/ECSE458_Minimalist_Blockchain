@@ -174,4 +174,5 @@ void *HandleTCPClient(void *arg) {
     }
 
     close(clientSock);
+    pthread_exit(NULL);
 }
