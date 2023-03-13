@@ -40,6 +40,8 @@ int send_model_by_socket(char *server_address_str, int server_port, char *send_d
     if ((client_fd = connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr))) < 0) {
         general_log(LOG_SCOPE, LOG_ERROR, "Connection Failed. \n");
         return -1;
+    } else{
+        general_log(LOG_SCOPE, LOG_INFO, "Connection to Listener.. \n");
     }
 
     send(sock, send_data, send_size, 0);
