@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "utils/constants.h"
 #include "utils/sys_utils.h"
@@ -133,6 +134,64 @@ void general_log(char *scope, int log_level, char *format, ...) {
     va_end(args);
 
     printf("\n");
+}
+
+/**
+ * Generate a .dot file to represent our system.
+ * @param block_list A list of blocks.
+ * @param filename The filename to save the .dot file.
+ * @author Luke E
+ */
+void generate_dot_representation(block **block_list, int list_len, char *filename) {
+    FILE *fp = fopen(filename, "w");
+    fprintf(fp, "digraph G {\n");
+    fprintf(fp, "compound=true;\n");
+    fprintf(fp, "node [shape=record];\n");
+
+    if (list_len == 1) {
+        fprintf(fp, "Block0\n");
+        fprintf(fp, "}\n");
+        fclose(fp);
+        return;
+    }
+
+    // Create sub-graphs(blocks&transactions)
+    for (int i = 0; i < list_len; i++) {
+        char *txid_dot;
+        fprintf(fp, "subgraph cluster_%d{\n ", i);
+        fprintf(fp, "label = \"Block%d\";\n", i);
+        fprintf(fp, "DUMMY_%d [shape=point style=invis];\n", i);
+        for (int j = 0; j < block_list[i]->txn_count; j++) {
+            txid_dot = get_transaction_txid(block_list[i]->txns[j]);
+            fprintf(fp, "txid%s;\n", txid_dot);
+        }
+        fprintf(fp, "}\n");
+    }
+
+    // Connect all blocks
+    for (int b = 0; b < list_len - 1; b++) {
+        int a = b + 1;
+        fprintf(fp, "DUMMY_%d -> DUMMY_%d [ltail=cluster_%d,lhead=cluster_%d];\n", b, a, b, a);
+    }
+
+    // Connect all transactions
+    for (int m = 0; m < list_len; m++) {
+        char *txid_trans;
+        char *txid_previous;
+        for (int n = 0; n < block_list[m]->txn_count; n++) {
+            txid_trans = get_transaction_txid(block_list[m]->txns[n]);
+            for (int o = 0; o < block_list[m]->txns[n]->tx_in_count; o++) {
+                txid_previous = block_list[m]->txns[n]->tx_ins[o].previous_outpoint.hash;
+                if (strlen(txid_previous) > 0) {
+                    fprintf(fp, "txid%s -> txid%s;\n", txid_previous, txid_trans);
+                }
+            }
+        }
+    }
+
+    fprintf(fp, "}\n");
+    fclose(fp);
+    return;
 }
 
 /**
