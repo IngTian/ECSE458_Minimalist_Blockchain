@@ -180,5 +180,6 @@ void* HandleTCPClient(void* arg){
         save_transaction(tx);
     }
 
+
     close(clientSock);
 }
