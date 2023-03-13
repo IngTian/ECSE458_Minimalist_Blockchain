@@ -146,9 +146,13 @@ void* HandleTCPClient(void* arg){
         printf("Block txns[0] in[0] signature script: ");
         print_hex(block1->txns[0]->tx_ins[0].signature_script, 64);
 
-        //verification
-        verify_block(block1);
-        general_log(LOG_SCOPE,LOG_INFO, "Verification done. Timestamp: %ul", get_timestamp());
+        receiveCommand = str_trim(receiveCommand);
+        if (strcmp(receiveCommand, "genesis block") != 0){
+            //verification
+            verify_block(block1);
+            general_log(LOG_SCOPE,LOG_INFO, "Block verification done. Timestamp: %ul", get_timestamp());
+        }
+        free(receiveCommand);
 
         //save to database
         save_block(block1);
@@ -168,7 +172,7 @@ void* HandleTCPClient(void* arg){
         if (strcmp(receiveCommand, "genesis transaction") != 0){
             //verification
             verify_transaction(tx);
-            general_log(LOG_SCOPE,LOG_INFO, "Verification done. Timestamp: %ul", get_timestamp());
+            general_log(LOG_SCOPE,LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
         }
         free(receiveCommand);
 

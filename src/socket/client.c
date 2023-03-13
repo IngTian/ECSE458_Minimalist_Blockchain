@@ -59,22 +59,38 @@ int main(int argc, char const *argv[]) {
     destroy_block_system();
     transaction *previous_transaction = initialize_transaction_system(false);
     block *genesis_block = initialize_block_system(false);
+    append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
+    finalize_block(genesis_block);
 
-    printf("%d\n", previous_transaction->tx_out_count);
-    printf("%d\n", previous_transaction->tx_in_count);
-    printf("%u\n", previous_transaction->lock_time);
-    print_hex(previous_transaction->tx_ins[0].signature_script, 64);
+    if (TEST_CREATE_BLOCK){
+        //    print block info
+        printf("Block txns count: %d\n", genesis_block->txn_count);
+        printf("Block header version: %d\n", genesis_block->header->version);
+        printf("Block header hash: \n");
+        print_hex(genesis_block->header->prev_block_header_hash, 64);
+        printf("Block txns[0] in[0] signature script: \n");
+        print_hex(genesis_block->txns[0]->tx_ins[0].signature_script, 64);
 
-    //send genesis transaction to listener
-    memcpy(sendCommand, "genesis transaction", strlen("genesis transaction"));
-    socket_tx = cast_to_socket_transaction(previous_transaction);
-    send_model = (const char*)socket_tx;
-    send_size = get_socket_transaction_length(socket_tx)+ COMMAND_LENGTH;
+        //send genesis block to listener
+        memcpy(sendCommand, "genesis block", strlen("genesis block"));
+        socket_blk = cast_to_socket_block(genesis_block);
+        send_model = (const char*)socket_blk;
+        send_size = get_socket_block_length(genesis_block)+ COMMAND_LENGTH;
+    }else{
+        printf("%d\n", previous_transaction->tx_out_count);
+        printf("%d\n", previous_transaction->tx_in_count);
+        printf("%u\n", previous_transaction->lock_time);
+        print_hex(previous_transaction->tx_ins[0].signature_script, 64);
+
+        //send genesis transaction to listener
+        memcpy(sendCommand, "genesis transaction", strlen("genesis transaction"));
+        socket_tx = cast_to_socket_transaction(previous_transaction);
+        send_model = (const char*)socket_tx;
+        send_size = get_socket_transaction_length(socket_tx)+ COMMAND_LENGTH;
+    }
     send_data = combine_data_with_command(sendCommand,COMMAND_LENGTH,send_model,send_size);
     send_model_by_socket(server_address_str, server_port, send_data, send_size);
     usleep(1000);//sleep for 1ms
-
-
 
     //create the transaction
     char *previous_transaction_id = get_transaction_txid(previous_transaction);
@@ -92,24 +108,21 @@ int main(int argc, char const *argv[]) {
 
     if (TEST_CREATE_BLOCK){
         //create the block
-        append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
-        finalize_block(genesis_block);
-
         char* result_block_hash;
         block* block1 = create_a_new_block(get_genesis_block_hash(), transaction, &result_block_hash);
 
         //    print block info
         printf("Block txns count: %d\n", block1->txn_count);
         printf("Block header version: %d\n", block1->header->version);
-        printf("Block header hash: ");
+        printf("Block header hash: \n");
         print_hex(block1->header->prev_block_header_hash, 64);
-        printf("Block txns[0] in[0] signature script: ");
+        printf("Block txns[0] in[0] signature script: \n");
         print_hex(block1->txns[0]->tx_ins[0].signature_script, 64);
 
         memcpy(sendCommand, "create block", strlen("create block"));
         socket_blk = cast_to_socket_block(block1);
         send_model = (const char*)socket_blk;
-        send_size = get_socket_transaction_length(socket_blk)+ COMMAND_LENGTH;
+        send_size = get_socket_block_length(block1)+ COMMAND_LENGTH;
     }else{
         memcpy(sendCommand, "create transaction", strlen("create transaction"));
         socket_tx = cast_to_socket_transaction(transaction);

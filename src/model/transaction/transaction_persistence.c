@@ -57,7 +57,7 @@ bool initialize_transaction_persistence() {
             "    lock_time    int unsigned not null,\n"
             "    block_id     int          not null default 0,\n"
             "    primary key (id)\n"
-            ");\n"
+            ") ENGINE = %s;\n"
             "\n"
             "create table if not exists transaction_output\n"
             "(\n"
@@ -68,7 +68,7 @@ bool initialize_transaction_persistence() {
             "    transaction_id  int          not null,\n"
             "    primary key (id),\n"
             "    constraint foreign key (transaction_id) references transaction (id)\n"
-            ");\n"
+            ") ENGINE = %s;\n"
             "\n"
             "create table if not exists transaction_input\n"
             "(\n"
@@ -79,7 +79,7 @@ bool initialize_transaction_persistence() {
             "    transaction_id   int          not null,\n"
             "    primary key (id),\n"
             "    foreign key (transaction_id) references transaction (id)\n"
-            ");\n"
+            ") ENGINE = %s;\n"
             "\n"
             "create table if not exists transaction_outpoint\n"
             "(\n"
@@ -89,7 +89,7 @@ bool initialize_transaction_persistence() {
             "    transaction_input_id int          not null,\n"
             "    primary key (id),\n"
             "    foreign key (transaction_input_id) references transaction_input (id)\n"
-            ");\n"
+            ") ENGINE = %s;\n"
             "\n"
             "create table if not exists utxo\n"
             "(\n"
@@ -97,8 +97,17 @@ bool initialize_transaction_persistence() {
             "    hash  char(64) not null,\n"
             "    value bigint   not null,\n"
             "    primary key (id)\n"
-            ");";
-        return mysql_create_table(sql_query);
+            ") ENGINE = %s;";
+        char filtered_query[10000];
+        sprintf(
+            filtered_query,
+            sql_query,
+            PERSISTENCE_ENGINE,
+            PERSISTENCE_ENGINE,
+            PERSISTENCE_ENGINE,
+            PERSISTENCE_ENGINE,
+            PERSISTENCE_ENGINE);
+        return mysql_create_table(filtered_query);
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_global_transaction_table = g_hash_table_new_full(g_str_hash, g_str_equal, free_transaction_table_key, free_transaction_table_val);
         g_utxo = g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
@@ -471,10 +480,10 @@ bool destroy_transaction_persistence() {
     bool res = false;
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
-            "drop table transaction_outpoint;\n"
-            "drop table transaction_input;\n"
-            "drop table transaction_output;\n"
-            "drop table transaction;";
+            "drop table if exists transaction_outpoint;\n"
+            "drop table if exists transaction_input;\n"
+            "drop table if exists transaction_output;\n"
+            "drop table if exists transaction;";
         res = mysql_delete_table(sql_query);
         if (!res) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete tables.");

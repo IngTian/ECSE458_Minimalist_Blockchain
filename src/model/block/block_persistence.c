@@ -58,7 +58,7 @@ bool initialize_block_persistence() {
             "    block_id  int auto_increment,\n"
             "    txn_count int unsigned not null,\n"
             "    primary key (block_id)\n"
-            ");\n"
+            ") ENGINE = %s;\n"
             "\n"
             "CREATE TABLE if not exists block_header\n"
             "(\n"
@@ -72,8 +72,10 @@ bool initialize_block_persistence() {
             "    nonce                  int unsigned not null,\n"
             "    primary key (block_h_id),\n"
             "    foreign key (block_h_id) references block (block_id)\n"
-            ");";
-        return mysql_create_table(sql_query);
+            ") ENGINE = %s;";
+        char filtered_query[1000];
+        sprintf(filtered_query, sql_query, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE);
+        return mysql_create_table(filtered_query);
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_global_block_table = g_hash_table_new(g_str_hash, g_str_equal);
         return true;
@@ -142,6 +144,9 @@ bool save_block(block *bl) {
         for (int i = 0; i < bl->txn_count; i++) {
             transaction *current_transaction = bl->txns[i];
             char *txid = get_transaction_txid(current_transaction);
+            if (!does_transaction_exist(txid)) {
+                save_transaction(current_transaction);
+            }
             update_transaction_block_id(block_id, txid);
             free(txid);
         }
@@ -300,8 +305,8 @@ block *get_genesis_block() {
 bool destroy_block_persistence() {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
-            "drop table block_header;\n"
-            "drop table block;\n";
+            "drop table if exists block_header;\n"
+            "drop table if exists block;\n";
         return mysql_delete_table(sql_query);
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_hash_table_foreach(g_global_block_table, free_g_global_block_table_entry, NULL);
