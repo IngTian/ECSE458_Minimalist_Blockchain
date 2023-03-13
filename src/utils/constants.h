@@ -7,7 +7,7 @@
 
 // General
 #define TOTAL_NUMBER_OF_COINS 40960
-#define TEST_CREATE_BLOCK 1
+#define TEST_CREATE_BLOCK 0
 
 // Persistence Definition
 #define PERSISTENCE_RAM 0
