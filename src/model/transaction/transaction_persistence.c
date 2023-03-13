@@ -62,10 +62,10 @@ bool initialize_transaction_persistence() {
             "create table if not exists transaction_output\n"
             "(\n"
             "    id              int auto_increment,\n"
-            "    value           bigint       not null,\n"
-            "    pk_script_bytes int unsigned not null,\n"
-            "    pk_script       BLOB         not null,\n"
-            "    transaction_id  int          not null,\n"
+            "    value           bigint         not null,\n"
+            "    pk_script_bytes int unsigned   not null,\n"
+            "    pk_script       varchar(10000) not null,\n"
+            "    transaction_id  int            not null,\n"
             "    primary key (id),\n"
             "    constraint foreign key (transaction_id) references transaction (id)\n"
             ") ENGINE = %s;\n"
@@ -73,10 +73,10 @@ bool initialize_transaction_persistence() {
             "create table if not exists transaction_input\n"
             "(\n"
             "    id               int auto_increment,\n"
-            "    script_bytes     int unsigned not null,\n"
-            "    signature_script BLOB         not null,\n"
-            "    sequence         int unsigned not null,\n"
-            "    transaction_id   int          not null,\n"
+            "    script_bytes     int unsigned   not null,\n"
+            "    signature_script varchar(10000) not null,\n"
+            "    sequence         int unsigned   not null,\n"
+            "    transaction_id   int            not null,\n"
             "    primary key (id),\n"
             "    foreign key (transaction_id) references transaction (id)\n"
             ") ENGINE = %s;\n"
@@ -156,7 +156,7 @@ bool save_transaction(transaction *tx) {
             sprintf(sql_query,
                     "set @value = %ld;\n"
                     "set @pk_script_bytes = %d;\n"
-                    "set @pk_script = 0x%s;\n"
+                    "set @pk_script = '%s';\n"
                     "insert into transaction_output (id, value, pk_script_bytes, pk_script, transaction_id)\n"
                     "values (NULL, @value, @pk_script_bytes, @pk_script, @transaction_auto_id);",
                     current_output.value,
@@ -177,7 +177,7 @@ bool save_transaction(transaction *tx) {
             transaction_outpoint current_outpoint = current_input.previous_outpoint;
             sprintf(sql_query,
                     "set @script_bytes = %u;\n"
-                    "set @signature_script = 0x%s;\n"
+                    "set @signature_script = '%s';\n"
                     "set @sequence = %u;\n"
                     "set @hash = '%s';\n"
                     "set @index = %u;\n"
@@ -342,7 +342,9 @@ transaction *get_transaction(char *txid) {
             current_output->value = atoi(row[1]);
             current_output->pk_script_bytes = atoi(row[2]);
             current_output->pk_script = (char *)malloc(current_output->pk_script_bytes);
-            memcpy(current_output->pk_script, row[3], current_output->pk_script_bytes);
+            char *converted_pk_script = convert_hex_back_to_data_array(row[3]);
+            memcpy(current_output->pk_script, converted_pk_script, current_output->pk_script_bytes);
+            free(converted_pk_script);
             output_idx++;
         }
         mysql_free_result(res);
@@ -359,7 +361,9 @@ transaction *get_transaction(char *txid) {
             outpoint_input_ids[input_idx] = atoi(row[0]);
             current_input->script_bytes = atoi(row[1]);
             current_input->signature_script = (char *)malloc(current_input->script_bytes);
-            memcpy(current_input->signature_script, row[2], current_input->script_bytes);
+            char *converted_signature_script = convert_hex_back_to_data_array(row[2]);
+            memcpy(current_input->signature_script, converted_signature_script, current_input->script_bytes);
+            free(converted_signature_script);
             current_input->sequence = atoi(row[3]);
             input_idx++;
         }
