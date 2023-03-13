@@ -45,7 +45,7 @@ char *hash_block_header(block_header *header) {
  */
 block *initialize_block_system(bool skip_genesis) {
     initialize_block_persistence();
-    if(skip_genesis) return NULL;
+    if (skip_genesis) return NULL;
     unsigned int total_number_of_blocks = get_total_number_of_blocks();
 
     if (total_number_of_blocks == 0) {

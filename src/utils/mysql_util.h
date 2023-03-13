@@ -13,7 +13,7 @@ typedef struct MySQLConfig {
     unsigned long client_flag;
 } mysql_config;
 
-void initialize_mysql_system(char* db_name);
+void initialize_mysql_system(char *db_name);
 bool mysql_create_database(char *sql_query);
 bool mysql_create_table(char *sql_query);
 bool mysql_delete_table(char *sql_query);

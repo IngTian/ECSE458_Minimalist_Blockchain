@@ -34,7 +34,7 @@ void free_mysql_connection_result() {
  * @param db_name The database name.
  * @author Luke E
  */
-void initialize_mysql_system(char* db_name) {
+void initialize_mysql_system(char *db_name) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         general_log(LOG_SCOPE, LOG_INFO, "MySQL client version detected: %s", mysql_get_client_info());
 

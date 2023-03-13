@@ -1,29 +1,25 @@
-// Server side C/C++ program to demonstrate Socket
-// programming
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include "../model/transaction/transaction.h"
+
 #include "../model/block/block.h"
-#include "../model/transaction/transaction_persistence.h"
 #include "../model/block/block_persistence.h"
-#include "signal.h"
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include "../model/transaction/transaction_persistence.h"
 #include "pthread.h"
-#include "utils/log_utils.h"
-#include "utils/sys_utils.h"
-#include "utils/socket_util.h"
+#include "signal.h"
 #include "utils/constants.h"
+#include "utils/log_utils.h"
 #include "utils/mysql_util.h"
+#include "utils/sys_utils.h"
 
 #define LOG_SCOPE "Listener"
 
 void DieWithError(char *errorMessage);
-void* HandleTCPClient(void* arg);
+void *HandleTCPClient(void *arg);
 
 int main(int argc, char const *argv[]) {
     int serverSock, clientSock;
@@ -61,7 +57,7 @@ int main(int argc, char const *argv[]) {
 
     memset(&echo_server_address, 0, sizeof(echo_server_address));
     echo_server_address.sin_family = AF_INET;
-//    echo_server_address.sin_addr.s_addr = INADDR_ANY;
+    //    echo_server_address.sin_addr.s_addr = INADDR_ANY;
     echo_server_address.sin_port = htons(echo_server_port);
 
     if (inet_pton(AF_INET, server_address_str, &echo_server_address.sin_addr) <= 0) {
@@ -80,7 +76,7 @@ int main(int argc, char const *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    //link to the database
+    // link to the database
     initialize_mysql_system(MYSQL_DB_LISTENER);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     destroy_transaction_system();
@@ -88,15 +84,15 @@ int main(int argc, char const *argv[]) {
     initialize_transaction_system(true);
     initialize_block_system(true);
 
-    //keep running for listening
-    while (true){
+    // keep running for listening
+    while (true) {
         cli_addr_len = sizeof(echo_server_address);
-        //wait for connect
+        // wait for connect
         if ((clientSock = accept(server_fd, (struct sockaddr *)&echo_server_address, (socklen_t *)&cli_addr_len)) < 0) {
             perror("accept");
             exit(EXIT_FAILURE);
         }
-//        printf("Handling client %s\n", inet_ntoa(echo_server_address.sin_addr));
+        //        printf("Handling client %s\n", inet_ntoa(echo_server_address.sin_addr));
         general_log(LOG_SCOPE, LOG_INFO, "Handling client %s", inet_ntoa(echo_server_address.sin_addr));
         pthread_t thread_id;
         int *arg = malloc(sizeof(*arg));
@@ -112,33 +108,30 @@ int main(int argc, char const *argv[]) {
     return 0;
 }
 
-void InterruptHandler (int signalType) {
+void InterruptHandler(int signalType) {
     general_log(LOG_SCOPE, LOG_ERROR, "Interrupt received.Exiting program.\n");
     exit(1);
 }
 
-void DieWithError(char *errorMessage){
-    general_log(LOG_SCOPE, LOG_ERROR, "%s", errorMessage);
-}
+void DieWithError(char *errorMessage) { general_log(LOG_SCOPE, LOG_ERROR, "%s", errorMessage); }
 
-
-void* HandleTCPClient(void* arg){
+void *HandleTCPClient(void *arg) {
     int clientSock = ((int *)arg)[0];
     char echoBuffer[8092];
 
     recv(clientSock, echoBuffer, sizeof(echoBuffer), 0);
     char *receiveCommand = echoBuffer;
     char *data = receiveCommand + 32;
-    general_log(LOG_SCOPE,LOG_INFO, "Server: model received, Timestamp: %ul", get_timestamp());
+    general_log(LOG_SCOPE, LOG_INFO, "Server: model received, Timestamp: %ul", get_timestamp());
     general_log(LOG_SCOPE, LOG_INFO, "Receive the command: %s: ", receiveCommand);
 
-    if (TEST_CREATE_BLOCK){
-        //receive the block
-        socket_block *recv_socket_blk = (socket_block *)malloc(sizeof(socket_block )+((socket_block *)data)->txns_size);
-        memcpy(recv_socket_blk, data, sizeof(socket_block )+((socket_block *)data)->txns_size);
-        block* block1= cast_to_block(recv_socket_blk);
+    if (TEST_CREATE_BLOCK) {
+        // receive the block
+        socket_block *recv_socket_blk = (socket_block *)malloc(sizeof(socket_block) + ((socket_block *)data)->txns_size);
+        memcpy(recv_socket_blk, data, sizeof(socket_block) + ((socket_block *)data)->txns_size);
+        block *block1 = cast_to_block(recv_socket_blk);
 
-        //print block info
+        // print block info
         printf("Block txns count: %d\n", block1->txn_count);
         printf("Block header version: %d\n", block1->header->version);
         printf("Block header hash: ");
@@ -147,39 +140,38 @@ void* HandleTCPClient(void* arg){
         print_hex(block1->txns[0]->tx_ins[0].signature_script, 64);
 
         receiveCommand = str_trim(receiveCommand);
-        if (strcmp(receiveCommand, "genesis block") != 0){
-            //verification
+        if (strcmp(receiveCommand, "genesis block") != 0) {
+            // verification
             verify_block(block1);
-            general_log(LOG_SCOPE,LOG_INFO, "Block verification done. Timestamp: %ul", get_timestamp());
+            general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %ul", get_timestamp());
         }
         free(receiveCommand);
 
-        //save to database
+        // save to database
         save_block(block1);
-    }else{
-        //receive the transaction
+    } else {
+        // receive the transaction
         socket_transaction *recv_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)data));
         memcpy(recv_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
         transaction *tx = cast_to_transaction(recv_socket_tx);
 
-        //print receive socket tx info
-        printf("%d\n",tx->tx_out_count);
-        printf("%d\n",tx->tx_in_count);
-        printf("%u\n",tx->lock_time);
-        print_hex(tx->tx_ins[0].signature_script,64);
-        
+        // print receive socket tx info
+        printf("%d\n", tx->tx_out_count);
+        printf("%d\n", tx->tx_in_count);
+        printf("%u\n", tx->lock_time);
+        print_hex(tx->tx_ins[0].signature_script, 64);
+
         receiveCommand = str_trim(receiveCommand);
-        if (strcmp(receiveCommand, "genesis transaction") != 0){
-            //verification
+        if (strcmp(receiveCommand, "genesis transaction") != 0) {
+            // verification
             verify_transaction(tx);
-            general_log(LOG_SCOPE,LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
+            general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
         }
         free(receiveCommand);
 
-        //save to database
+        // save to database
         save_transaction(tx);
     }
-
 
     close(clientSock);
 }

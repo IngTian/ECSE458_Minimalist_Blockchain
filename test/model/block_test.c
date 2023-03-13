@@ -245,7 +245,7 @@ START_TEST(test_hash_block_header) {
     block *genesis_b = initialize_block_system(false);
     append_transaction_into_block(genesis_b, genesis_t, 0);
     finalize_block(genesis_b);
-    
+
     ck_assert_str_eq(hash_block_header(genesis_b->header), get_genesis_block_hash());
 
     // Destroy.

@@ -99,14 +99,7 @@ bool initialize_transaction_persistence() {
             "    primary key (id)\n"
             ") ENGINE = %s;";
         char filtered_query[10000];
-        sprintf(
-            filtered_query,
-            sql_query,
-            PERSISTENCE_ENGINE,
-            PERSISTENCE_ENGINE,
-            PERSISTENCE_ENGINE,
-            PERSISTENCE_ENGINE,
-            PERSISTENCE_ENGINE);
+        sprintf(filtered_query, sql_query, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE);
         return mysql_create_table(filtered_query);
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_global_transaction_table = g_hash_table_new_full(g_str_hash, g_str_equal, free_transaction_table_key, free_transaction_table_val);

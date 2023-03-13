@@ -63,7 +63,7 @@ char *get_str_timestamp(char *format, unsigned int time_str_length) {
     return buffer;
 }
 
-char* str_trim(char* str) {
+char *str_trim(char *str) {
     unsigned long str_len = strlen(str);
     unsigned long front_white_spaces, back_white_spaces;
 

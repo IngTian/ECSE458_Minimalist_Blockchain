@@ -1,11 +1,6 @@
-// Client side C/C++ program to demonstrate Socket
-// programming
-#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
 #include "model/block//block.h"
@@ -18,7 +13,7 @@
 #include "utils/socket_util.h"
 #include "utils/sys_utils.h"
 
-#define LOG_SCOPE "Miner"
+#define LOG_SCOPE "miner"
 
 transaction *create_a_new_single_in_single_out_transaction(char *previous_transaction_id,
                                                            char *previous_output_private_key,
