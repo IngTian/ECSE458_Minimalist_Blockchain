@@ -1,7 +1,10 @@
 #ifndef MINIMALIST_BLOCK_CHAIN_SYSTEM_SRC_UTILS_SOCKET_UTILS_H
 #define MINIMALIST_BLOCK_CHAIN_SYSTEM_SRC_UTILS_SOCKET_UTILS_H
 
+#include "model/block/block.h"
+#include "model/transaction/transaction.h"
+
 char *combine_data_with_command(char *command, unsigned int command_length, const char *data, unsigned int data_length);
 int send_model_by_socket(char *server_address_str, int server_port, char *send_data, int send_size);
-
+int send_socket(char* command, block* block1, transaction* transaction, char* server_address_str, int server_port);
 #endif

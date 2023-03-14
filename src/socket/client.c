@@ -18,15 +18,6 @@ int main(int argc, char const *argv[]) {
     char *server_address_str = "127.0.0.1";
     int server_port = SERVER_POST;
 
-    // send socket data configuration
-    char sendCommand[32];  // the command to tell listener to accept a block or transaction
-    memset(sendCommand, '\0', 32);
-    const char *send_model;
-    int send_size;
-    char *send_data;
-    socket_block *socket_blk = NULL;
-    socket_transaction *socket_tx = NULL;
-
     // initialize system
     initialize_mysql_system(MYSQL_DB_MINER);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
@@ -36,22 +27,13 @@ int main(int argc, char const *argv[]) {
     block *genesis_block = initialize_block_system(false);
     append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
     finalize_block(genesis_block);
-    if (TEST_CREATE_BLOCK) {
-        // send genesis block to listener
-        memcpy(sendCommand, "genesis block", strlen("genesis block"));
-        socket_blk = cast_to_socket_block(genesis_block);
-        send_model = (const char *)socket_blk;
-        send_size = get_socket_block_length(genesis_block) + COMMAND_LENGTH;
-    } else {
-        // send genesis transaction to listener
-        memcpy(sendCommand, "genesis transaction", strlen("genesis transaction"));
-        socket_tx = cast_to_socket_transaction(previous_transaction);
-        send_model = (const char *)socket_tx;
-        send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
+
+    if (TEST_CREATE_BLOCK){
+        // create the block
+        send_socket("genesis block",genesis_block,NULL, server_address_str,server_port);
+    }else{
+        send_socket("genesis transaction",NULL,previous_transaction,server_address_str,server_port);
     }
-    send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
-    send_model_by_socket(server_address_str, server_port, send_data, send_size);
-    usleep(1000);  // sleep for 1ms
 
     // send multiple transaction/block
     int rest_coin = TOTAL_NUMBER_OF_COINS;
@@ -89,22 +71,14 @@ int main(int argc, char const *argv[]) {
                                                                                 NUMBER_OF_TEST_TRANSACTION_OUTPUT);
             memcpy(previous_output_private_key_array, res_private_key_array, NUMBER_OF_TEST_TRANSACTION_OUTPUT * sizeof(char *));
             for (int i = 0; i < NUMBER_OF_TEST_TRANSACTION_INPUT; i++) previous_transaction_id_array[i] = res_txid;
-            if (TEST_CREATE_BLOCK) {
-                block *block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
-                memcpy(previous_block_header_hash, result_block_hash, 64);
-                memcpy(sendCommand, "create block", strlen("create block"));
-                socket_blk = cast_to_socket_block(block1);
-                send_model = (const char *)socket_blk;
-                send_size = get_socket_block_length(block1) + COMMAND_LENGTH;
-            } else {
-                memcpy(sendCommand, "create transaction", strlen("create transaction"));
-                socket_tx = cast_to_socket_transaction(t);
-                send_model = (const char *)socket_tx;
-                send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
+
+            if (TEST_CREATE_BLOCK){
+                // create the block
+                block* block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
+                send_socket("create block",block1,NULL,server_address_str,server_port);
+            }else{
+                send_socket("create transaction",NULL,t,server_address_str,server_port);
             }
-            send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
-            send_model_by_socket(server_address_str, server_port, send_data, send_size);
-            usleep(1000);  // sleep for 1ms
 
             // create multi-to-one transaction
             for (int i = 0; i < NUMBER_OF_TEST_TRANSACTION_INPUT; i++) previous_output_index_list[i] = i;
@@ -136,26 +110,14 @@ int main(int argc, char const *argv[]) {
             general_log(LOG_SCOPE, LOG_ERROR, "Type of test transaction is invalid!");
         }
 
-        if (TEST_CREATE_BLOCK) {
+        if (TEST_CREATE_BLOCK){
             // create the block
-            block *block1 = create_a_new_block(previous_block_header_hash, transaction, &result_block_hash);
-            memcpy(previous_block_header_hash, result_block_hash, 64);
-            memcpy(sendCommand, "create block", strlen("create block"));
-            socket_blk = cast_to_socket_block(block1);
-            send_model = (const char *)socket_blk;
-            send_size = get_socket_block_length(block1) + COMMAND_LENGTH;
-        } else {
-            memcpy(sendCommand, "create transaction", strlen("create transaction"));
-            socket_tx = cast_to_socket_transaction(transaction);
-            send_model = (const char *)socket_tx;
-            send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
+            block* block1 = create_a_new_block(previous_block_header_hash, transaction, &result_block_hash);
+            send_socket("create block",block1,NULL,server_address_str,server_port);
+        }else{
+            send_socket("create transaction",NULL,transaction,server_address_str,server_port);
         }
 
-        // combine with command
-        send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
-        // create and send the socket
-        send_model_by_socket(server_address_str, server_port, send_data, send_size);
-        usleep(1000);
     }
 
     return 0;
