@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <netdb.h>
 
 #include "../model/block/block.h"
 #include "../model/block/block_persistence.h"
@@ -43,38 +44,73 @@ int main(int argc, char const *argv[]) {
             general_log(LOG_SCOPE, LOG_INFO, "Server port: %d", echo_server_port);
         }
     }
+    struct addrinfo hints, *servinfo, *p;
+    int rv;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET; // use AF_INET6 to force IPv6
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE; // use my IP address
 
-    // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
-    }
-    // Forcefully attaching socket to the port 8080
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
+    if ((rv = getaddrinfo(NULL, "8080", &hints, &servinfo)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        exit(1);
     }
 
-    memset(&echo_server_address, 0, sizeof(echo_server_address));
-    echo_server_address.sin_family = AF_INET;
-    //    echo_server_address.sin_addr.s_addr = INADDR_ANY;
-    echo_server_address.sin_port = htons(echo_server_port);
+    // loop through all the results and bind to the first we can
+    for(p = servinfo; p != NULL; p = p->ai_next)
+    {
+        if ((server_fd = socket(p->ai_family, p->ai_socktype,
+                             p->ai_protocol)) == -1)
+        {
+            perror("socket");
+            continue;
+        }
+        if (bind(server_fd, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            close(server_fd);
+            perror("bind");
+            continue;
+        }
+        if (listen(server_fd, 3) < 0) {
+            perror("listen");
+            exit(EXIT_FAILURE);
+        }
 
-    if (inet_pton(AF_INET, server_address_str, &echo_server_address.sin_addr) <= 0) {
-        printf("\nInvalid address/ Address not supported \n");
-        general_log(LOG_SCOPE, LOG_ERROR, "Invalid address/ Address not supported \n");
-        return -1;
+        break; // if we get here, we must have connected successfully
     }
+
+//    // Creating socket file descriptor
+//    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+//        perror("socket failed");
+//        exit(EXIT_FAILURE);
+//    }
+//    // Forcefully attaching socket to the port 8080
+//    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+//        perror("setsockopt");
+//        exit(EXIT_FAILURE);
+//    }
+
+//    memset(&echo_server_address, 0, sizeof(echo_server_address));
+//    echo_server_address.sin_family = AF_INET;
+//    //    echo_server_address.sin_addr.s_addr = INADDR_ANY;
+//    echo_server_address.sin_port = htons(echo_server_port);
+//
+//    if (inet_pton(AF_INET, server_address_str, &echo_server_address.sin_addr) <= 0) {
+//        printf("\nInvalid address/ Address not supported \n");
+//        general_log(LOG_SCOPE, LOG_ERROR, "Invalid address/ Address not supported \n");
+//        return -1;
+//    }
 
     // Forcefully attaching socket to the port
-    if (bind(server_fd, (struct sockaddr *)&echo_server_address, sizeof(echo_server_address)) < 0) {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-    if (listen(server_fd, 3) < 0) {
-        perror("listen");
-        exit(EXIT_FAILURE);
-    }
+//    if (bind(server_fd, (struct sockaddr *)&echo_server_address, sizeof(echo_server_address)) < 0) {
+//        perror("bind failed");
+//        exit(EXIT_FAILURE);
+//    }
+//    if (listen(server_fd, 3) < 0) {
+//        perror("listen");
+//        exit(EXIT_FAILURE);
+//    }
 
     // link to the database
     initialize_mysql_system(MYSQL_DB_LISTENER);
