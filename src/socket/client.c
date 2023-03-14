@@ -44,7 +44,6 @@ block *create_a_new_block(char *previous_block_header_hash, transaction *transac
 int main(int argc, char const *argv[]) {
     // listener's address and port configuration
     char *server_address_str = "127.0.0.1";
-//    char *server_address_str = "192.168.58.101";
     int server_port = 8080;
     if (argc > 1) {
         server_address_str = (char *)argv[1];
@@ -79,18 +78,12 @@ int main(int argc, char const *argv[]) {
     finalize_block(genesis_block);
 
     if (TEST_CREATE_BLOCK) {
-        //    print block info
-        printf("Block header hash: \n");
-        print_hex(genesis_block->header->prev_block_header_hash, 64);
-
         // send genesis block to listener
         memcpy(sendCommand, "genesis block", strlen("genesis block"));
         socket_blk = cast_to_socket_block(genesis_block);
         send_model = (const char *)socket_blk;
         send_size = get_socket_block_length(genesis_block) + COMMAND_LENGTH;
     } else {
-        print_hex(previous_transaction->tx_ins[0].signature_script, 64);
-
         // send genesis transaction to listener
         memcpy(sendCommand, "genesis transaction", strlen("genesis transaction"));
         socket_tx = cast_to_socket_transaction(previous_transaction);
@@ -105,7 +98,7 @@ int main(int argc, char const *argv[]) {
     int n = 1;
     int number_of_input = 2;
     int number_of_output = 2;
-    int transaction_type = 1;
+    int transaction_type = 2;
     char *previous_transaction_id = get_transaction_txid(previous_transaction);
     char *previous_output_private_key = get_genesis_transaction_private_key();
     char *previous_output_private_key_array[2];
@@ -116,49 +109,6 @@ int main(int argc, char const *argv[]) {
     char *previous_block_header_hash = get_genesis_block_hash();
     char *result_block_hash;
 
-    //initialization for multiple input transaction or multiple output transaction
-//    transaction_create_shortcut_input input = {.previous_output_idx = 0,
-//                                               .previous_txid = previous_transaction_id,
-//                                               .private_key = previous_output_private_key};
-//    unsigned char *new_private_key = get_a_new_private_key();
-//    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
-//    unsigned char *new_private_key1 = get_a_new_private_key();
-//    secp256k1_pubkey *new_public_key1 = get_a_new_public_key((char *)new_private_key1);
-//    transaction_create_shortcut_output output1 = {.value = TOTAL_NUMBER_OF_COINS-1, .public_key = ((char *)(new_public_key->data))};
-//    transaction_create_shortcut_output output2 = {.value = 1, .public_key = (char *)new_public_key1->data};
-//    transaction_create_shortcut_output* outputs=malloc(2*sizeof(transaction_create_shortcut_output));
-//    outputs[0]=output1;
-//    outputs[1]=output2;
-//    transaction_create_shortcut create_data = {
-//        .num_of_inputs = 1, .num_of_outputs = 2, .outputs = outputs, .inputs = &input};
-//    transaction *t = (transaction *)malloc(sizeof(transaction));
-//    if (!create_new_transaction_shortcut(&create_data, t)) general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
-//    if (!finalize_transaction(t)) general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
-
-    for (int i = 0; i < number_of_output-1; i++) previous_value[i]=1;
-    previous_value[number_of_output-1] = TOTAL_NUMBER_OF_COINS-number_of_output+1;
-    transaction *t = create_a_new_single_in_many_out_transaction(previous_transaction_id,
-                                                                           previous_output_private_key,
-                                                                           0,
-                                                                           previous_value,
-                                                                           &res_txid,
-                                                                           &res_private_key_array,
-                                                                           2);
-    previous_transaction = t;
-    for (int i = 0; i < number_of_output; i++) memcpy(previous_output_private_key_array[i], res_private_key_array[i], 64);
-    memcpy(previous_transaction_id, res_txid, 64);
-
-    print_hex(t->tx_ins[0].signature_script, 64);
-    printf("previous txid: %s\n", t->tx_ins[0].previous_outpoint.hash);
-    memcpy(sendCommand, "create transaction", strlen("create transaction"));
-    socket_tx = cast_to_socket_transaction(t);
-    printf("socket tx previous hash: %s \n", ((socket_transaction_input *)&socket_tx->transaction_input[0])->previous_outpoint.hash);
-    send_model = (const char *)socket_tx;
-    send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
-    send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
-    send_model_by_socket(server_address_str, server_port, send_data, send_size);
-    usleep(1000);  // sleep for 1ms
-
     transaction* transaction;
     for (int i = 0; i < n; i++) {
         if (transaction_type == 0){
@@ -168,6 +118,36 @@ int main(int argc, char const *argv[]) {
             memcpy(previous_transaction_id, res_txid, 64);
             memcpy(previous_output_private_key, res_private_key, 64);
         }else if (transaction_type == 1) {
+            //create a one to many transaction first
+            for (int i = 0; i < number_of_output-1; i++) previous_value[i]=1;
+            previous_value[number_of_output-1] = TOTAL_NUMBER_OF_COINS-number_of_output+1;
+            struct transaction *t = create_a_new_single_in_many_out_transaction(previous_transaction_id,
+                                                                         previous_output_private_key,
+                                                                         0,
+                                                                         previous_value,
+                                                                         &res_txid,
+                                                                         &res_private_key_array,
+                                                                         2);
+            previous_transaction = t;
+            memcpy(previous_output_private_key_array, res_private_key_array, number_of_output * sizeof (char*));
+            memcpy(previous_transaction_id, res_txid, 64);
+            if (TEST_CREATE_BLOCK){
+                block *block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
+                memcpy(previous_block_header_hash, result_block_hash, 64);
+                memcpy(sendCommand, "create block", strlen("create block"));
+                socket_blk = cast_to_socket_block(block1);
+                send_model = (const char *)socket_blk;
+                send_size = get_socket_block_length(block1) + COMMAND_LENGTH;
+            }else{
+                memcpy(sendCommand, "create transaction", strlen("create transaction"));
+                socket_tx = cast_to_socket_transaction(t);
+                send_model = (const char *)socket_tx;
+                send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
+            }
+            send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
+            send_model_by_socket(server_address_str, server_port, send_data, send_size);
+            usleep(1000);  // sleep for 1ms
+
             //create multi-to-one transaction
             char *previous_transaction_id_list[2];
             previous_transaction_id_list[0]= get_transaction_txid(previous_transaction);
@@ -178,6 +158,18 @@ int main(int argc, char const *argv[]) {
             transaction = create_a_new_many_in_single_out_transaction(previous_transaction_id_list, previous_output_private_key_array, previous_output_index_list, TOTAL_NUMBER_OF_COINS, &res_txid, &res_private_key,2);
         }else if(transaction_type == 2) {
             //create one-to-multi transaction
+            for (int i = 0; i < number_of_output-1; i++) previous_value[i]=1;
+            previous_value[number_of_output-1] = TOTAL_NUMBER_OF_COINS-number_of_output+1;
+            transaction = create_a_new_single_in_many_out_transaction(previous_transaction_id,
+                                                                                previous_output_private_key,
+                                                                                0,
+                                                                                previous_value,
+                                                                                &res_txid,
+                                                                                &res_private_key_array,
+                                                                                2);
+            previous_transaction = transaction;
+            memcpy(previous_output_private_key_array, res_private_key_array, number_of_output * sizeof (char*));
+            memcpy(previous_transaction_id, res_txid, 64);
         }else{
             general_log(LOG_SCOPE, LOG_ERROR, "Type of test transaction is invalid!");
         }
@@ -186,23 +178,13 @@ int main(int argc, char const *argv[]) {
             // create the block
             block *block1 = create_a_new_block(previous_block_header_hash, transaction, &result_block_hash);
             memcpy(previous_block_header_hash, result_block_hash, 64);
-
-            //    print block info
-            printf("Block header hash: \n");
-            print_hex(block1->header->prev_block_header_hash, 64);
-
             memcpy(sendCommand, "create block", strlen("create block"));
             socket_blk = cast_to_socket_block(block1);
             send_model = (const char *)socket_blk;
             send_size = get_socket_block_length(block1) + COMMAND_LENGTH;
         } else {
-            // print transaction info
-            print_hex(transaction->tx_ins[0].signature_script, 64);
-            printf("previous txid: %s\n", transaction->tx_ins[0].previous_outpoint.hash);
-
             memcpy(sendCommand, "create transaction", strlen("create transaction"));
             socket_tx = cast_to_socket_transaction(transaction);
-            printf("socket tx previous hash: %s \n", ((socket_transaction_input *)&socket_tx->transaction_input[0])->previous_outpoint.hash);
             send_model = (const char *)socket_tx;
             send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
         }
