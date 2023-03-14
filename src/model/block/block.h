@@ -78,4 +78,5 @@ bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest);
 socket_block *cast_to_socket_block(block *);
 block *cast_to_block(socket_block *);
 int get_socket_block_length(block *);
+block *create_a_new_block(char *previous_block_header_hash, transaction *transaction, char **result_header_hash);
 #endif

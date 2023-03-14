@@ -7,7 +7,7 @@
 
 // General
 #define TOTAL_NUMBER_OF_COINS 40960
-#define TEST_CREATE_BLOCK 0
+#define TEST_CREATE_BLOCK 1
 
 // Persistence Definition
 #define PERSISTENCE_RAM 0
@@ -34,5 +34,6 @@
 
 // Socket
 #define COMMAND_LENGTH 32
+#define SERVER_POST 8080
 
 #endif

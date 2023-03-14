@@ -11,40 +11,12 @@
 #include "utils/log_utils.h"
 #include "utils/mysql_util.h"
 #include "utils/socket_util.h"
-#include "utils/sys_utils.h"
 
 #define LOG_SCOPE "miner"
-
-transaction *create_a_new_single_in_single_out_transaction(char *previous_transaction_id,
-                                                           char *previous_output_private_key,
-                                                           int previous_tx_output_idx,
-                                                           int previous_value,
-                                                           char **res_txid,
-                                                           char **res_private_key);
-
-
-transaction *create_a_new_many_in_single_out_transaction(char **previous_transaction_id,
-                                                         char **previous_output_private_key,
-                                                         int *previous_tx_output_idx,
-                                                         int previous_value,
-                                                         char **res_txid,
-                                                         char **res_private_key,
-                                                         int input_num);
-
-transaction *create_a_new_single_in_many_out_transaction(char *previous_transaction_id,
-                                                         char *previous_output_private_key,
-                                                         int previous_tx_output_idx,
-                                                         int *previous_value,
-                                                         char **res_txid,
-                                                         char ***res_private_key,
-                                                         int output_num);
-
-block *create_a_new_block(char *previous_block_header_hash, transaction *transaction, char **result_header_hash);
-
 int main(int argc, char const *argv[]) {
     // listener's address and port configuration
     char *server_address_str = "127.0.0.1";
-    int server_port = 8080;
+    int server_port = SERVER_POST;
     if (argc > 1) {
         server_address_str = (char *)argv[1];
         char *p;
@@ -98,7 +70,7 @@ int main(int argc, char const *argv[]) {
     int n = 1;
     int number_of_input = 2;
     int number_of_output = 2;
-    int transaction_type = 2;
+    int transaction_type = 1;
     char *previous_transaction_id = get_transaction_txid(previous_transaction);
     char *previous_output_private_key = get_genesis_transaction_private_key();
     char *previous_output_private_key_array[2];
@@ -197,123 +169,4 @@ int main(int argc, char const *argv[]) {
     }
 
     return 0;
-}
-
-transaction *create_a_new_single_in_single_out_transaction(char *previous_transaction_id,
-                                                           char *previous_output_private_key,
-                                                           int previous_tx_output_idx,
-                                                           int previous_value,
-                                                           char **res_txid,
-                                                           char **res_private_key) {
-    transaction_create_shortcut_input input = {
-        .previous_output_idx = previous_tx_output_idx, .previous_txid = previous_transaction_id, .private_key = previous_output_private_key};
-
-    unsigned char *new_private_key = get_a_new_private_key();
-    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
-    transaction_create_shortcut_output output = {.value = previous_value, .public_key = (char *)new_public_key->data};
-    transaction_create_shortcut create_data = {.num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output, .inputs = &input};
-    transaction *t = (transaction *)malloc(sizeof(transaction));
-
-    if (!create_new_transaction_shortcut(&create_data, t)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
-    }
-
-    if (!finalize_transaction(t)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
-    }
-
-    *res_txid = get_transaction_txid(t);
-    *res_private_key = new_private_key;
-
-    return t;
-}
-
-transaction *create_a_new_many_in_single_out_transaction(char **previous_transaction_id,
-                                                         char **previous_output_private_key,
-                                                         int *previous_tx_output_idx,
-                                                         int previous_value,
-                                                         char **res_txid,
-                                                         char **res_private_key,
-                                                         int input_num) {
-    transaction_create_shortcut_input *inputs = malloc(input_num * sizeof(transaction_create_shortcut_input));
-    for (int i = 0; i < input_num; i++) {
-        transaction_create_shortcut_input input = {.previous_output_idx = previous_tx_output_idx[i],
-                                                   .previous_txid = previous_transaction_id[i],
-                                                   .private_key = previous_output_private_key[i]};
-        inputs[i] = input;
-    }
-
-    unsigned char *new_private_key = get_a_new_private_key();
-    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
-    transaction_create_shortcut_output output = {.value = previous_value, .public_key = (char *)new_public_key->data};
-    transaction_create_shortcut create_data = {.num_of_inputs = input_num, .num_of_outputs = 1, .outputs = &output, .inputs = inputs};
-    transaction *t = (transaction *)malloc(sizeof(transaction));
-
-    if (!create_new_transaction_shortcut(&create_data, t)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
-    }
-
-    if (!finalize_transaction(t)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
-    }
-
-    *res_txid = get_transaction_txid(t);
-    *res_private_key = new_private_key;
-
-    return t;
-}
-
-transaction *create_a_new_single_in_many_out_transaction(char *previous_transaction_id,
-                                                         char *previous_output_private_key,
-                                                         int previous_tx_output_idx,
-                                                         int *previous_value,
-                                                         char **res_txid,
-                                                         char ***res_private_key,
-                                                         int output_num){
-    transaction_create_shortcut_output *outputs = malloc(output_num * sizeof(transaction_create_shortcut_output));
-    char* new_private_key_list[output_num];
-    for (int i = 0; i < output_num; i++) {
-        unsigned char *new_private_key = get_a_new_private_key();
-        secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
-        transaction_create_shortcut_output output = {.value=previous_value[i],.public_key=(char *)new_public_key->data};
-        new_private_key_list[i]=new_private_key;
-        outputs[i]=output;
-    }
-
-    transaction_create_shortcut_input input = {
-        .previous_output_idx = previous_tx_output_idx, .previous_txid = previous_transaction_id, .private_key = previous_output_private_key};
-
-    transaction_create_shortcut create_data = {.num_of_inputs = 1, .num_of_outputs = output_num, .outputs = outputs, .inputs = &input};
-    transaction *t = (transaction *)malloc(sizeof(transaction));
-    if (!create_new_transaction_shortcut(&create_data, t)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
-    }
-    if (!finalize_transaction(t)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
-    }
-    *res_txid = get_transaction_txid(t);
-    for(int i=0;i<output_num;i++){
-        res_private_key[i] = new_private_key_list[i];
-    }
-    return t;
-}
-
-block *create_a_new_block(char *previous_block_header_hash, transaction *transaction, char **result_header_hash) {
-    block_header_shortcut block_header = {
-        .prev_block_header_hash = "", .version = 0, .nonce = 0, .nBits = 0, .merkle_root_hash = "", .time = get_current_unix_time()};
-    memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 65);
-    struct transaction **txns = malloc(sizeof(txns));
-    txns[0] = transaction;
-    transactions_shortcut txns_shortcut = {.txns = txns, .txn_count = 1};
-    block_create_shortcut block_data = {.header = &block_header, .transaction_list = &txns_shortcut};
-
-    block *block1 = (block *)malloc(sizeof(block));
-    if (!create_new_block_shortcut(&block_data, block1)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a block.");
-    }
-    if (!finalize_block(block1)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a block.");
-    }
-    *result_header_hash = hash_block_header(block1->header);
-    return block1;
 }

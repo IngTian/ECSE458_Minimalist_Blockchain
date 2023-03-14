@@ -118,4 +118,24 @@ int get_socket_transaction_length(socket_transaction *);
 bool verify_transaction(transaction *);
 void print_target_utxo(GHashTable *target_utxo);
 char *hash_transaction_outpoint(transaction_outpoint *);
+transaction *create_a_new_single_in_single_out_transaction(char *previous_transaction_id,
+                                                           char *previous_output_private_key,
+                                                           int previous_tx_output_idx,
+                                                           int previous_value,
+                                                           char **res_txid,
+                                                           char **res_private_key);
+transaction *create_a_new_many_in_single_out_transaction(char **previous_transaction_id,
+                                                         char **previous_output_private_key,
+                                                         int *previous_tx_output_idx,
+                                                         int previous_value,
+                                                         char **res_txid,
+                                                         char **res_private_key,
+                                                         int input_num);
+transaction *create_a_new_single_in_many_out_transaction(char *previous_transaction_id,
+                                                         char *previous_output_private_key,
+                                                         int previous_tx_output_idx,
+                                                         int *previous_value,
+                                                         char **res_txid,
+                                                         char ***res_private_key,
+                                                         int output_num);
 #endif

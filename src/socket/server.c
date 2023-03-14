@@ -30,7 +30,7 @@ int main(int argc, char const *argv[]) {
     int opt = 1;
 
     char *server_address_str = "127.0.0.1";
-    int echo_server_port = 8080;
+    int echo_server_port = SERVER_POST;
     if (argc > 1) {
         server_address_str = (char *)argv[1];
         char *p;
