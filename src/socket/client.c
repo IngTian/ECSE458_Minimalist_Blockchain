@@ -35,7 +35,7 @@ block *create_a_new_block(char *previous_block_header_hash, transaction *transac
 
 int main(int argc, char const *argv[]) {
     // listener's address and port configuration
-    char *server_address_str = "10.122.92.24";
+    char *server_address_str = "127.0.0.1";
     int server_port = 8080;
     if (argc > 1) {
         server_address_str = (char *)argv[1];

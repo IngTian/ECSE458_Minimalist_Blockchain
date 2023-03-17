@@ -34,5 +34,7 @@
 
 // Socket
 #define COMMAND_LENGTH 32
+#define SERVER_PORT_NO "8080"
+#define SOCKET_MSG_MAX_SIZE 8096
 
 #endif
