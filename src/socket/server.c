@@ -124,9 +124,15 @@ void *handle_tcp_connection(void *arg) {
             // If received block is not genesis, go through normal workflow.
             if (verify_block(block1)) {
                 general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %ul", get_timestamp());
-                save_block(block1);
+                if (!save_block(block1)) {
+                    general_log(LOG_SCOPE, LOG_ERROR, "Saving failed.");
+                }
             } else {
                 general_log(LOG_SCOPE, LOG_ERROR, "Block verification failed.");
+            }
+        } else {
+            if (!save_block(block1)) {
+                general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis block.");
             }
         }
         free(received_command);
@@ -150,9 +156,15 @@ void *handle_tcp_connection(void *arg) {
             if (verify_transaction(tx)) {
                 general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
                 // Save to database.
-                save_transaction(tx);
+                if (!save_transaction(tx)) {
+                    general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the transaction.");
+                }
             } else {
                 general_log(LOG_SCOPE, LOG_ERROR, "Transaction verification failed.");
+            }
+        } else {
+            if (!save_transaction(tx)) {
+                general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis transaction.");
             }
         }
         free(received_command);
