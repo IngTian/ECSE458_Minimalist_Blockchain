@@ -6,5 +6,6 @@
 
 char *combine_data_with_command(char *command, unsigned int command_length, const char *data, unsigned int data_length);
 int send_model_by_socket(char *server_address_str, int server_port, char *send_data, int send_size);
-int send_socket(char* command, block* block1, transaction* transaction, char* server_address_str, int server_port);
+int initialize_socket(char *server_address_str, int server_port, int* socket, int* client_fd);
+int send_socket(int sock, char* command, block* block1, transaction* transaction, char* server_address_str, int server_port);
 #endif

@@ -12,6 +12,38 @@
 #include "sys_utils.h"
 #include "constants.h"
 
+int initialize_socket(char *server_address_str, int server_port, int* sock, int* client_fd){
+#define LOG_SCOPE "Miner"
+    // create the socket
+    int  sock_temp= 0, client_fd_temp;
+    struct sockaddr_in serv_addr;
+    if ((sock_temp = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Socket creation error.");
+        return -1;
+    }
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(server_port);
+    struct hostent *server = gethostbyname(server_address_str);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
+
+    // Convert IPv4 and IPv6 addresses from text to binary, set the ip address.
+    if (inet_pton(AF_INET, server_address_str, &serv_addr.sin_addr) <= 0) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Invalid address/ Address not supported!");
+        return -1;
+    }
+
+    // Connect the socket.
+    if ((client_fd_temp = connect(sock_temp, (struct sockaddr *)&serv_addr, sizeof(serv_addr))) < 0) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Connection Failed. Error Number: %d.", errno);
+        return -1;
+    } else {
+        general_log(LOG_SCOPE, LOG_INFO, "Connection to Listener.. ");
+    }
+    *sock = sock_temp;
+    *client_fd = client_fd_temp;
+}
+
 /**
  * Combine the model data with the command
  * @param command indicate the type of data in the socket
@@ -42,7 +74,7 @@ int send_model_by_socket(char *server_address_str, int server_port, char *send_d
 #define LOG_SCOPE "Miner"
 
     // create the socket
-    int sock = 0, valread, client_fd;
+    int sock = 0, client_fd;
     struct sockaddr_in serv_addr;
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         general_log(LOG_SCOPE, LOG_ERROR, "Socket creation error.");
@@ -76,7 +108,7 @@ int send_model_by_socket(char *server_address_str, int server_port, char *send_d
     close(client_fd);
 }
 
-int send_socket(char* command, block* block1, transaction* transaction, char* server_address_str, int server_port){
+int send_socket(int sock, char* command, block* block1, transaction* transaction, char* server_address_str, int server_port){
     const char* send_model;
     int send_size;
     char sendCommand[32];  // the command to tell listener to accept a block or transaction
@@ -92,6 +124,10 @@ int send_socket(char* command, block* block1, transaction* transaction, char* se
         send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
     }
     char* send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
-    send_model_by_socket(server_address_str, server_port, send_data, send_size);
+//    send_model_by_socket(server_address_str, server_port, send_data, send_size);
+    send(sock, send_data, send_size, 0);
+    general_log(LOG_SCOPE, LOG_INFO, "Client: model sent. Timestamp: %ul", get_timestamp());
+    free(send_data);
+
     usleep(1000);  // sleep for 1ms
 }

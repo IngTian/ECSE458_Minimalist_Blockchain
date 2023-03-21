@@ -98,79 +98,81 @@ void *handle_tcp_connection(void *arg) {
     int client_socket = ((int *)arg)[0];
     char msg_buffer[SOCKET_MSG_MAX_SIZE];
 
-    // Get message.
-    recv(client_socket, msg_buffer, sizeof(msg_buffer), 0);
-    char *received_command = msg_buffer;
-    char *data = received_command + COMMAND_LENGTH;
+    for (int i = 0 ; i< NUMBER_OF_TEST_MODEL; i++){
+        // Get message.
+        recv(client_socket, msg_buffer, sizeof(msg_buffer), 0);
+        char *received_command = msg_buffer;
+        char *data = received_command + COMMAND_LENGTH;
 
-    general_log(LOG_SCOPE, LOG_INFO, "Received connection@(timestamp: %ul): %s", get_timestamp(), received_command);
+        general_log(LOG_SCOPE, LOG_INFO, "Received connection@(timestamp: %ul): %s", get_timestamp(), received_command);
 
-    if (TEST_CREATE_BLOCK) {
-        // Receive the block.
-        socket_block *received_socket_blk = (socket_block *)malloc(sizeof(socket_block) + ((socket_block *)data)->txns_size);
-        memcpy(received_socket_blk, data, sizeof(socket_block) + ((socket_block *)data)->txns_size);
-        block *block1 = cast_to_block(received_socket_blk);
+        if (TEST_CREATE_BLOCK) {
+            // Receive the block.
+            socket_block *received_socket_blk = (socket_block *)malloc(sizeof(socket_block) + ((socket_block *)data)->txns_size);
+            memcpy(received_socket_blk, data, sizeof(socket_block) + ((socket_block *)data)->txns_size);
+            block *block1 = cast_to_block(received_socket_blk);
 
-        // print block info
-        general_log(LOG_SCOPE, LOG_DEBUG, "Block txns count: %d", block1->txn_count);
-        general_log(LOG_SCOPE, LOG_DEBUG, "Block header version: %d", block1->header->version);
-        char *prev_blk_header_hash = convert_char_hexadecimal(block1->header->prev_block_header_hash, 64);
-        general_log(LOG_SCOPE, LOG_DEBUG, "Previous block header hash: %s", prev_blk_header_hash);
-        free(prev_blk_header_hash);
-        general_log(LOG_SCOPE, LOG_DEBUG, "Block txns count: %d", block1->txn_count);
+            // print block info
+            general_log(LOG_SCOPE, LOG_DEBUG, "Block txns count: %d", block1->txn_count);
+            general_log(LOG_SCOPE, LOG_DEBUG, "Block header version: %d", block1->header->version);
+            char *prev_blk_header_hash = convert_char_hexadecimal(block1->header->prev_block_header_hash, 64);
+            general_log(LOG_SCOPE, LOG_DEBUG, "Previous block header hash: %s", prev_blk_header_hash);
+            free(prev_blk_header_hash);
+            general_log(LOG_SCOPE, LOG_DEBUG, "Block txns count: %d", block1->txn_count);
 
-        received_command = str_trim(received_command);
-        if (strcmp(received_command, "genesis block") != 0) {
-            // If received block is not genesis, go through normal workflow.
-            if (verify_block(block1)) {
-                general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %ul", get_timestamp());
+            received_command = str_trim(received_command);
+            if (strcmp(received_command, "genesis block") != 0) {
+                // If received block is not genesis, go through normal workflow.
+                if (verify_block(block1)) {
+                    general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %ul", get_timestamp());
+                    if (!save_block(block1)) {
+                        general_log(LOG_SCOPE, LOG_ERROR, "Saving failed.");
+                    }
+                } else {
+                    general_log(LOG_SCOPE, LOG_ERROR, "Block verification failed.");
+                }
+            } else {
                 if (!save_block(block1)) {
-                    general_log(LOG_SCOPE, LOG_ERROR, "Saving failed.");
+                    general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis block.");
+                }
+            }
+            free(received_command);
+
+            // Free variables.
+            free(received_socket_blk);
+        } else {
+            // Receive the transaction.
+            socket_transaction *received_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)data));
+            memcpy(received_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
+            transaction *tx = cast_to_transaction(received_socket_tx);
+
+            // Print receive socket tx info.
+            general_log(LOG_SCOPE, LOG_DEBUG, "Tx out count: %d", tx->tx_out_count);
+            general_log(LOG_SCOPE, LOG_DEBUG, "Tx in count: %d", tx->tx_in_count);
+            general_log(LOG_SCOPE, LOG_DEBUG, "Lock time: %u", tx->lock_time);
+
+            received_command = str_trim(received_command);
+            if (strcmp(received_command, "genesis transaction") != 0) {
+                // verification
+                if (verify_transaction(tx)) {
+                    general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
+                    // Save to database.
+                    if (!save_transaction(tx)) {
+                        general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the transaction.");
+                    }
+                } else {
+                    general_log(LOG_SCOPE, LOG_ERROR, "Transaction verification failed.");
                 }
             } else {
-                general_log(LOG_SCOPE, LOG_ERROR, "Block verification failed.");
-            }
-        } else {
-            if (!save_block(block1)) {
-                general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis block.");
-            }
-        }
-        free(received_command);
-
-        // Free variables.
-        free(received_socket_blk);
-    } else {
-        // Receive the transaction.
-        socket_transaction *received_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)data));
-        memcpy(received_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
-        transaction *tx = cast_to_transaction(received_socket_tx);
-
-        // Print receive socket tx info.
-        general_log(LOG_SCOPE, LOG_DEBUG, "Tx out count: %d", tx->tx_out_count);
-        general_log(LOG_SCOPE, LOG_DEBUG, "Tx in count: %d", tx->tx_in_count);
-        general_log(LOG_SCOPE, LOG_DEBUG, "Lock time: %u", tx->lock_time);
-
-        received_command = str_trim(received_command);
-        if (strcmp(received_command, "genesis transaction") != 0) {
-            // verification
-            if (verify_transaction(tx)) {
-                general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
-                // Save to database.
                 if (!save_transaction(tx)) {
-                    general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the transaction.");
+                    general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis transaction.");
                 }
-            } else {
-                general_log(LOG_SCOPE, LOG_ERROR, "Transaction verification failed.");
             }
-        } else {
-            if (!save_transaction(tx)) {
-                general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis transaction.");
-            }
-        }
-        free(received_command);
 
-        // Free variables.
-        free(received_socket_tx);
+            // Free variables.
+            free(received_command);
+            free(received_socket_tx);
+        }
     }
 
     close(client_socket);

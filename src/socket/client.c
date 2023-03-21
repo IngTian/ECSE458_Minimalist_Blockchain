@@ -18,7 +18,12 @@ int main(int argc, char const *argv[]) {
     char *server_address_str = "127.0.0.1";
     int server_port = atoi(SERVER_PORT_NO);
 
+    //socket
+    int socket;
+    int client_fd;
+
     // initialize system
+    initialize_socket(server_address_str, server_port, &socket, &client_fd);
     initialize_mysql_system(MYSQL_DB_MINER);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     destroy_transaction_system();
@@ -30,9 +35,9 @@ int main(int argc, char const *argv[]) {
 
     if (TEST_CREATE_BLOCK){
         // create the block
-        send_socket("genesis block",genesis_block,NULL, server_address_str,server_port);
+        send_socket(socket, "genesis block",genesis_block,NULL, server_address_str,server_port);
     }else{
-        send_socket("genesis transaction",NULL,previous_transaction,server_address_str,server_port);
+        send_socket(socket, "genesis transaction",NULL,previous_transaction,server_address_str,server_port);
     }
 
     // send multiple transaction/block
@@ -75,9 +80,9 @@ int main(int argc, char const *argv[]) {
             if (TEST_CREATE_BLOCK){
                 // create the block
                 block* block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
-                send_socket("create block",block1,NULL,server_address_str,server_port);
+                send_socket(socket, "create block",block1,NULL,server_address_str,server_port);
             }else{
-                send_socket("create transaction",NULL,t,server_address_str,server_port);
+                send_socket(socket, "create transaction",NULL,t,server_address_str,server_port);
             }
 
             // create multi-to-one transaction
@@ -113,12 +118,13 @@ int main(int argc, char const *argv[]) {
         if (TEST_CREATE_BLOCK){
             // create the block
             block* block1 = create_a_new_block(previous_block_header_hash, transaction, &result_block_hash);
-            send_socket("create block",block1,NULL,server_address_str,server_port);
+            send_socket(socket, "create block",block1,NULL,server_address_str,server_port);
         }else{
-            send_socket("create transaction",NULL,transaction,server_address_str,server_port);
+            send_socket(socket, "create transaction",NULL,transaction,server_address_str,server_port);
         }
 
     }
 
+    close(client_fd);
     return 0;
 }
