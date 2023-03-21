@@ -16,7 +16,7 @@
 int main(int argc, char const *argv[]) {
     // listener's address and port configuration
     char *server_address_str = "127.0.0.1";
-    int server_port = SERVER_POST;
+    int server_port = atoi(SERVER_PORT_NO);
 
     // initialize system
     initialize_mysql_system(MYSQL_DB_MINER);

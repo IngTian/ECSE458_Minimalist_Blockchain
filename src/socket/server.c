@@ -1,4 +1,5 @@
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,65 +19,12 @@
 
 #define LOG_SCOPE "Listener"
 
-void DieWithError(char *errorMessage);
-void *HandleTCPClient(void *arg);
+void *handle_tcp_connection(void *arg);
 
 int main(int argc, char const *argv[]) {
-    int serverSock, clientSock;
-    int server_fd;
-    struct sockaddr_in echo_client_address;
-    struct sockaddr_in echo_server_address;
-    int cli_addr_len;
-    int opt = 1;
-
-    char *server_address_str = "127.0.0.1";
-    int echo_server_port = SERVER_POST;
-    if (argc > 1) {
-        server_address_str = (char *)argv[1];
-        char *p;
-        errno = 0;
-        long conv = strtol(argv[2], &p, 10);
-        if (errno != 0 || *p != '\0' || conv > INT_MAX || conv < INT_MIN) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Input port is invalid!");
-        } else {
-            echo_server_port = (int)conv;
-            general_log(LOG_SCOPE, LOG_INFO, "Server port: %d", echo_server_port);
-        }
-    }
-
-    // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
-    }
-    // Forcefully attaching socket to the port 8080
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
-    }
-
-    memset(&echo_server_address, 0, sizeof(echo_server_address));
-    echo_server_address.sin_family = AF_INET;
-    //    echo_server_address.sin_addr.s_addr = INADDR_ANY;
-    echo_server_address.sin_port = htons(echo_server_port);
-
-    if (inet_pton(AF_INET, server_address_str, &echo_server_address.sin_addr) <= 0) {
-        printf("\nInvalid address/ Address not supported \n");
-        general_log(LOG_SCOPE, LOG_ERROR, "Invalid address/ Address not supported \n");
-        return -1;
-    }
-
-    // Forcefully attaching socket to the port
-    if (bind(server_fd, (struct sockaddr *)&echo_server_address, sizeof(echo_server_address)) < 0) {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-    if (listen(server_fd, 3) < 0) {
-        perror("listen");
-        exit(EXIT_FAILURE);
-    }
-
-    // link to the database
+    // ----------------------------------------
+    // Initialize all systems.
+    // ----------------------------------------
     initialize_mysql_system(MYSQL_DB_LISTENER);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     destroy_transaction_system();
@@ -84,95 +32,147 @@ int main(int argc, char const *argv[]) {
     initialize_transaction_system(true);
     initialize_block_system(true);
 
-    // keep running for listening
+    // ----------------------------------------
+    // Create and bind the socket; listen on port.
+    // ----------------------------------------
+    struct addrinfo hints, *serv_addr_info, *p;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;        // Use AF_INET6 to force IPv6.
+    hints.ai_socktype = SOCK_STREAM;  // Use socket stream.
+    hints.ai_flags = AI_PASSIVE;      // Use my IP address.
+
+    int get_addr_res;
+    if ((get_addr_res = getaddrinfo(NULL, SERVER_PORT_NO, &hints, &serv_addr_info)) != 0) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to get server address info: %s", gai_strerror(get_addr_res));
+        exit(1);
+    }
+
+    // Loop through all the results and bind to the first we can.
+    int server_fd;
+    for (p = serv_addr_info; p != NULL; p = p->ai_next) {
+        if ((server_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to create socket.");
+            perror("socket");
+            continue;
+        }
+        if (bind(server_fd, p->ai_addr, p->ai_addrlen) == -1) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to bind socket.");
+            close(server_fd);
+            perror("bind");
+            continue;
+        }
+        if (listen(server_fd, 3) < 0) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to listen on the port: %s", SERVER_PORT_NO);
+            perror("listen");
+            exit(EXIT_FAILURE);
+        }
+
+        general_log(LOG_SCOPE, LOG_INFO, "Server running at port: %s", SERVER_PORT_NO);
+        break;  // if we get here, we must have connected successfully
+    }
+
+    // Keep running for listening.
+    int client_socket, client_addr_len;
+    struct sockaddr_in incoming_client_address;
     while (true) {
-        cli_addr_len = sizeof(echo_server_address);
-        // wait for connect
-        if ((clientSock = accept(server_fd, (struct sockaddr *)&echo_server_address, (socklen_t *)&cli_addr_len)) < 0) {
+        client_addr_len = sizeof(incoming_client_address);
+        // Wait for connection.
+        if ((client_socket = accept(server_fd, (struct sockaddr *)&incoming_client_address, (socklen_t *)&client_addr_len)) < 0) {
             perror("accept");
             exit(EXIT_FAILURE);
         }
-        //        printf("Handling client %s\n", inet_ntoa(echo_server_address.sin_addr));
-        general_log(LOG_SCOPE, LOG_INFO, "Handling client %s", inet_ntoa(echo_server_address.sin_addr));
+        general_log(LOG_SCOPE, LOG_INFO, "Handling client %s", inet_ntoa(incoming_client_address.sin_addr));
         pthread_t thread_id;
         int *arg = malloc(sizeof(*arg));
-        *arg = clientSock;
-        pthread_create(&thread_id, NULL, HandleTCPClient, arg);
+        *arg = client_socket;
+        pthread_create(&thread_id, NULL, handle_tcp_connection, arg);
     }
 
-    // closing the connected socket
-    close(serverSock);
     // closing the listening socket
     shutdown(server_fd, SHUT_RDWR);
-    general_log(LOG_SCOPE, LOG_INFO, "server disconnect!!!");
+    general_log(LOG_SCOPE, LOG_INFO, "Server shut down.");
     return 0;
 }
 
-void InterruptHandler(int signalType) {
-    general_log(LOG_SCOPE, LOG_ERROR, "Interrupt received.Exiting program.\n");
-    exit(1);
-}
+void *handle_tcp_connection(void *arg) {
+    int client_socket = ((int *)arg)[0];
+    char msg_buffer[SOCKET_MSG_MAX_SIZE];
 
-void DieWithError(char *errorMessage) { general_log(LOG_SCOPE, LOG_ERROR, "%s", errorMessage); }
+    // Get message.
+    recv(client_socket, msg_buffer, sizeof(msg_buffer), 0);
+    char *received_command = msg_buffer;
+    char *data = received_command + COMMAND_LENGTH;
 
-void *HandleTCPClient(void *arg) {
-    int clientSock = ((int *)arg)[0];
-    char echoBuffer[8092];
-
-    recv(clientSock, echoBuffer, sizeof(echoBuffer), 0);
-    char *receiveCommand = echoBuffer;
-    char *data = receiveCommand + 32;
-    general_log(LOG_SCOPE, LOG_INFO, "Server: model received, Timestamp: %ul", get_timestamp());
-    general_log(LOG_SCOPE, LOG_INFO, "Receive the command: %s: ", receiveCommand);
+    general_log(LOG_SCOPE, LOG_INFO, "Received connection@(timestamp: %ul): %s", get_timestamp(), received_command);
 
     if (TEST_CREATE_BLOCK) {
-        // receive the block
-        socket_block *recv_socket_blk = (socket_block *)malloc(sizeof(socket_block) + ((socket_block *)data)->txns_size);
-        memcpy(recv_socket_blk, data, sizeof(socket_block) + ((socket_block *)data)->txns_size);
-        block *block1 = cast_to_block(recv_socket_blk);
+        // Receive the block.
+        socket_block *received_socket_blk = (socket_block *)malloc(sizeof(socket_block) + ((socket_block *)data)->txns_size);
+        memcpy(received_socket_blk, data, sizeof(socket_block) + ((socket_block *)data)->txns_size);
+        block *block1 = cast_to_block(received_socket_blk);
 
         // print block info
-        printf("Block txns count: %d\n", block1->txn_count);
-        printf("Block header version: %d\n", block1->header->version);
-        printf("Block header hash: ");
-        print_hex(block1->header->prev_block_header_hash, 64);
-        printf("Block txns[0] in[0] signature script: ");
-        print_hex(block1->txns[0]->tx_ins[0].signature_script, 64);
+        general_log(LOG_SCOPE, LOG_DEBUG, "Block txns count: %d", block1->txn_count);
+        general_log(LOG_SCOPE, LOG_DEBUG, "Block header version: %d", block1->header->version);
+        char *prev_blk_header_hash = convert_char_hexadecimal(block1->header->prev_block_header_hash, 64);
+        general_log(LOG_SCOPE, LOG_DEBUG, "Previous block header hash: %s", prev_blk_header_hash);
+        free(prev_blk_header_hash);
+        general_log(LOG_SCOPE, LOG_DEBUG, "Block txns count: %d", block1->txn_count);
 
-        receiveCommand = str_trim(receiveCommand);
-        if (strcmp(receiveCommand, "genesis block") != 0) {
-            // verification
-            verify_block(block1);
-            general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %ul", get_timestamp());
+        received_command = str_trim(received_command);
+        if (strcmp(received_command, "genesis block") != 0) {
+            // If received block is not genesis, go through normal workflow.
+            if (verify_block(block1)) {
+                general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %ul", get_timestamp());
+                if (!save_block(block1)) {
+                    general_log(LOG_SCOPE, LOG_ERROR, "Saving failed.");
+                }
+            } else {
+                general_log(LOG_SCOPE, LOG_ERROR, "Block verification failed.");
+            }
+        } else {
+            if (!save_block(block1)) {
+                general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis block.");
+            }
         }
-        free(receiveCommand);
+        free(received_command);
 
-        // save to database
-        save_block(block1);
+        // Free variables.
+        free(received_socket_blk);
     } else {
-        // receive the transaction
-        socket_transaction *recv_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)data));
-        memcpy(recv_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
-        transaction *tx = cast_to_transaction(recv_socket_tx);
+        // Receive the transaction.
+        socket_transaction *received_socket_tx = (socket_transaction *)malloc(get_socket_transaction_length((socket_transaction *)data));
+        memcpy(received_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
+        transaction *tx = cast_to_transaction(received_socket_tx);
 
-        // print receive socket tx info
-        printf("%d\n", tx->tx_out_count);
-        printf("%d\n", tx->tx_in_count);
-        printf("%u\n", tx->lock_time);
-        print_hex(tx->tx_ins[0].signature_script, 64);
+        // Print receive socket tx info.
+        general_log(LOG_SCOPE, LOG_DEBUG, "Tx out count: %d", tx->tx_out_count);
+        general_log(LOG_SCOPE, LOG_DEBUG, "Tx in count: %d", tx->tx_in_count);
+        general_log(LOG_SCOPE, LOG_DEBUG, "Lock time: %u", tx->lock_time);
 
-        receiveCommand = str_trim(receiveCommand);
-        if (strcmp(receiveCommand, "genesis transaction") != 0) {
+        received_command = str_trim(received_command);
+        if (strcmp(received_command, "genesis transaction") != 0) {
             // verification
-            verify_transaction(tx);
-            general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
+            if (verify_transaction(tx)) {
+                general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
+                // Save to database.
+                if (!save_transaction(tx)) {
+                    general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the transaction.");
+                }
+            } else {
+                general_log(LOG_SCOPE, LOG_ERROR, "Transaction verification failed.");
+            }
+        } else {
+            if (!save_transaction(tx)) {
+                general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis transaction.");
+            }
         }
-        free(receiveCommand);
+        free(received_command);
 
-        // save to database
-        save_transaction(tx);
+        // Free variables.
+        free(received_socket_tx);
     }
 
-    close(clientSock);
+    close(client_socket);
     pthread_exit(NULL);
 }

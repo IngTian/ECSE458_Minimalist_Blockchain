@@ -1,6 +1,8 @@
 #include "socket_util.h"
 
 #include <arpa/inet.h>
+#include <errno.h>
+#include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -49,6 +51,9 @@ int send_model_by_socket(char *server_address_str, int server_port, char *send_d
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(server_port);
+    struct hostent *server = gethostbyname(server_address_str);
+    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
+
     // Convert IPv4 and IPv6 addresses from text to binary, set the ip address.
     if (inet_pton(AF_INET, server_address_str, &serv_addr.sin_addr) <= 0) {
         general_log(LOG_SCOPE, LOG_ERROR, "Invalid address/ Address not supported!");
@@ -57,12 +62,10 @@ int send_model_by_socket(char *server_address_str, int server_port, char *send_d
 
     // Connect the socket.
     if ((client_fd = connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr))) < 0) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Connection Failed.");
-        general_log(LOG_SCOPE, LOG_INFO, "Client fd: %d", client_fd);
-
+        general_log(LOG_SCOPE, LOG_ERROR, "Connection Failed. Error Number: %d.\n", errno);
         return -1;
-    } else{
-        general_log(LOG_SCOPE, LOG_INFO, "Connection to Listener..");
+    } else {
+        general_log(LOG_SCOPE, LOG_INFO, "Connection to Listener.. \n");
     }
 
     send(sock, send_data, send_size, 0);

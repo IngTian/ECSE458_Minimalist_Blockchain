@@ -40,7 +40,7 @@ bool verify_transaction_input(transaction_input *i, bool skip_UTXO_check) {
     unsigned int output_idx = outpoint.index;
 
     if (!does_transaction_exist(transaction_hash)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Could not find previous transaction");
+        general_log(LOG_SCOPE, LOG_ERROR, "Could not find previous transaction: %s", transaction_hash);
         return false;
     }
 
