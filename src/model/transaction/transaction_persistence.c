@@ -466,18 +466,22 @@ bool does_utxo_entry_exist(char *key) {
 /**
  * Destroy the transaction persistence layer
  * by destroying all the tables.
+ * @param db_name The name of the MySQL database to use.
  * @return True for success and false otherwise.
  * @author Ing Tian
  */
-bool destroy_transaction_persistence() {
+bool destroy_transaction_persistence(char *db_name) {
     bool res = false;
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
+            "use %s;\n"
             "drop table if exists transaction_outpoint;\n"
             "drop table if exists transaction_input;\n"
             "drop table if exists transaction_output;\n"
             "drop table if exists transaction;";
-        res = mysql_delete_table(sql_query);
+        char filtered_sql_query[1000];
+        sprintf(filtered_sql_query, sql_query, db_name);
+        res = mysql_delete_table(filtered_sql_query);
         if (!res) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete tables.");
         }

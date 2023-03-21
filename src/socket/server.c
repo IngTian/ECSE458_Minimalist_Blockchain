@@ -27,8 +27,8 @@ int main(int argc, char const *argv[]) {
     // ----------------------------------------
     initialize_mysql_system(MYSQL_DB_LISTENER);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    destroy_transaction_system();
-    destroy_block_system();
+    destroy_transaction_system("listener");
+    destroy_block_system("listener");
     initialize_transaction_system(true);
     initialize_block_system(true);
 

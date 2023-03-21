@@ -60,10 +60,11 @@ block *initialize_block_system(bool skip_genesis) {
 
 /**
  * Destroy the block system.
+ * @param db_name The name of the MySQL database to use.
  * @author Junjian Chen
  */
-void destroy_block_system() {
-    destroy_block_persistence();
+void destroy_block_system(char *db_name) {
+    destroy_block_persistence(db_name);
     free(g_genesis_block_hash);
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the block module.");
 }

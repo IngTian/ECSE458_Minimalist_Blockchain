@@ -151,10 +151,11 @@ transaction *initialize_transaction_system(bool skip_genesis) {
 
 /**
  * Destroy the transaction system.
+ * @param db_name The name of the MySQL database to use.
  * @author Ing Tian
  */
-void destroy_transaction_system() {
-    destroy_transaction_persistence();
+void destroy_transaction_system(char *db_name) {
+    destroy_transaction_persistence(db_name);
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the transaction module.");
 }
 

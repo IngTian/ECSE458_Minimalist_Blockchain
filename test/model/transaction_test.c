@@ -27,7 +27,7 @@ START_TEST(test_transaction_system_create) {
     ck_assert_ptr_nonnull(genesis_t->tx_outs->pk_script);
     ck_assert_int_eq(genesis_t->tx_outs[0].pk_script_bytes, 64);
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -42,7 +42,7 @@ START_TEST(test_genesis_transaction_private_key) {
     char *genesis_private_key = get_genesis_transaction_private_key();
     ck_assert_ptr_nonnull(genesis_private_key);
 
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -57,7 +57,7 @@ START_TEST(test_genesis_transaction_public_key) {
     secp256k1_pubkey *genesis_pub_key = get_genesis_transaction_public_key();
     ck_assert_ptr_nonnull(genesis_pub_key);
 
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -71,7 +71,7 @@ START_TEST(test_print_utxo) {
 
     print_utxo();
 
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -102,7 +102,7 @@ START_TEST(test_create_new_transaction_shortcut1) {
     ck_assert_msg(finalize_transaction(new_t1), "Assert create new transaction successfully, but receive returning false!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -133,7 +133,7 @@ START_TEST(test_create_new_transaction_shortcut2) {
     ck_assert_msg(!create_new_transaction_shortcut(&create_data2, new_t2), "Assert create new transaction fail, but receive returning true!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -162,7 +162,7 @@ START_TEST(test_create_new_transaction_shortcut3) {
     ck_assert_msg(!create_new_transaction_shortcut(&create_data3, new_t3), "Assert create new transaction fail, but receive returning true!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -204,7 +204,7 @@ START_TEST(test_create_new_transaction_shortcut4) {
     ck_assert_msg(!create_new_transaction_shortcut(&create_data5, new_t5), "Assert create new transaction fail, but receive returning true!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -235,7 +235,7 @@ START_TEST(test_create_new_transaction_shortcut5) {
     ck_assert_msg(!create_new_transaction_shortcut(&create_data4, new_t4), "Assert create new transaction fail, but receive returning true!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -270,7 +270,7 @@ START_TEST(test_get_transaction_txid) {
 
     free(copied_tx);
 
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -309,7 +309,7 @@ START_TEST(test_get_transaction_by_txid) {
 
     free(copied_tx);
 
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -340,7 +340,7 @@ START_TEST(test_verify_transaction1) {
     ck_assert_msg(verify_transaction(new_t1), "Assert verify the transaction successfully, but receiving false!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -374,7 +374,7 @@ START_TEST(test_verify_transaction2) {
     ck_assert_msg(!verify_transaction(new_t1), "Assert verify the transaction fail, but receiving pass!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -407,7 +407,7 @@ START_TEST(test_verify_transaction3) {
     ck_assert_msg(!verify_transaction(new_t1), "Assert verify the transaction fail, but receiving pass!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -440,7 +440,7 @@ START_TEST(test_verify_transaction4) {
     ck_assert_msg(!verify_transaction(new_t1), "Assert verify the transaction fail, but receiving pass!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -473,7 +473,7 @@ START_TEST(test_verify_transaction5) {
     ck_assert_msg(!verify_transaction(new_t1), "Assert verify the transaction fail, but receiving pass!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST
@@ -504,7 +504,7 @@ START_TEST(test_finalize_transaction2) {
     ck_assert_msg(!finalize_transaction(new_t4), "Assert create new transaction fail, but receive returning pass!");
 
     // Destroy.
-    destroy_transaction_system();
+    destroy_transaction_system("test");
     destroy_cryptography_system();
 }
 END_TEST

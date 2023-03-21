@@ -104,7 +104,7 @@ typedef struct SocketTransaction {
  */
 
 transaction *initialize_transaction_system(bool skip_genesis);
-void destroy_transaction_system();
+void destroy_transaction_system(char *);
 void destroy_transaction(transaction *);
 char *get_transaction_txid(transaction *);
 char *get_genesis_transaction_private_key();
@@ -116,7 +116,6 @@ socket_transaction *cast_to_socket_transaction(transaction *);
 transaction *cast_to_transaction(socket_transaction *);
 int get_socket_transaction_length(socket_transaction *);
 bool verify_transaction(transaction *);
-void print_target_utxo(GHashTable *target_utxo);
 char *hash_transaction_outpoint(transaction_outpoint *);
 transaction *create_a_new_single_in_single_out_transaction(char *previous_transaction_id,
                                                            char *previous_output_private_key,
