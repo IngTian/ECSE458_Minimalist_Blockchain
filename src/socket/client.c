@@ -119,10 +119,11 @@ int main(int argc, char const *argv[]) {
             // create the block
             block* block1 = create_a_new_block(previous_block_header_hash, transaction, &result_block_hash);
             send_socket(socket, "create block",block1,NULL);
+            free(block1);
         }else{
             send_socket(socket, "create transaction",NULL,transaction);
+            free(transaction);
         }
-
     }
 
     close(client_fd);

@@ -95,8 +95,6 @@ int send_socket(int sock, char* command, block* block1, transaction* transaction
     }
     char* send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
     send(sock, send_data, send_size, 0);
-    general_log(LOG_SCOPE, LOG_INFO, "Client: model sent. Timestamp: %ul", get_timestamp());
+//    general_log(LOG_SCOPE, LOG_INFO, "Client: model sent. Timestamp: %lu", get_timestamp());
     free(send_data);
-
-    usleep(1000);  // sleep for 1ms
 }

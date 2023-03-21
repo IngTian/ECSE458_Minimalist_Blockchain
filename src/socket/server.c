@@ -104,7 +104,9 @@ void *handle_tcp_connection(void *arg) {
         char *received_command = msg_buffer;
         char *data = received_command + COMMAND_LENGTH;
 
-        general_log(LOG_SCOPE, LOG_INFO, "Received connection@(timestamp: %ul): %s", get_timestamp(), received_command);
+        if (i==0 || i==NUMBER_OF_TEST_MODEL-1){
+            general_log(LOG_SCOPE, LOG_INFO, "Received connection %d @(timestamp: %lu): %s", i, get_timestamp(), received_command);
+        }
 
         if (TEST_CREATE_BLOCK) {
             // Receive the block.
@@ -124,7 +126,7 @@ void *handle_tcp_connection(void *arg) {
             if (strcmp(received_command, "genesis block") != 0) {
                 // If received block is not genesis, go through normal workflow.
                 if (verify_block(block1)) {
-                    general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %ul", get_timestamp());
+                    general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %lu", get_timestamp());
                     if (!save_block(block1)) {
                         general_log(LOG_SCOPE, LOG_ERROR, "Saving failed.");
                     }
@@ -155,7 +157,7 @@ void *handle_tcp_connection(void *arg) {
             if (strcmp(received_command, "genesis transaction") != 0) {
                 // verification
                 if (verify_transaction(tx)) {
-                    general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
+//                    general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
                     // Save to database.
                     if (!save_transaction(tx)) {
                         general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the transaction.");
@@ -174,7 +176,7 @@ void *handle_tcp_connection(void *arg) {
             free(received_socket_tx);
         }
     }
-
+    general_log(LOG_SCOPE, LOG_INFO, "%d models done!", NUMBER_OF_TEST_MODEL);
     close(client_socket);
     pthread_exit(NULL);
 }
