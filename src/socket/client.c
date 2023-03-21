@@ -35,9 +35,9 @@ int main(int argc, char const *argv[]) {
 
     if (TEST_CREATE_BLOCK){
         // create the block
-        send_socket(socket, "genesis block",genesis_block,NULL, server_address_str,server_port);
+        send_socket(socket, "genesis block",genesis_block,NULL);
     }else{
-        send_socket(socket, "genesis transaction",NULL,previous_transaction,server_address_str,server_port);
+        send_socket(socket, "genesis transaction",NULL,previous_transaction);
     }
 
     // send multiple transaction/block
@@ -80,9 +80,9 @@ int main(int argc, char const *argv[]) {
             if (TEST_CREATE_BLOCK){
                 // create the block
                 block* block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
-                send_socket(socket, "create block",block1,NULL,server_address_str,server_port);
+                send_socket(socket, "create block",block1,NULL);
             }else{
-                send_socket(socket, "create transaction",NULL,t,server_address_str,server_port);
+                send_socket(socket, "create transaction",NULL,t);
             }
 
             // create multi-to-one transaction
@@ -118,9 +118,9 @@ int main(int argc, char const *argv[]) {
         if (TEST_CREATE_BLOCK){
             // create the block
             block* block1 = create_a_new_block(previous_block_header_hash, transaction, &result_block_hash);
-            send_socket(socket, "create block",block1,NULL,server_address_str,server_port);
+            send_socket(socket, "create block",block1,NULL);
         }else{
-            send_socket(socket, "create transaction",NULL,transaction,server_address_str,server_port);
+            send_socket(socket, "create transaction",NULL,transaction);
         }
 
     }

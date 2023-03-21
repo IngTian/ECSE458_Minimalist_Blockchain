@@ -12,6 +12,14 @@
 #include "sys_utils.h"
 #include "constants.h"
 
+/**
+ * Initialize the client socket
+ * @param server_address_str sever ip address
+ * @param server_port server port
+ * @param sock socket value for output
+ * @param client_fd client socket id for output
+ * @return status value, if fail returns -1
+ */
 int initialize_socket(char *server_address_str, int server_port, int* sock, int* client_fd){
 #define LOG_SCOPE "Miner"
     // create the socket
@@ -42,6 +50,7 @@ int initialize_socket(char *server_address_str, int server_port, int* sock, int*
     }
     *sock = sock_temp;
     *client_fd = client_fd_temp;
+    return 0;
 }
 
 /**
@@ -62,53 +71,14 @@ char *combine_data_with_command(char *command, unsigned int command_length, cons
 }
 
 /**
- * Send the model by socket
- * @param server_address_str server address
- * @param server_port server port
- * @param send_data the data to be sent
- * @param send_size the size of the data to be sent
- * @return return 0 if send successfully.
- * @author Shichang Zhang
+ * Send socket.
+ * @param sock socket number
+ * @param command command to tell the sever what actions should be done
+ * @param block1 the block model
+ * @param transaction the transaction model
+ * @return
  */
-int send_model_by_socket(char *server_address_str, int server_port, char *send_data, int send_size) {
-#define LOG_SCOPE "Miner"
-
-    // create the socket
-    int sock = 0, client_fd;
-    struct sockaddr_in serv_addr;
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Socket creation error.");
-        return -1;
-    }
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(server_port);
-    struct hostent *server = gethostbyname(server_address_str);
-    memcpy(&serv_addr.sin_addr.s_addr, server->h_addr, server->h_length);
-
-    // Convert IPv4 and IPv6 addresses from text to binary, set the ip address.
-    if (inet_pton(AF_INET, server_address_str, &serv_addr.sin_addr) <= 0) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Invalid address/ Address not supported!");
-        return -1;
-    }
-
-    // Connect the socket.
-    if ((client_fd = connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr))) < 0) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Connection Failed. Error Number: %d.\n", errno);
-        return -1;
-    } else {
-        general_log(LOG_SCOPE, LOG_INFO, "Connection to Listener.. \n");
-    }
-
-    send(sock, send_data, send_size, 0);
-    general_log(LOG_SCOPE, LOG_INFO, "Client: model sent. Timestamp: %ul", get_timestamp());
-
-    // closing the connected socket
-    free(send_data);
-    close(client_fd);
-}
-
-int send_socket(int sock, char* command, block* block1, transaction* transaction, char* server_address_str, int server_port){
+int send_socket(int sock, char* command, block* block1, transaction* transaction){
     const char* send_model;
     int send_size;
     char sendCommand[32];  // the command to tell listener to accept a block or transaction
@@ -124,7 +94,6 @@ int send_socket(int sock, char* command, block* block1, transaction* transaction
         send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
     }
     char* send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
-//    send_model_by_socket(server_address_str, server_port, send_data, send_size);
     send(sock, send_data, send_size, 0);
     general_log(LOG_SCOPE, LOG_INFO, "Client: model sent. Timestamp: %ul", get_timestamp());
     free(send_data);
