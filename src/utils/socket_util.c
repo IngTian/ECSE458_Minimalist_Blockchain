@@ -71,14 +71,13 @@ char *combine_data_with_command(char *command, unsigned int command_length, cons
 }
 
 /**
- * Send socket.
- * @param sock socket number
+ * Add the send data to the send data array.
  * @param command command to tell the sever what actions should be done
  * @param block1 the block model
  * @param transaction the transaction model
  * @return
  */
-int send_socket(int sock, char* command, block* block1, transaction* transaction){
+int add_send_data(char* command, block* block1, transaction* transaction, char** send_data_arr, int* data_size_arr){
     const char* send_model;
     int send_size;
     char sendCommand[32];  // the command to tell listener to accept a block or transaction
@@ -87,14 +86,18 @@ int send_socket(int sock, char* command, block* block1, transaction* transaction
     if (TEST_CREATE_BLOCK){
         socket_block* socket_blk = cast_to_socket_block(block1);
         send_model = (const char *)socket_blk;
-        send_size = get_socket_block_length(block1) + COMMAND_LENGTH;
+        send_size = get_socket_block_length(block1);
     }else{
         socket_transaction * socket_tx = cast_to_socket_transaction(transaction);
         send_model = (const char *)socket_tx;
-        send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
+        send_size = get_socket_transaction_length(socket_tx);
     }
     char* send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
-    send(sock, send_data, send_size, 0);
+    send_size += COMMAND_LENGTH;
+
+    *send_data_arr = *send_data;
+    *data_size_arr = send_size;
+//    send(sock, send_data, send_size, 0);
 //    general_log(LOG_SCOPE, LOG_INFO, "Client: model sent. Timestamp: %lu", get_timestamp());
-    free(send_data);
+//    free(send_data);
 }

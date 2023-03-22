@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include "model/block//block.h"
@@ -26,18 +27,42 @@ int main(int argc, char const *argv[]) {
     initialize_socket(server_address_str, server_port, &socket, &client_fd);
     initialize_mysql_system(MYSQL_DB_MINER);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    destroy_transaction_system("miner");
-    destroy_block_system("miner");
+    destroy_transaction_system(MYSQL_DB_MINER);
+    destroy_block_system(MYSQL_DB_MINER);
     transaction *previous_transaction = initialize_transaction_system(false);
     block *genesis_block = initialize_block_system(false);
     append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
     finalize_block(genesis_block);
 
-    if (TEST_CREATE_BLOCK){
-        // create the block
-        send_socket(socket, "genesis block",genesis_block,NULL);
+    char* send_data_arr[NUMBER_OF_TEST_MODEL+1];
+    int data_size_arr[NUMBER_OF_TEST_MODEL+1];
+    int each_model_size = 0;
+    if (TEST_TRANSACTION_TYPE == 0){
+        each_model_size = sizeof(socket_transaction) +1 * sizeof(socket_transaction_input)
+                         + 1 * sizeof(socket_transaction_output);
+    }else if (TEST_TRANSACTION_TYPE == 1){
+        each_model_size = sizeof(socket_transaction) +NUMBER_OF_TEST_TRANSACTION_INPUT * sizeof(socket_transaction_input)
+                         + 1 * sizeof(socket_transaction_output);
     }else{
-        send_socket(socket, "genesis transaction",NULL,previous_transaction);
+        each_model_size = sizeof(socket_transaction) +1 * sizeof(socket_transaction_input)
+                         + NUMBER_OF_TEST_TRANSACTION_OUTPUT * sizeof(socket_transaction_output);
+    }
+    int each_data_size = 0;
+    if (TEST_CREATE_BLOCK){
+        //size = number of model * (size for each block + size for each tx + command length) + size of genesis
+        each_data_size = sizeof(socket_block) +each_model_size + 32;
+        send_data_arr[0] = (char *)malloc(428);
+        for (int i = 0; i < NUMBER_OF_TEST_MODEL; i++) {
+            send_data_arr[i+1] = (char *)malloc(each_data_size);
+        }
+        add_send_data("genesis block",genesis_block,NULL, &send_data_arr[0], &data_size_arr[0]);
+    }else{
+        //size = number of model * (size for each tx + command length) + size of genesis
+        send_data_arr[0] = (char *)malloc(428);
+        for (int i = 0; i < NUMBER_OF_TEST_MODEL; i++) {
+            send_data_arr[i+1] = (char *)malloc(each_data_size);
+        }
+        add_send_data("genesis transaction",NULL,previous_transaction, &send_data_arr[0], &data_size_arr[0]);
     }
 
     // send multiple transaction/block
@@ -80,9 +105,9 @@ int main(int argc, char const *argv[]) {
             if (TEST_CREATE_BLOCK){
                 // create the block
                 block* block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
-                send_socket(socket, "create block",block1,NULL);
+                add_send_data("create block",block1,NULL, &send_data_arr[i], &data_size_arr[i]);
             }else{
-                send_socket(socket, "create transaction",NULL,t);
+                add_send_data("create transaction",NULL,t, &send_data_arr[i], &data_size_arr[i]);
             }
 
             // create multi-to-one transaction
@@ -118,13 +143,19 @@ int main(int argc, char const *argv[]) {
         if (TEST_CREATE_BLOCK){
             // create the block
             block* block1 = create_a_new_block(previous_block_header_hash, transaction, &result_block_hash);
-            send_socket(socket, "create block",block1,NULL);
+            add_send_data("create block",block1,NULL, &send_data_arr[i], &data_size_arr[i]);
             free(block1);
         }else{
-            send_socket(socket, "create transaction",NULL,transaction);
+            add_send_data("create transaction",NULL,transaction, &send_data_arr[i], &data_size_arr[i]);
             free(transaction);
         }
     }
+
+    for (int i = 0; i < NUMBER_OF_TEST_MODEL + 1; i++) {
+        send(socket, send_data_arr[i], data_size_arr[i], 0);
+    }
+    free(send_data_arr);
+    free(data_size_arr);
 
     close(client_fd);
     return 0;
