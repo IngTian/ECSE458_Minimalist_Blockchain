@@ -26,8 +26,8 @@ int main(int argc, char const *argv[]) {
     initialize_socket(server_address_str, server_port, &socket, &client_fd);
     initialize_mysql_system(MYSQL_DB_MINER);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
-    destroy_transaction_system("miner");
-    destroy_block_system("miner");
+    destroy_transaction_system(MYSQL_DB_MINER);
+    destroy_block_system(MYSQL_DB_MINER);
     transaction *previous_transaction = initialize_transaction_system(false);
     block *genesis_block = initialize_block_system(false);
     append_transaction_into_block(genesis_block, get_genesis_transaction(), 0);
