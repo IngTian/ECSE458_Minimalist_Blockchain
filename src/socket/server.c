@@ -126,7 +126,6 @@ void *handle_tcp_connection(void *arg) {
             if (strcmp(received_command, "genesis block") != 0) {
                 // If received block is not genesis, go through normal workflow.
                 if (verify_block(block1)) {
-                    general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %lu", get_timestamp());
                     if (!save_block(block1)) {
                         general_log(LOG_SCOPE, LOG_ERROR, "Saving failed.");
                     }
@@ -157,7 +156,6 @@ void *handle_tcp_connection(void *arg) {
             if (strcmp(received_command, "genesis transaction") != 0) {
                 // verification
                 if (verify_transaction(tx)) {
-//                    general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
                     // Save to database.
                     if (!save_transaction(tx)) {
                         general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the transaction.");

@@ -6,11 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <unistd.h>
 
-#include "log_utils.h"
-#include "sys_utils.h"
 #include "constants.h"
+#include "log_utils.h"
 
 /**
  * Initialize the client socket
@@ -20,10 +18,10 @@
  * @param client_fd client socket id for output
  * @return status value, if fail returns -1
  */
-int initialize_socket(char *server_address_str, int server_port, int* sock, int* client_fd){
+int initialize_socket(char *server_address_str, int server_port, int *sock, int *client_fd) {
 #define LOG_SCOPE "Miner"
     // create the socket
-    int  sock_temp= 0, client_fd_temp;
+    int sock_temp = 0, client_fd_temp;
     struct sockaddr_in serv_addr;
     if ((sock_temp = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         general_log(LOG_SCOPE, LOG_ERROR, "Socket creation error.");
@@ -71,30 +69,34 @@ char *combine_data_with_command(char *command, unsigned int command_length, cons
 }
 
 /**
- * Send socket.
- * @param sock socket number
- * @param command command to tell the sever what actions should be done
- * @param block1 the block model
- * @param transaction the transaction model
+ * Combine and prepare the data to be transmitted.
+ * @param command Command to tell the sever what actions should be done.
+ * @param block1 The block model.
+ * @param transaction The transaction model.
+ * @param res The result pointer to an array of sending data.
+ * @param res_size The result size.
  * @return
  */
-int send_socket(int sock, char* command, block* block1, transaction* transaction){
-    const char* send_model;
+int add_send_data(char *command, block *block1, transaction *transaction, char **res, int *res_size) {
+    const char *send_model;
     int send_size;
-    char sendCommand[32];  // the command to tell listener to accept a block or transaction
-    memset(sendCommand, '\0', 32);
-    memcpy(sendCommand, command, strlen(command));
-    if (TEST_CREATE_BLOCK){
-        socket_block* socket_blk = cast_to_socket_block(block1);
+    char send_cmd[COMMAND_LENGTH];  // The command to tell listener to accept a block or transaction.
+    memset(send_cmd, '\0', 32);
+    memcpy(send_cmd, command, strlen(command));
+
+    if (TEST_CREATE_BLOCK) {
+        socket_block *socket_blk = cast_to_socket_block(block1);
         send_model = (const char *)socket_blk;
-        send_size = get_socket_block_length(block1) + COMMAND_LENGTH;
-    }else{
-        socket_transaction * socket_tx = cast_to_socket_transaction(transaction);
+        send_size = get_socket_block_length(block1);
+    } else {
+        socket_transaction *socket_tx = cast_to_socket_transaction(transaction);
         send_model = (const char *)socket_tx;
-        send_size = get_socket_transaction_length(socket_tx) + COMMAND_LENGTH;
+        send_size = get_socket_transaction_length(socket_tx);
     }
-    char* send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
-    send(sock, send_data, send_size, 0);
-//    general_log(LOG_SCOPE, LOG_INFO, "Client: model sent. Timestamp: %lu", get_timestamp());
-    free(send_data);
+
+    char *send_data = combine_data_with_command(send_cmd, COMMAND_LENGTH, send_model, send_size);
+    send_size += COMMAND_LENGTH;
+
+    *res = send_data;
+    *res_size = send_size;
 }
