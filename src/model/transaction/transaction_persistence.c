@@ -30,7 +30,7 @@ void free_utxo_table_val(void *val) { free(val); }
 void print_utxo_entry(void *h, void *v, void *user_data) {
     char *hash = (char *)h;
     long int *value = (long int *)v;
-    printf("ID: %s VAL: %ld\n", hash, *value);
+    general_log(LOG_SCOPE, LOG_DEBUG, "ID: %s VAL: %ld", hash, *value);
 }
 
 /*
@@ -282,9 +282,8 @@ void print_utxo() {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         return;
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
-        printf("**************************** UTXO *****************************\n");
+        general_log(LOG_SCOPE, LOG_DEBUG, "**************************** UTXO *****************************");
         g_hash_table_foreach(g_utxo, print_utxo_entry, NULL);
-        printf("\n");
     }
 }
 

@@ -85,10 +85,10 @@ int main(int argc, char const *argv[]) {
                 // create the block
                 block *block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
                 add_send_data("create block", block1, NULL, &send_data_arr[current_data_index], &data_size_arr[current_data_index]);
-                current_data_index+=1;
+                current_data_index += 1;
             } else {
                 add_send_data("create transaction", NULL, t, &send_data_arr[current_data_index], &data_size_arr[current_data_index]);
-                current_data_index+=1;
+                current_data_index += 1;
             }
 
             // create multi-to-one curr_transaction

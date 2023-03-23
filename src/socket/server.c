@@ -98,13 +98,13 @@ void *handle_tcp_connection(void *arg) {
     int client_socket = ((int *)arg)[0];
     char msg_buffer[SOCKET_MSG_MAX_SIZE];
 
-    for (int i = 0 ; i< NUMBER_OF_TEST_MODEL; i++){
+    for (int i = 0; i < NUMBER_OF_TEST_MODEL; i++) {
         // Get message.
         recv(client_socket, msg_buffer, sizeof(msg_buffer), 0);
         char *received_command = msg_buffer;
         char *data = received_command + COMMAND_LENGTH;
 
-        if (i==0 || i==NUMBER_OF_TEST_MODEL-1){
+        if (i == 0 || i == NUMBER_OF_TEST_MODEL - 1) {
             general_log(LOG_SCOPE, LOG_INFO, "Received connection %d @(timestamp: %lu): %s", i, get_timestamp(), received_command);
         }
 
@@ -167,7 +167,7 @@ void *handle_tcp_connection(void *arg) {
             free(received_command);
             free(received_socket_tx);
         }
-        char* send_command = "Done";
+        char *send_command = "Done";
         send(client_socket, send_command, strlen(send_command), 0);
     }
     general_log(LOG_SCOPE, LOG_INFO, "%d models done!", NUMBER_OF_TEST_MODEL);
