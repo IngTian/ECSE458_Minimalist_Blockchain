@@ -56,7 +56,7 @@ bool initialize_transaction_persistence() {
             "    tx_out_count int unsigned not null,\n"
             "    lock_time    int unsigned not null,\n"
             "    block_id     int          not null default 0,\n"
-            "    primary key (id)\n"
+            "    primary key (id, txid)\n"
             ") ENGINE = %s;\n"
             "\n"
             "create table if not exists transaction_output\n"
@@ -96,7 +96,7 @@ bool initialize_transaction_persistence() {
             "    id    int auto_increment,\n"
             "    hash  char(64) not null,\n"
             "    value bigint   not null,\n"
-            "    primary key (id)\n"
+            "    primary key (id, hash)\n"
             ") ENGINE = %s;";
         char filtered_query[10000];
         sprintf(filtered_query, sql_query, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE);

@@ -46,18 +46,19 @@ int main(int argc, char const *argv[]) {
     // Send multiple transaction/block.
     int rest_coin = TOTAL_NUMBER_OF_COINS;
     char *previous_transaction_id = get_transaction_txid(previous_transaction);
-    char *previous_transaction_id_array[2];
+    char *previous_transaction_id_array[NUMBER_OF_TEST_TRANSACTION_INPUT];
     char *previous_output_private_key = get_genesis_transaction_private_key();
-    char *previous_output_private_key_array[2];
-    int previous_output_index_list[2];
-    int previous_value[2];
+    char *previous_output_private_key_array[NUMBER_OF_TEST_TRANSACTION_OUTPUT];
+    int previous_output_index_list[NUMBER_OF_TEST_TRANSACTION_INPUT];
+    int previous_value[NUMBER_OF_TEST_TRANSACTION_OUTPUT];
     char *res_txid;
     char *res_private_key;
-    char *res_private_key_array[2];
+    char *res_private_key_array[NUMBER_OF_TEST_TRANSACTION_OUTPUT];
     char *previous_block_header_hash = get_genesis_block_hash();
     char *result_block_hash;
 
     transaction *curr_transaction;
+    int current_data_index = 1;
     for (int i = 0; i < NUMBER_OF_TEST_MODEL; i++) {
         if (TEST_TRANSACTION_TYPE == 0) {
             // create the one-to-one transaction
@@ -83,9 +84,11 @@ int main(int argc, char const *argv[]) {
             if (TEST_CREATE_BLOCK) {
                 // create the block
                 block *block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
-                add_send_data("create block", block1, NULL, &send_data_arr[i + 1], &data_size_arr[i + 1]);
+                add_send_data("create block", block1, NULL, &send_data_arr[current_data_index], &data_size_arr[current_data_index]);
+                current_data_index+=1;
             } else {
-                add_send_data("create transaction", NULL, t, &send_data_arr[i + 1], &data_size_arr[i + 1]);
+                add_send_data("create transaction", NULL, t, &send_data_arr[current_data_index], &data_size_arr[current_data_index]);
+                current_data_index+=1;
             }
 
             // create multi-to-one curr_transaction
@@ -121,10 +124,11 @@ int main(int argc, char const *argv[]) {
         if (TEST_CREATE_BLOCK) {
             // create the block
             block *block1 = create_a_new_block(previous_block_header_hash, curr_transaction, &result_block_hash);
-            add_send_data("create block", block1, NULL, &send_data_arr[i + 1], &data_size_arr[i + 1]);
+            add_send_data("create block", block1, NULL, &send_data_arr[current_data_index], &data_size_arr[current_data_index]);
             free(block1);
         } else {
-            add_send_data("create transaction", NULL, curr_transaction, &send_data_arr[i + 1], &data_size_arr[i + 1]);
+            add_send_data("create transaction", NULL, curr_transaction, &send_data_arr[current_data_index], &data_size_arr[current_data_index]);
+            current_data_index += 1;
             free(curr_transaction);
         }
     }
