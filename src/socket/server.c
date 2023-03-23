@@ -147,11 +147,6 @@ void *handle_tcp_connection(void *arg) {
             memcpy(received_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
             transaction *tx = cast_to_transaction(received_socket_tx);
 
-            // Print receive socket tx info.
-            general_log(LOG_SCOPE, LOG_DEBUG, "Tx out count: %d", tx->tx_out_count);
-            general_log(LOG_SCOPE, LOG_DEBUG, "Tx in count: %d", tx->tx_in_count);
-            general_log(LOG_SCOPE, LOG_DEBUG, "Lock time: %u", tx->lock_time);
-
             received_command = str_trim(received_command);
             if (strcmp(received_command, "genesis transaction") != 0) {
                 // verification
@@ -168,11 +163,12 @@ void *handle_tcp_connection(void *arg) {
                     general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis transaction.");
                 }
             }
-
             // Free variables.
             free(received_command);
             free(received_socket_tx);
         }
+        char* send_command = "Done";
+        send(client_socket, send_command, strlen(send_command), 0);
     }
     general_log(LOG_SCOPE, LOG_INFO, "%d models done!", NUMBER_OF_TEST_MODEL);
     close(client_socket);

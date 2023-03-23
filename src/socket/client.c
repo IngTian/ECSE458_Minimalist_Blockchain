@@ -12,6 +12,7 @@
 #include "utils/log_utils.h"
 #include "utils/mysql_util.h"
 #include "utils/socket_util.h"
+#include "utils/sys_utils.h"
 
 #define LOG_SCOPE "miner"
 int main(int argc, char const *argv[]) {
@@ -128,10 +129,13 @@ int main(int argc, char const *argv[]) {
         }
     }
 
+    char msg_buffer[COMMAND_LENGTH];
+    general_log(LOG_SCOPE, LOG_INFO, "First data at timestamp: %lu", get_timestamp());
     for (int i = 0; i < NUMBER_OF_TEST_MODEL + 1; i++) {
         send(socket, send_data_arr[i], data_size_arr[i], 0);
+        recv(socket, msg_buffer, sizeof(msg_buffer), 0);
     }
-
+    general_log(LOG_SCOPE, LOG_INFO, "last data at timestamp: %lu", get_timestamp());
     close(client_fd);
     return 0;
 }
