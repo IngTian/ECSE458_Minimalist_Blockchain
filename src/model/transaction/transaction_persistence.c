@@ -47,6 +47,7 @@ void print_utxo_entry(void *h, void *v, void *user_data) {
 bool initialize_transaction_persistence() {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
+            "set max_heap_table_size = 1024*1024*1024*2;\n"
             "create table if not exists transaction\n"
             "(\n"
             "    id           int auto_increment,\n"
@@ -62,10 +63,10 @@ bool initialize_transaction_persistence() {
             "create table if not exists transaction_output\n"
             "(\n"
             "    id              int auto_increment,\n"
-            "    value           bigint       not null,\n"
-            "    pk_script_bytes int unsigned not null,\n"
-            "    pk_script       BLOB         not null,\n"
-            "    transaction_id  int          not null,\n"
+            "    value           bigint         not null,\n"
+            "    pk_script_bytes int unsigned   not null,\n"
+            "    pk_script       varchar(10000) not null,\n"
+            "    transaction_id  int            not null,\n"
             "    primary key (id),\n"
             "    constraint foreign key (transaction_id) references transaction (id)\n"
             ") ENGINE = %s;\n"
@@ -73,10 +74,10 @@ bool initialize_transaction_persistence() {
             "create table if not exists transaction_input\n"
             "(\n"
             "    id               int auto_increment,\n"
-            "    script_bytes     int unsigned not null,\n"
-            "    signature_script BLOB         not null,\n"
-            "    sequence         int unsigned not null,\n"
-            "    transaction_id   int          not null,\n"
+            "    script_bytes     int unsigned   not null,\n"
+            "    signature_script varchar(10000) not null,\n"
+            "    sequence         int unsigned   not null,\n"
+            "    transaction_id   int            not null,\n"
             "    primary key (id),\n"
             "    foreign key (transaction_id) references transaction (id)\n"
             ") ENGINE = %s;\n"
@@ -117,7 +118,8 @@ bool initialize_transaction_persistence() {
  */
 bool save_transaction(transaction *tx) {
     // Save the genesis transaction.
-    if (get_total_number_of_transactions() == 0) {
+    unsigned int current_tx_size = get_total_number_of_transactions();
+    if (current_tx_size == 0) {
         g_genesis_transaction = tx;
     }
 
@@ -146,6 +148,7 @@ bool save_transaction(transaction *tx) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert transaction.");
             return false;
         };
+        current_tx_size += 1;
         free(txid);
         memset(sql_query, '\0', temp_sql_query_size);
 
@@ -156,12 +159,14 @@ bool save_transaction(transaction *tx) {
             sprintf(sql_query,
                     "set @value = %ld;\n"
                     "set @pk_script_bytes = %d;\n"
-                    "set @pk_script = 0x%s;\n"
+                    "set @pk_script = '%s';\n"
+                    "set @related_tx_idx = %u;\n"
                     "insert into transaction_output (id, value, pk_script_bytes, pk_script, transaction_id)\n"
-                    "values (NULL, @value, @pk_script_bytes, @pk_script, @transaction_auto_id);",
+                    "values (NULL, @value, @pk_script_bytes, @pk_script, @related_tx_idx);",
                     current_output.value,
                     current_output.pk_script_bytes,
-                    pk_script_hex);
+                    pk_script_hex,
+                    current_tx_size);
             if (!mysql_insert(sql_query)) {
                 general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert output.");
                 return false;
@@ -177,12 +182,13 @@ bool save_transaction(transaction *tx) {
             transaction_outpoint current_outpoint = current_input.previous_outpoint;
             sprintf(sql_query,
                     "set @script_bytes = %u;\n"
-                    "set @signature_script = 0x%s;\n"
+                    "set @signature_script = '%s';\n"
                     "set @sequence = %u;\n"
                     "set @hash = '%s';\n"
                     "set @index = %u;\n"
+                    "set @related_tx_idx = %u;\n"
                     "insert into transaction_input (id, script_bytes, signature_script, sequence, transaction_id)\n"
-                    "values (NULL, @script_bytes, @signature_script, @sequence, @transaction_auto_id);\n"
+                    "values (NULL, @script_bytes, @signature_script, @sequence, @related_tx_idx);\n"
                     "set @transaction_input_auto_id := LAST_INSERT_ID();\n"
                     "insert into transaction_outpoint (id, hash, idx, transaction_input_id)\n"
                     "values (NULL, @hash, @index, @transaction_input_auto_id);",
@@ -190,7 +196,8 @@ bool save_transaction(transaction *tx) {
                     signature_script_hex,
                     current_input.sequence,
                     current_outpoint.hash,
-                    current_outpoint.index);
+                    current_outpoint.index,
+                    current_tx_size);
             if (!mysql_insert(sql_query)) {
                 general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert input.");
                 return false;
@@ -342,7 +349,9 @@ transaction *get_transaction(char *txid) {
             current_output->value = atoi(row[1]);
             current_output->pk_script_bytes = atoi(row[2]);
             current_output->pk_script = (char *)malloc(current_output->pk_script_bytes);
-            memcpy(current_output->pk_script, row[3], current_output->pk_script_bytes);
+            char *converted_pk_script = convert_hex_back_to_data_array(row[3]);
+            memcpy(current_output->pk_script, converted_pk_script, current_output->pk_script_bytes);
+            free(converted_pk_script);
             output_idx++;
         }
         mysql_free_result(res);
@@ -359,7 +368,9 @@ transaction *get_transaction(char *txid) {
             outpoint_input_ids[input_idx] = atoi(row[0]);
             current_input->script_bytes = atoi(row[1]);
             current_input->signature_script = (char *)malloc(current_input->script_bytes);
-            memcpy(current_input->signature_script, row[2], current_input->script_bytes);
+            char *converted_signature_script = convert_hex_back_to_data_array(row[2]);
+            memcpy(current_input->signature_script, converted_signature_script, current_input->script_bytes);
+            free(converted_signature_script);
             current_input->sequence = atoi(row[3]);
             input_idx++;
         }
@@ -475,6 +486,7 @@ bool destroy_transaction_persistence(char *db_name) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
             "use %s;\n"
+            "drop table if exists utxo;\n"
             "drop table if exists transaction_outpoint;\n"
             "drop table if exists transaction_input;\n"
             "drop table if exists transaction_output;\n"
