@@ -340,7 +340,7 @@ transaction *get_transaction(char *txid) {
         memset(sql_query, '\0', temp_sql_query_size);
 
         // Read transaction outputs.
-        sprintf(sql_query, "select * from transaction_output where transaction_id=%d;", transaction_auto_id);
+        sprintf(sql_query, "select * from transaction_output where transaction_id=%d order by id;", transaction_auto_id);
         res = mysql_read(sql_query);
         int output_idx = 0;
         while ((row = mysql_fetch_row(res))) {
@@ -357,7 +357,7 @@ transaction *get_transaction(char *txid) {
         memset(sql_query, '\0', temp_sql_query_size);
 
         // Read transaction inputs.
-        sprintf(sql_query, "select * from transaction_input where transaction_id=%d;", transaction_auto_id);
+        sprintf(sql_query, "select * from transaction_input where transaction_id=%d order by id;", transaction_auto_id);
         res = mysql_read(sql_query);
         int input_idx = 0;
         int outpoint_input_ids[tx->tx_in_count];

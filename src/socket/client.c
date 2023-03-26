@@ -33,8 +33,8 @@ int main(int argc, char const *argv[]) {
     finalize_block(genesis_block);
 
     // Prepare the sending data.
-    char *send_data_arr[NUMBER_OF_TEST_MODEL + 1];
-    int data_size_arr[NUMBER_OF_TEST_MODEL + 1];
+    char *send_data_arr[NUMBER_OF_TEST_MODEL * 2 + 1];
+    int data_size_arr[NUMBER_OF_TEST_MODEL * 2 + 1];
 
     // Add the genesis transaction/block.
     if (TEST_CREATE_BLOCK) {
