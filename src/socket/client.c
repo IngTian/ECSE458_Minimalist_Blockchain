@@ -125,6 +125,7 @@ int main(int argc, char const *argv[]) {
             // create the block
             block *block1 = create_a_new_block(previous_block_header_hash, curr_transaction, &result_block_hash);
             add_send_data("create block", block1, NULL, &send_data_arr[current_data_index], &data_size_arr[current_data_index]);
+            current_data_index += 1;
             free(block1);
         } else {
             add_send_data("create transaction", NULL, curr_transaction, &send_data_arr[current_data_index], &data_size_arr[current_data_index]);
