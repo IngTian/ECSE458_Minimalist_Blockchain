@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <unistd.h
+#include <unistd.h>
 #include "../model/block/block.h"
 #include "../model/block/block_persistence.h"
 #include "../model/transaction/transaction_persistence.h"
