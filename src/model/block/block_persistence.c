@@ -53,6 +53,7 @@ void free_g_global_block_table_entry(void *block_id, void *blk, void *user_data)
 bool initialize_block_persistence() {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
+            "SET max_heap_table_size = 1024*1024*1024*2;\n"
             "CREATE TABLE if not exists block\n"
             "(\n"
             "    block_id  int auto_increment,\n"
@@ -299,15 +300,19 @@ block *get_genesis_block() {
 /**
  * Destroy the block persistence layer
  * by destroying all the tables.
+ * @param db_name The name of the MySQL database to use.
  * @return True for success and false otherwise.
  * @author Luke E
  */
-bool destroy_block_persistence() {
+bool destroy_block_persistence(char *db_name) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
+            "use %s;\n"
             "drop table if exists block_header;\n"
             "drop table if exists block;\n";
-        return mysql_delete_table(sql_query);
+        char filtered_sql_query[1000];
+        sprintf(filtered_sql_query, sql_query, db_name);
+        return mysql_delete_table(filtered_sql_query);
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_hash_table_foreach(g_global_block_table, free_g_global_block_table_entry, NULL);
         g_hash_table_destroy(g_global_block_table);

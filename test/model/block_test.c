@@ -24,8 +24,8 @@ START_TEST(test_block_system_init_and_destroy) {
     ck_assert_int_eq(genesis_b->txn_count, 1);
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -48,8 +48,8 @@ START_TEST(test_create_empty_block) {
     ck_assert_int_eq(new_block->header->nBits, 0);
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -68,8 +68,8 @@ START_TEST(test_destroy_block1) {
     finalize_block(genesis_b);
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -111,8 +111,8 @@ START_TEST(test_destroy_block2) {
     create_new_block_shortcut(&block_data, block1);
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -154,8 +154,8 @@ START_TEST(test_destroy_block3) {
     finalize_block(block1);
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -178,8 +178,8 @@ START_TEST(test_append_prev_block) {
     ck_assert_str_eq(new_block->header->prev_block_header_hash, hash_block_header(genesis_b->header));
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -211,8 +211,8 @@ START_TEST(test_get_block_by_hash) {
     ck_assert_str_eq(retrieved_header->merkle_root_hash, original_header->merkle_root_hash);
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -230,8 +230,8 @@ START_TEST(test_get_genesis_block_hash) {
     ck_assert_str_eq(hash_block_header(genesis_b->header), get_genesis_block_hash());
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -249,8 +249,8 @@ START_TEST(test_hash_block_header) {
     ck_assert_str_eq(hash_block_header(genesis_b->header), get_genesis_block_hash());
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -266,8 +266,8 @@ START_TEST(test_add_block_by_shortcut_and_finalize) {
     finalize_block(genesis_b);
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -285,8 +285,8 @@ START_TEST(test_append_transaction_into_block) {
     ck_assert_ptr_nonnull(genesis_b->txns);
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }
@@ -326,8 +326,8 @@ START_TEST(test_verify_block_chain) {
     verify_block_chain(block1);
 
     // Destroy.
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     destroy_mysql_system();
 }

@@ -60,10 +60,11 @@ block *initialize_block_system(bool skip_genesis) {
 
 /**
  * Destroy the block system.
+ * @param db_name The name of the MySQL database to use.
  * @author Junjian Chen
  */
-void destroy_block_system() {
-    destroy_block_persistence();
+void destroy_block_system(char *db_name) {
+    destroy_block_persistence(db_name);
     free(g_genesis_block_hash);
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the block module.");
 }
@@ -415,4 +416,32 @@ int get_socket_block_length(block *b) {
         free(tmp);
     }
     return txns_total_length;
+}
+
+/**
+ * Create a new block.
+ * @param previous_block_header_hash previous block hash
+ * @param transaction the transaction should be appended in
+ * @param result_header_hash the created block hash
+ * @return the created block pointer/
+ * @author Shichang Zhang
+ */
+block *create_a_new_block(char *previous_block_header_hash, transaction *transaction, char **result_header_hash) {
+    block_header_shortcut block_header = {
+        .prev_block_header_hash = "", .version = 0, .nonce = 0, .nBits = 0, .merkle_root_hash = "", .time = get_current_unix_time()};
+    memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 65);
+    struct transaction **txns = malloc(sizeof(txns));
+    txns[0] = transaction;
+    transactions_shortcut txns_shortcut = {.txns = txns, .txn_count = 1};
+    block_create_shortcut block_data = {.header = &block_header, .transaction_list = &txns_shortcut};
+
+    block *block1 = (block *)malloc(sizeof(block));
+    if (!create_new_block_shortcut(&block_data, block1)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a block.");
+    }
+    if (!finalize_block(block1)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a block.");
+    }
+    *result_header_hash = hash_block_header(block1->header);
+    return block1;
 }

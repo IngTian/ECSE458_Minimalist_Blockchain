@@ -12,7 +12,7 @@ block *get_genesis_block();
 block *get_last_inserted_block();
 unsigned long get_block_id_in_database(block *);
 void destroy_block(block *);
-bool destroy_block_persistence();
+bool destroy_block_persistence(char *);
 unsigned int get_total_number_of_blocks();
 
 #endif
