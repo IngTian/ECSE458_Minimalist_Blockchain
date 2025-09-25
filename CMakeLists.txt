@@ -2,21 +2,19 @@ cmake_minimum_required(VERSION 3.16)
 
 # Set up vcpkg integration before project() call
 if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-        CACHE STRING "")
-elseif(EXISTS "/Users/beowulfhrothgar/vcpkg/scripts/buildsystems/vcpkg.cmake")
-    set(CMAKE_TOOLCHAIN_FILE "/Users/beowulfhrothgar/vcpkg/scripts/buildsystems/vcpkg.cmake"
-        CACHE STRING "")
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
 endif()
 
 # Force Clang toolchain
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 
-project(MinimalistBlockChainSystem
-    VERSION 1.0.0
+project(
+    MinimalistBlockChainSystem
+    VERSION 0.0.1
     DESCRIPTION "A minimalist blockchain implementation in C and C++"
-    LANGUAGES C CXX)
+    LANGUAGES C CXX
+)
 
 # Project settings
 set(CMAKE_C_STANDARD 11)
