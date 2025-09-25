@@ -15,9 +15,15 @@ option(BUILD_DOCS "Build documentation" OFF)
 option(ENABLE_COVERAGE "Enable test coverage" ON)
 
 # Clang compiler configuration
+# C compiler flags
 set(CMAKE_C_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic -Wno-zero-length-array")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -flto=thin -fomit-frame-pointer -fstrict-aliasing")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g -gline-tables-only")
+
+# C++ compiler flags
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -flto=thin -fomit-frame-pointer -fstrict-aliasing")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -gline-tables-only")
 
 message(STATUS "Using Clang compiler")
 

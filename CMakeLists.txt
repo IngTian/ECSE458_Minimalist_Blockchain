@@ -15,12 +15,14 @@ set(CMAKE_CXX_COMPILER clang++)
 
 project(MinimalistBlockChainSystem
     VERSION 1.0.0
-    DESCRIPTION "A minimalist blockchain implementation in C"
-    LANGUAGES C)
+    DESCRIPTION "A minimalist blockchain implementation in C and C++"
+    LANGUAGES C CXX)
 
 # Project settings
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Make sure we can find our modules
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
