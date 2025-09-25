@@ -9,6 +9,9 @@
 /camke
 /apps
 
+# Vcpkg
+/vcpkg_installed
+
 # Temp folder
 /tmp
 
