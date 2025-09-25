@@ -9,6 +9,10 @@ elseif(EXISTS "/Users/beowulfhrothgar/vcpkg/scripts/buildsystems/vcpkg.cmake")
         CACHE STRING "")
 endif()
 
+# Force Clang toolchain
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
+
 project(MinimalistBlockChainSystem
     VERSION 1.0.0
     DESCRIPTION "A minimalist blockchain implementation in C"

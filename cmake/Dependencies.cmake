@@ -1,13 +1,16 @@
 # External Dependencies for MinimalistBlockChainSystem
 # Using vcpkg for dependency management
 
-# Test coverage (Apple specific)
-if(APPLE)
-    set(GCC_COVERAGE_COMPILE_FLAGS "-fprofile-instr-generate -fcoverage-mapping")
-    set(GCC_COVERAGE_LINK_FLAGS "--coverage")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
+# Test coverage configuration
+if(APPLE AND ENABLE_COVERAGE)
+    # Clang coverage flags
+    set(COVERAGE_COMPILE_FLAGS "-fprofile-instr-generate -fcoverage-mapping")
+    set(COVERAGE_LINK_FLAGS "-fprofile-instr-generate")
+    message(STATUS "Enabling Clang code coverage")
+    
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COVERAGE_COMPILE_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_COMPILE_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${COVERAGE_LINK_FLAGS}")
 endif()
 
 # Find packages through vcpkg

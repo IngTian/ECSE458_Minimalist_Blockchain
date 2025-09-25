@@ -14,13 +14,12 @@ option(BUILD_TESTING "Build unit tests" ON)
 option(BUILD_DOCS "Build documentation" OFF)
 option(ENABLE_COVERAGE "Enable test coverage" ON)
 
-# Compiler-specific options
-if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    # Common flags for GCC and Clang
-    set(CMAKE_C_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic")
-    set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
-    set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
-endif()
+# Clang compiler configuration
+set(CMAKE_C_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wpedantic -Wno-zero-length-array")
+set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -flto=thin -fomit-frame-pointer -fstrict-aliasing")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g -gline-tables-only")
+
+message(STATUS "Using Clang compiler")
 
 # Platform-specific settings
 if(APPLE)
