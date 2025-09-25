@@ -141,12 +141,12 @@ int main(int argc, char const *argv[]) {
 
         if (TEST_CREATE_BLOCK) {
             // create the block
-            block* block1 = create_a_new_block(previous_block_header_hash, transaction, &result_block_hash);
+            block* block1 = create_a_new_block(previous_block_header_hash, curr_transaction, &result_block_hash);
             add_send_data("create block",block1,NULL, &send_data_arr[i], &data_size_arr[i]);
             free(block1);
         }else{
-            add_send_data("create transaction",NULL,transaction, &send_data_arr[i], &data_size_arr[i]);
-            free(transaction);
+            add_send_data("create transaction",NULL,curr_transaction, &send_data_arr[i], &data_size_arr[i]);
+            free(curr_transaction);
         }
     }
 

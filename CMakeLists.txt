@@ -54,8 +54,10 @@ set_target_properties(check_library PROPERTIES IMPORTED_LOCATION ${check_library
 # secp256k1
 include_directories(/usr/local/include)
 include_directories(/usr/local/lib)
-find_library(secp256k1_location NAMES libsecp256k1.a)
-add_library(secp256k1 STATIC IMPORTED)
+include_directories(/opt/homebrew/include)
+include_directories(/opt/homebrew/lib)
+find_library(secp256k1_location NAMES secp256k1 PATHS /usr/local/lib /opt/homebrew/lib)
+add_library(secp256k1 SHARED IMPORTED)
 set_target_properties(secp256k1 PROPERTIES IMPORTED_LOCATION ${secp256k1_location})
 #endregion
 
@@ -94,12 +96,12 @@ if (APPLE)
 
     add_executable(test_transaction test/model/transaction_test.c)
     set_target_properties(test_transaction PROPERTIES LINKER_LANGUAGE C)
-    target_include_directories(test_transaction PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS} /opt/homebrew/Cellar/check/0.15.2/include)
+    target_include_directories(test_transaction PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS} /opt/homebrew/include)
     target_link_libraries(test_transaction ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 check_library ${LIBMYSQLCLIENT_LIBRARIES})
 
     add_executable(test_block test/model/block_test.c)
     set_target_properties(test_block PROPERTIES LINKER_LANGUAGE C)
-    target_include_directories(test_block PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS} /opt/homebrew/Cellar/check/0.15.2/include)
+    target_include_directories(test_block PRIVATE ${GLIB_INCLUDE_DIRS} ${LIBMYSQLCLIENT_INCLUDE_DIRS} /opt/homebrew/include)
     target_link_libraries(test_block ${GLIB_LDFLAGS} BlockChainModels BlockChainUtils CliModule secp256k1 check_library ${LIBMYSQLCLIENT_LIBRARIES})
 endif (APPLE)
 

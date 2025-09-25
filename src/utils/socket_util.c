@@ -91,12 +91,13 @@ int add_send_data(char* command, block* block1, transaction* transaction, char**
         send_model = (const char *)socket_tx;
         send_size = get_socket_transaction_length(socket_tx);
     }
-    char* send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
+    char* send_data = combine_data_with_command(send_cmd, COMMAND_LENGTH, send_model, send_size);
     send_size += COMMAND_LENGTH;
 
-    *send_data_arr = *send_data;
+    *send_data_arr = send_data;
     *data_size_arr = send_size;
 //    send(sock, send_data, send_size, 0);
 //    general_log(LOG_SCOPE, LOG_INFO, "Client: model sent. Timestamp: %lu", get_timestamp());
 //    free(send_data);
+    return 0;
 }

@@ -180,7 +180,9 @@ char *convert_hex_back_to_data_array(void *ptr) {
     char *res = (char *)malloc(str_len / 2 + 1);
     memset(res, '\0', str_len / 2 + 1);
     for (int i = 0; i < (str_len / 2); i++) {
-        sscanf(ptr + 2 * i, "%02x", &res[i]);
+        unsigned int tmp;
+        sscanf(ptr + 2 * i, "%02x", &tmp);
+        res[i] = (char)tmp;
     }
     return res;
 }
