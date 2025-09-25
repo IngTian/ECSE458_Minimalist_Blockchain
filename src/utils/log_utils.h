@@ -11,5 +11,6 @@ char *convert_char_hexadecimal(char *, unsigned int);
 void general_log(char *, int, char *, ...);
 void print_hex(unsigned char *, int size);
 void generate_dot_representation(block **, int, char *);
+void write_to_file(char *, char *, char *[], int);
 
 #endif

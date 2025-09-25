@@ -159,8 +159,8 @@ block add-block-to-system block.json                        Add the input block 
  * @return Return 0 if exit successfully.
  */
 int quit() {
-    destroy_block_system();
-    destroy_transaction_system();
+    destroy_block_system("test");
+    destroy_transaction_system("test");
     destroy_cryptography_system();
     printf("%s\n", "Quit!");
     exit(0);
