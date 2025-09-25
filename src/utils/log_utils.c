@@ -5,8 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utils/constants.h"
-#include "utils/sys_utils.h"
+#include "../model/block/block.h"
+#include "constants.h"
+#include "sys_utils.h"
 
 // Regular text
 #define BLK "\e[0;30m"

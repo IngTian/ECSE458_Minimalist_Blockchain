@@ -1,7 +1,8 @@
 #ifndef MINIMALIST_BLOCK_CHAIN_SYSTEM_SRC_UTILS_LOG_UTILS_H
 #define MINIMALIST_BLOCK_CHAIN_SYSTEM_SRC_UTILS_LOG_UTILS_H
 
-#include "model/block/block.h"
+// Forward declaration
+typedef struct Block block;
 
 #define LOG_DEBUG 0
 #define LOG_INFO 1

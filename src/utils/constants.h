@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#include "utils/log_utils.h"
+#include "log_utils.h"
 
 // General
 #define TOTAL_NUMBER_OF_COINS 40960

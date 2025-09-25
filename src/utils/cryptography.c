@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "utils/log_utils.h"
+#include "log_utils.h"
 
 #define LOG_SCOPE "cryptography"
 
