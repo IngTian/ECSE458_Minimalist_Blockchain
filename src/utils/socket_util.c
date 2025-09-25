@@ -69,16 +69,14 @@ char *combine_data_with_command(char *command, unsigned int command_length, cons
 }
 
 /**
- * Combine and prepare the data to be transmitted.
- * @param command Command to tell the sever what actions should be done.
- * @param block1 The block model.
- * @param transaction The transaction model.
- * @param res The result pointer to an array of sending data.
- * @param res_size The result size.
+ * Add the send data to the send data array.
+ * @param command command to tell the sever what actions should be done
+ * @param block1 the block model
+ * @param transaction the transaction model
  * @return
  */
-int add_send_data(char *command, block *block1, transaction *transaction, char **res, int *res_size) {
-    const char *send_model;
+int add_send_data(char* command, block* block1, transaction* transaction, char** send_data_arr, int* data_size_arr){
+    const char* send_model;
     int send_size;
     char send_cmd[COMMAND_LENGTH];  // The command to tell listener to accept a block or transaction.
     memset(send_cmd, '\0', 32);
@@ -88,15 +86,17 @@ int add_send_data(char *command, block *block1, transaction *transaction, char *
         socket_block *socket_blk = cast_to_socket_block(block1);
         send_model = (const char *)socket_blk;
         send_size = get_socket_block_length(block1);
-    } else {
-        socket_transaction *socket_tx = cast_to_socket_transaction(transaction);
+    }else{
+        socket_transaction * socket_tx = cast_to_socket_transaction(transaction);
         send_model = (const char *)socket_tx;
         send_size = get_socket_transaction_length(socket_tx);
     }
-
-    char *send_data = combine_data_with_command(send_cmd, COMMAND_LENGTH, send_model, send_size);
+    char* send_data = combine_data_with_command(sendCommand, COMMAND_LENGTH, send_model, send_size);
     send_size += COMMAND_LENGTH;
 
-    *res = send_data;
-    *res_size = send_size;
+    *send_data_arr = *send_data;
+    *data_size_arr = send_size;
+//    send(sock, send_data, send_size, 0);
+//    general_log(LOG_SCOPE, LOG_INFO, "Client: model sent. Timestamp: %lu", get_timestamp());
+//    free(send_data);
 }
