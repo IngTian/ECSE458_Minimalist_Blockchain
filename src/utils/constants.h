@@ -22,7 +22,7 @@
 #define PERSISTENCE_MODE PERSISTENCE_MYSQL
 #define MYSQL_HOST_ADDR "localhost"
 #define MYSQL_USERNAME "root"
-#define MYSQL_PASSWORD "Admin123/"
+#define MYSQL_PASSWORD "Tzy1123581321!"
 #define MYSQL_DB_MINER "miner"
 #define MYSQL_DB_LISTENER "listener"
 #define MYSQL_PORT_NUMBER 3306
