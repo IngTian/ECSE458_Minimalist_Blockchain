@@ -12,19 +12,17 @@
 #include "utils/log_utils.h"
 #include "utils/mysql_util.h"
 #include "utils/socket_util.h"
+#include "utils/sys_utils.h"
 
 #define LOG_SCOPE "miner"
 int main(int argc, char const *argv[]) {
-    // listener's address and port configuration
-    char *server_address_str = "127.0.0.1";
-    int server_port = atoi(SERVER_PORT_NO);
+    // Socket
+    int socket, client_fd;
 
-    //socket
-    int socket;
-    int client_fd;
-
-    // initialize system
-    initialize_socket(server_address_str, server_port, &socket, &client_fd);
+    // ----------------------------------------
+    // Initialize the system.
+    // ----------------------------------------
+    initialize_socket("127.0.0.1", atoi(SERVER_PORT_NO), &socket, &client_fd);
     initialize_mysql_system(MYSQL_DB_MINER);
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     destroy_transaction_system(MYSQL_DB_MINER);
@@ -65,25 +63,26 @@ int main(int argc, char const *argv[]) {
         add_send_data("genesis transaction",NULL,previous_transaction, &send_data_arr[0], &data_size_arr[0]);
     }
 
-    // send multiple transaction/block
+    // Send multiple transaction/block.
     int rest_coin = TOTAL_NUMBER_OF_COINS;
     char *previous_transaction_id = get_transaction_txid(previous_transaction);
-    char *previous_transaction_id_array[2];
+    char *previous_transaction_id_array[NUMBER_OF_TEST_TRANSACTION_INPUT];
     char *previous_output_private_key = get_genesis_transaction_private_key();
-    char *previous_output_private_key_array[2];
-    int previous_output_index_list[2];
-    int previous_value[2];
+    char *previous_output_private_key_array[NUMBER_OF_TEST_TRANSACTION_OUTPUT];
+    int previous_output_index_list[NUMBER_OF_TEST_TRANSACTION_INPUT];
+    int previous_value[NUMBER_OF_TEST_TRANSACTION_OUTPUT];
     char *res_txid;
     char *res_private_key;
-    char *res_private_key_array[2];
+    char *res_private_key_array[NUMBER_OF_TEST_TRANSACTION_OUTPUT];
     char *previous_block_header_hash = get_genesis_block_hash();
     char *result_block_hash;
 
-    transaction *transaction;
+    transaction *curr_transaction;
+    int current_data_index = 1;
     for (int i = 0; i < NUMBER_OF_TEST_MODEL; i++) {
         if (TEST_TRANSACTION_TYPE == 0) {
             // create the one-to-one transaction
-            transaction = create_a_new_single_in_single_out_transaction(
+            curr_transaction = create_a_new_single_in_single_out_transaction(
                 previous_transaction_id, previous_output_private_key, 0, TOTAL_NUMBER_OF_COINS, &res_txid, &res_private_key);
             memcpy(previous_transaction_id, res_txid, 64);
             memcpy(previous_output_private_key, res_private_key, 64);
@@ -91,18 +90,18 @@ int main(int argc, char const *argv[]) {
             // create a one to many transaction first
             rest_coin = rest_coin - (NUMBER_OF_TEST_TRANSACTION_OUTPUT - 1);
             previous_value[0] = rest_coin;
-            for (int i = 1; i < NUMBER_OF_TEST_TRANSACTION_OUTPUT; i++) previous_value[i] = 1;
-            struct transaction *t = create_a_new_single_in_many_out_transaction(previous_transaction_id,
-                                                                                previous_output_private_key,
-                                                                                0,
-                                                                                previous_value,
-                                                                                &res_txid,
-                                                                                &res_private_key_array,
-                                                                                NUMBER_OF_TEST_TRANSACTION_OUTPUT);
+            for (int j = 1; j < NUMBER_OF_TEST_TRANSACTION_OUTPUT; j++) previous_value[j] = 1;
+            transaction *t = create_a_new_single_in_many_out_transaction(previous_transaction_id,
+                                                                         previous_output_private_key,
+                                                                         0,
+                                                                         previous_value,
+                                                                         &res_txid,
+                                                                         &res_private_key_array,
+                                                                         NUMBER_OF_TEST_TRANSACTION_OUTPUT);
             memcpy(previous_output_private_key_array, res_private_key_array, NUMBER_OF_TEST_TRANSACTION_OUTPUT * sizeof(char *));
-            for (int i = 0; i < NUMBER_OF_TEST_TRANSACTION_INPUT; i++) previous_transaction_id_array[i] = res_txid;
+            for (int j = 0; j < NUMBER_OF_TEST_TRANSACTION_INPUT; j++) previous_transaction_id_array[j] = res_txid;
 
-            if (TEST_CREATE_BLOCK){
+            if (TEST_CREATE_BLOCK) {
                 // create the block
                 block* block1 = create_a_new_block(previous_block_header_hash, t, &result_block_hash);
                 add_send_data("create block",block1,NULL, &send_data_arr[i], &data_size_arr[i]);
@@ -110,37 +109,37 @@ int main(int argc, char const *argv[]) {
                 add_send_data("create transaction",NULL,t, &send_data_arr[i], &data_size_arr[i]);
             }
 
-            // create multi-to-one transaction
-            for (int i = 0; i < NUMBER_OF_TEST_TRANSACTION_INPUT; i++) previous_output_index_list[i] = i;
+            // create multi-to-one curr_transaction
+            for (int j = 0; j < NUMBER_OF_TEST_TRANSACTION_INPUT; j++) previous_output_index_list[j] = j;
             rest_coin = rest_coin + NUMBER_OF_TEST_TRANSACTION_INPUT - 1,
-            transaction = create_a_new_many_in_single_out_transaction(previous_transaction_id_array,
-                                                                      previous_output_private_key_array,
-                                                                      previous_output_index_list,
-                                                                      rest_coin,
-                                                                      &res_txid,
-                                                                      &res_private_key,
-                                                                      NUMBER_OF_TEST_TRANSACTION_INPUT);
+            curr_transaction = create_a_new_many_in_single_out_transaction(previous_transaction_id_array,
+                                                                           previous_output_private_key_array,
+                                                                           previous_output_index_list,
+                                                                           rest_coin,
+                                                                           &res_txid,
+                                                                           &res_private_key,
+                                                                           NUMBER_OF_TEST_TRANSACTION_INPUT);
             memcpy(previous_transaction_id, res_txid, 64);
             memcpy(previous_output_private_key, res_private_key, 64);
         } else if (TEST_TRANSACTION_TYPE == 2) {
-            // create one-to-multi transaction
+            // create one-to-multi curr_transaction
             rest_coin = rest_coin - (NUMBER_OF_TEST_TRANSACTION_OUTPUT - 1);
             previous_value[0] = rest_coin;
-            for (int i = 1; i < NUMBER_OF_TEST_TRANSACTION_OUTPUT; i++) previous_value[i] = 1;
-            transaction = create_a_new_single_in_many_out_transaction(previous_transaction_id,
-                                                                      previous_output_private_key,
-                                                                      0,
-                                                                      previous_value,
-                                                                      &res_txid,
-                                                                      &res_private_key_array,
-                                                                      NUMBER_OF_TEST_TRANSACTION_OUTPUT);
+            for (int j = 1; j < NUMBER_OF_TEST_TRANSACTION_OUTPUT; j++) previous_value[j] = 1;
+            curr_transaction = create_a_new_single_in_many_out_transaction(previous_transaction_id,
+                                                                           previous_output_private_key,
+                                                                           0,
+                                                                           previous_value,
+                                                                           &res_txid,
+                                                                           &res_private_key_array,
+                                                                           NUMBER_OF_TEST_TRANSACTION_OUTPUT);
             memcpy(previous_transaction_id, res_txid, 64);
             previous_output_private_key = res_private_key_array[0];
         } else {
             general_log(LOG_SCOPE, LOG_ERROR, "Type of test transaction is invalid!");
         }
 
-        if (TEST_CREATE_BLOCK){
+        if (TEST_CREATE_BLOCK) {
             // create the block
             block* block1 = create_a_new_block(previous_block_header_hash, transaction, &result_block_hash);
             add_send_data("create block",block1,NULL, &send_data_arr[i], &data_size_arr[i]);
@@ -156,7 +155,6 @@ int main(int argc, char const *argv[]) {
     }
     free(send_data_arr);
     free(data_size_arr);
-
     close(client_fd);
     return 0;
 }

@@ -53,6 +53,7 @@ void free_g_global_block_table_entry(void *block_id, void *blk, void *user_data)
 bool initialize_block_persistence() {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
+            "SET max_heap_table_size = 1024*1024*1024*2;\n"
             "CREATE TABLE if not exists block\n"
             "(\n"
             "    block_id  int auto_increment,\n"

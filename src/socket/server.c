@@ -6,7 +6,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
 #include "../model/block/block.h"
 #include "../model/block/block_persistence.h"
 #include "../model/transaction/transaction_persistence.h"
@@ -40,6 +39,8 @@ int main(int argc, char const *argv[]) {
     hints.ai_family = AF_INET;        // Use AF_INET6 to force IPv6.
     hints.ai_socktype = SOCK_STREAM;  // Use socket stream.
     hints.ai_flags = AI_PASSIVE;      // Use my IP address.
+    char **general_log_buffer = (char **)malloc((NUMBER_OF_TEST_MODEL * 2 + 2) * sizeof(char *));
+    for (int i = 0; i < (NUMBER_OF_TEST_MODEL * 2 + 2); i++) general_log_buffer[i] = (char *)malloc(20);
 
     int get_addr_res;
     if ((get_addr_res = getaddrinfo(NULL, SERVER_PORT_NO, &hints, &serv_addr_info)) != 0) {
@@ -83,8 +84,9 @@ int main(int argc, char const *argv[]) {
         }
         general_log(LOG_SCOPE, LOG_INFO, "Handling client %s", inet_ntoa(incoming_client_address.sin_addr));
         pthread_t thread_id;
-        int *arg = malloc(sizeof(*arg));
+        int *arg = malloc(sizeof(*arg) * 2);
         *arg = client_socket;
+        arg[1] = (int)general_log_buffer;
         pthread_create(&thread_id, NULL, handle_tcp_connection, arg);
     }
 
@@ -97,14 +99,17 @@ int main(int argc, char const *argv[]) {
 void *handle_tcp_connection(void *arg) {
     int client_socket = ((int *)arg)[0];
     char msg_buffer[SOCKET_MSG_MAX_SIZE];
+    char **general_log_buffer = ((char ***) arg)[1];
+    int general_log_counter = 0;
+    sprintf(general_log_buffer[general_log_counter++], "Save,Ver");
 
-    for (int i = 0 ; i< NUMBER_OF_TEST_MODEL; i++){
+    for (int i = 0; i < NUMBER_OF_TEST_MODEL; i++) {
         // Get message.
         recv(client_socket, msg_buffer, sizeof(msg_buffer), 0);
         char *received_command = msg_buffer;
         char *data = received_command + COMMAND_LENGTH;
 
-        if (i==0 || i==NUMBER_OF_TEST_MODEL-1){
+        if (i == 0 || i == NUMBER_OF_TEST_MODEL - 1) {
             general_log(LOG_SCOPE, LOG_INFO, "Received connection %d @(timestamp: %lu): %s", i, get_timestamp(), received_command);
         }
 
@@ -126,7 +131,6 @@ void *handle_tcp_connection(void *arg) {
             if (strcmp(received_command, "genesis block") != 0) {
                 // If received block is not genesis, go through normal workflow.
                 if (verify_block(block1)) {
-                    general_log(LOG_SCOPE, LOG_INFO, "Block verification done. Timestamp: %lu", get_timestamp());
                     if (!save_block(block1)) {
                         general_log(LOG_SCOPE, LOG_ERROR, "Saving failed.");
                     }
@@ -148,34 +152,41 @@ void *handle_tcp_connection(void *arg) {
             memcpy(received_socket_tx, data, get_socket_transaction_length((socket_transaction *)data));
             transaction *tx = cast_to_transaction(received_socket_tx);
 
-            // Print receive socket tx info.
-            general_log(LOG_SCOPE, LOG_DEBUG, "Tx out count: %d", tx->tx_out_count);
-            general_log(LOG_SCOPE, LOG_DEBUG, "Tx in count: %d", tx->tx_in_count);
-            general_log(LOG_SCOPE, LOG_DEBUG, "Lock time: %u", tx->lock_time);
-
             received_command = str_trim(received_command);
             if (strcmp(received_command, "genesis transaction") != 0) {
                 // verification
+                unsigned long verification_time = get_timestamp();
                 if (verify_transaction(tx)) {
-//                    general_log(LOG_SCOPE, LOG_INFO, "Transaction verification done. Timestamp: %ul", get_timestamp());
                     // Save to database.
+                    verification_time = get_timestamp() - verification_time;
+                    unsigned long save_time = get_timestamp();
                     if (!save_transaction(tx)) {
                         general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the transaction.");
                     }
+                    save_time = get_timestamp() - save_time;
+                    sprintf(general_log_buffer[general_log_counter++], "%lu,%lu", save_time, verification_time);
                 } else {
                     general_log(LOG_SCOPE, LOG_ERROR, "Transaction verification failed.");
                 }
             } else {
+                unsigned long save_timestamp = get_timestamp();
+
                 if (!save_transaction(tx)) {
                     general_log(LOG_SCOPE, LOG_ERROR, "Failed to save the genesis transaction.");
                 }
+                sprintf(general_log_buffer[general_log_counter++], "%lu,%d", get_timestamp() - save_timestamp, 0);
             }
-
             // Free variables.
             free(received_command);
             free(received_socket_tx);
         }
+        char *send_command = "Done";
+        send(client_socket, send_command, strlen(send_command), 0);
     }
+
+    write_to_file(LOGGING_CSV_NAME, LOGGING_MODE, (char **)general_log_buffer, general_log_counter);
+    for (int i = 0; i < (NUMBER_OF_TEST_MODEL * 2 + 2); i++) free(general_log_buffer[i]);
+    free(general_log_buffer);
     general_log(LOG_SCOPE, LOG_INFO, "%d models done!", NUMBER_OF_TEST_MODEL);
     close(client_socket);
     pthread_exit(NULL);

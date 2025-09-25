@@ -641,7 +641,7 @@ transaction *create_a_new_many_in_single_out_transaction(char **previous_transac
 }
 
 /**
-* Create a transaction with many input and one output.
+ * Create a transaction with many input and one output.
  * @param previous_transaction_id previous transaction id
  * @param previous_output_private_key previous transaction private key
  * @param previous_tx_output_idx previous transaction output index
@@ -658,15 +658,15 @@ transaction *create_a_new_single_in_many_out_transaction(char *previous_transact
                                                          int *previous_value,
                                                          char **res_txid,
                                                          char ***res_private_key,
-                                                         int output_num){
+                                                         int output_num) {
     transaction_create_shortcut_output *outputs = malloc(output_num * sizeof(transaction_create_shortcut_output));
-    char* new_private_key_list[output_num];
+    char *new_private_key_list[output_num];
     for (int i = 0; i < output_num; i++) {
         unsigned char *new_private_key = get_a_new_private_key();
         secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
-        transaction_create_shortcut_output output = {.value=previous_value[i],.public_key=(char *)new_public_key->data};
-        new_private_key_list[i]=new_private_key;
-        outputs[i]=output;
+        transaction_create_shortcut_output output = {.value = previous_value[i], .public_key = (char *)new_public_key->data};
+        new_private_key_list[i] = new_private_key;
+        outputs[i] = output;
     }
 
     transaction_create_shortcut_input input = {
@@ -681,7 +681,7 @@ transaction *create_a_new_single_in_many_out_transaction(char *previous_transact
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
     }
     *res_txid = get_transaction_txid(t);
-    for(int i=0;i<output_num;i++){
+    for (int i = 0; i < output_num; i++) {
         res_private_key[i] = new_private_key_list[i];
     }
     return t;
