@@ -176,11 +176,11 @@ cd build && ctest
 
 ### CMake Options
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `BUILD_TESTING` | `ON` | Build unit tests |
-| `BUILD_DOCS` | `OFF` | Build documentation |
-| `ENABLE_COVERAGE` | `ON` | Enable test coverage |
+| Option            | Default | Description          |
+| ----------------- | ------- | -------------------- |
+| `BUILD_TESTING`   | `ON`    | Build unit tests     |
+| `BUILD_DOCS`      | `OFF`   | Build documentation  |
+| `ENABLE_COVERAGE` | `ON`    | Enable test coverage |
 
 ### Example Configurations
 
@@ -227,12 +227,12 @@ Interactive command-line interface:
 
 ### External Libraries
 
-| Library | Purpose | Version |
-|---------|---------|---------|
-| MySQL Client | Database persistence | 8.0+ |
-| GLib | Data structures and utilities | 2.0+ |
-| secp256k1 | Elliptic curve cryptography | Latest |
-| Check | Unit testing framework | Latest |
+| Library      | Purpose                       | Version |
+| ------------ | ----------------------------- | ------- |
+| MySQL Client | Database persistence          | 8.0+    |
+| GLib         | Data structures and utilities | 2.0+    |
+| secp256k1    | Elliptic curve cryptography   | Latest  |
+| Check        | Unit testing framework        | Latest  |
 
 ### Dependency Management
 
