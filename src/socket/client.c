@@ -4,7 +4,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "model/block//block.h"
+#include "model/block/block.h"
 #include "model/transaction/transaction.h"
 #include "model/transaction/transaction_persistence.h"
 #include "utils/constants.h"

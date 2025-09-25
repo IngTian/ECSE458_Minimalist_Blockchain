@@ -6,6 +6,8 @@
 # CMake products.
 /cmake-build-debug
 /build
+/camke
+/apps
 
 # Temp folder
 /tmp
