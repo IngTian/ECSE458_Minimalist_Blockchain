@@ -208,3 +208,19 @@ void print_hex(unsigned char *data, int size) {
     }
     printf("\n");
 }
+
+/**
+ * Write log to a file.
+ * @param dir A file number.
+ * @param mode Writing mode.
+ * @param lines Lines.
+ * @param line_size The number of lines.
+ */
+void write_to_file(char *dir, char *mode, char **lines, int line_size) {
+    FILE *fptr;
+    fptr = fopen(dir, mode);
+    for (int i = 0; i < line_size; ++i) {
+        fprintf(fptr, "%s\n", lines[i]);
+    }
+    fclose(fptr);
+}

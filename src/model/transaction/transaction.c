@@ -40,7 +40,7 @@ bool verify_transaction_input(transaction_input *i, bool skip_UTXO_check) {
     unsigned int output_idx = outpoint.index;
 
     if (!does_transaction_exist(transaction_hash)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Could not find previous transaction");
+        general_log(LOG_SCOPE, LOG_ERROR, "Could not find previous transaction: %s", transaction_hash);
         return false;
     }
 
@@ -151,10 +151,11 @@ transaction *initialize_transaction_system(bool skip_genesis) {
 
 /**
  * Destroy the transaction system.
+ * @param db_name The name of the MySQL database to use.
  * @author Ing Tian
  */
-void destroy_transaction_system() {
-    destroy_transaction_persistence();
+void destroy_transaction_system(char *db_name) {
+    destroy_transaction_persistence(db_name);
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the transaction module.");
 }
 
@@ -550,4 +551,138 @@ transaction *cast_to_transaction(socket_transaction *socket_transaction) {
 int get_socket_transaction_length(socket_transaction *socket_tx) {
     return sizeof(socket_transaction) + socket_tx->tx_in_count * sizeof(socket_transaction_input) +
            socket_tx->tx_out_count * sizeof(socket_transaction_output);
+}
+
+/**
+ * Create a transaction with one input and one output.
+ * @param previous_transaction_id previous transaction id
+ * @param previous_output_private_key  previous transaction private key
+ * @param previous_tx_output_idx previous transaction output index
+ * @param previous_value the amount of input value
+ * @param res_txid the txid of the created transaction
+ * @param res_private_key the private key of the created transaction.
+ * @return The pointer of the transaction.
+ * @author Shichang Zhang
+ */
+transaction *create_a_new_single_in_single_out_transaction(char *previous_transaction_id,
+                                                           char *previous_output_private_key,
+                                                           int previous_tx_output_idx,
+                                                           int previous_value,
+                                                           char **res_txid,
+                                                           char **res_private_key) {
+    transaction_create_shortcut_input input = {
+        .previous_output_idx = previous_tx_output_idx, .previous_txid = previous_transaction_id, .private_key = previous_output_private_key};
+
+    unsigned char *new_private_key = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
+    transaction_create_shortcut_output output = {.value = previous_value, .public_key = (char *)new_public_key->data};
+    transaction_create_shortcut create_data = {.num_of_inputs = 1, .num_of_outputs = 1, .outputs = &output, .inputs = &input};
+    transaction *t = (transaction *)malloc(sizeof(transaction));
+
+    if (!create_new_transaction_shortcut(&create_data, t)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
+    }
+
+    if (!finalize_transaction(t)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
+    }
+
+    *res_txid = get_transaction_txid(t);
+    *res_private_key = new_private_key;
+
+    return t;
+}
+
+/**
+ * Create a transaction with many input and one output.
+ * @param previous_transaction_id previous transaction id list
+ * @param previous_output_private_key previous transaction private key list
+ * @param previous_tx_output_idx previous transaction output index
+ * @param previous_value previous value list
+ * @param res_txid created transaction txid
+ * @param res_private_key created transaction private key
+ * @param input_num number of input of the transaction
+ * @return The pointer of the transaction.
+ * @author Junjian Chen
+ */
+transaction *create_a_new_many_in_single_out_transaction(char **previous_transaction_id,
+                                                         char **previous_output_private_key,
+                                                         int *previous_tx_output_idx,
+                                                         int previous_value,
+                                                         char **res_txid,
+                                                         char **res_private_key,
+                                                         int input_num) {
+    transaction_create_shortcut_input *inputs = malloc(input_num * sizeof(transaction_create_shortcut_input));
+    for (int i = 0; i < input_num; i++) {
+        transaction_create_shortcut_input input = {.previous_output_idx = previous_tx_output_idx[i],
+                                                   .previous_txid = previous_transaction_id[i],
+                                                   .private_key = previous_output_private_key[i]};
+        inputs[i] = input;
+    }
+
+    unsigned char *new_private_key = get_a_new_private_key();
+    secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
+    transaction_create_shortcut_output output = {.value = previous_value, .public_key = (char *)new_public_key->data};
+    transaction_create_shortcut create_data = {.num_of_inputs = input_num, .num_of_outputs = 1, .outputs = &output, .inputs = inputs};
+    transaction *t = (transaction *)malloc(sizeof(transaction));
+
+    if (!create_new_transaction_shortcut(&create_data, t)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
+    }
+
+    if (!finalize_transaction(t)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
+    }
+
+    *res_txid = get_transaction_txid(t);
+    *res_private_key = new_private_key;
+
+    return t;
+}
+
+/**
+ * Create a transaction with many input and one output.
+ * @param previous_transaction_id previous transaction id
+ * @param previous_output_private_key previous transaction private key
+ * @param previous_tx_output_idx previous transaction output index
+ * @param previous_value previous transaction value
+ * @param res_txid created transaction txid
+ * @param res_private_key created private key list
+ * @param output_num number of output
+ * @return the pointer of the created transaction.
+ * @author Junjian Chen
+ */
+transaction *create_a_new_single_in_many_out_transaction(char *previous_transaction_id,
+                                                         char *previous_output_private_key,
+                                                         int previous_tx_output_idx,
+                                                         int *previous_value,
+                                                         char **res_txid,
+                                                         char ***res_private_key,
+                                                         int output_num) {
+    transaction_create_shortcut_output *outputs = malloc(output_num * sizeof(transaction_create_shortcut_output));
+    char *new_private_key_list[output_num];
+    for (int i = 0; i < output_num; i++) {
+        unsigned char *new_private_key = get_a_new_private_key();
+        secp256k1_pubkey *new_public_key = get_a_new_public_key((char *)new_private_key);
+        transaction_create_shortcut_output output = {.value = previous_value[i], .public_key = (char *)new_public_key->data};
+        new_private_key_list[i] = new_private_key;
+        outputs[i] = output;
+    }
+
+    transaction_create_shortcut_input input = {
+        .previous_output_idx = previous_tx_output_idx, .previous_txid = previous_transaction_id, .private_key = previous_output_private_key};
+
+    transaction_create_shortcut create_data = {.num_of_inputs = 1, .num_of_outputs = output_num, .outputs = outputs, .inputs = &input};
+    transaction *t = (transaction *)malloc(sizeof(transaction));
+    if (!create_new_transaction_shortcut(&create_data, t)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to create a transaction.");
+    }
+    if (!finalize_transaction(t)) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
+    }
+    *res_txid = get_transaction_txid(t);
+    for (int i = 0; i < output_num; i++) {
+        res_private_key[i] = new_private_key_list[i];
+    }
+    return t;
 }

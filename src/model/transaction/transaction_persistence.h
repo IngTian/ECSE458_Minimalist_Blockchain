@@ -15,7 +15,7 @@ transaction *get_genesis_transaction();
 transaction *get_last_inserted_transaction();
 bool does_transaction_exist(char *);
 bool does_utxo_entry_exist(char *);
-bool destroy_transaction_persistence();
+bool destroy_transaction_persistence(char *);
 unsigned int get_total_number_of_transactions();
 
 #endif
