@@ -1,7 +1,7 @@
 #ifndef MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_UTILS_MYSQL_UTIL_H
 #define MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_UTILS_MYSQL_UTIL_H
 
-#include <mysql.h>
+#include <mysql/mysql.h>
 
 typedef struct MySQLConfig {
     char host_addr[50];

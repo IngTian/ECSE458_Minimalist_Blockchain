@@ -1,4 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
+
+# Set up vcpkg integration before project() call
+if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        CACHE STRING "")
+elseif(EXISTS "/Users/beowulfhrothgar/vcpkg/scripts/buildsystems/vcpkg.cmake")
+    set(CMAKE_TOOLCHAIN_FILE "/Users/beowulfhrothgar/vcpkg/scripts/buildsystems/vcpkg.cmake"
+        CACHE STRING "")
+endif()
+
 project(MinimalistBlockChainSystem
     VERSION 1.0.0
     DESCRIPTION "A minimalist blockchain implementation in C"
@@ -16,10 +26,6 @@ include(cmake/BuildConfig.cmake)
 
 # Global includes
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-# Find required packages
-include(FindPkgConfig)
-find_package(PkgConfig REQUIRED)
 
 # External dependencies
 include(cmake/Dependencies.cmake)

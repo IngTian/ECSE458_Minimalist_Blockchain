@@ -1,7 +1,7 @@
 #include "transaction_persistence.h"
 
 #include <glib.h>
-#include <mysql.h>
+#include <mysql/mysql.h>
 #include <string.h>
 
 #include "utils/constants.h"

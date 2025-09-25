@@ -1,4 +1,5 @@
 # External Dependencies for MinimalistBlockChainSystem
+# Using vcpkg for dependency management
 
 # Test coverage (Apple specific)
 if(APPLE)
@@ -9,65 +10,79 @@ if(APPLE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
 endif()
 
-# MySQL Client
-pkg_check_modules(MYSQL REQUIRED mysqlclient)
-if(MYSQL_FOUND)
-    message(STATUS "MySQL client found: ${MYSQL_VERSION}")
-    # Create imported target
-    add_library(MySQL::Client INTERFACE IMPORTED)
-    target_include_directories(MySQL::Client INTERFACE ${MYSQL_INCLUDE_DIRS})
-    target_link_libraries(MySQL::Client INTERFACE ${MYSQL_LIBRARIES})
-    target_compile_options(MySQL::Client INTERFACE ${MYSQL_CFLAGS_OTHER})
-    target_link_directories(MySQL::Client INTERFACE ${MYSQL_LIBRARY_DIRS})
+# Find packages through vcpkg
+message(STATUS "Finding dependencies through vcpkg...")
+
+# GLib - Portable, general-purpose utility library
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
+if(GLIB_FOUND)
+    message(STATUS "GLib found via vcpkg: ${GLIB_VERSION}")
+    # Use the PkgConfig target directly
+    add_library(GLib::GLib ALIAS PkgConfig::GLIB)
+else()
+    message(FATAL_ERROR "GLib not found. Please install with: vcpkg install glib")
 endif()
 
-# GLib
-pkg_check_modules(GLIB REQUIRED glib-2.0)
-if(GLIB_FOUND)
-    message(STATUS "GLib found: ${GLIB_VERSION}")
-    # Create imported target
-    add_library(GLib::GLib INTERFACE IMPORTED)
-    target_include_directories(GLib::GLib INTERFACE ${GLIB_INCLUDE_DIRS})
-    target_link_libraries(GLib::GLib INTERFACE ${GLIB_LIBRARIES})
-    target_compile_options(GLib::GLib INTERFACE ${GLIB_CFLAGS_OTHER})
-    target_link_directories(GLib::GLib INTERFACE ${GLIB_LIBRARY_DIRS})
+# MySQL Client Library
+find_package(unofficial-libmysql CONFIG QUIET)
+if(unofficial-libmysql_FOUND)
+    message(STATUS "MySQL client found via vcpkg")
+    add_library(MySQL::Client ALIAS unofficial::libmysql::libmysql)
+else()
+    # Fallback to libmysql target name
+    find_package(libmysql CONFIG QUIET)
+    if(libmysql_FOUND)
+        message(STATUS "MySQL client found via vcpkg (libmysql target)")
+        add_library(MySQL::Client ALIAS libmysql)
+    else()
+        message(FATAL_ERROR "MySQL client not found. Please install with: vcpkg install libmysql")
+    endif()
 endif()
 
 # secp256k1 cryptographic library
-find_library(SECP256K1_LIBRARIES 
-    NAMES secp256k1 
-    PATHS /usr/local/lib /opt/homebrew/lib
-    REQUIRED)
-
-if(SECP256K1_LIBRARIES)
-    message(STATUS "secp256k1 found: ${SECP256K1_LIBRARIES}")
-    # Find include directories
-    find_path(SECP256K1_INCLUDE_DIRS 
-        NAMES secp256k1.h 
-        PATHS /usr/local/include /opt/homebrew/include)
-    
-    # Create imported target
-    add_library(secp256k1::secp256k1 SHARED IMPORTED)
-    set_target_properties(secp256k1::secp256k1 PROPERTIES
-        IMPORTED_LOCATION ${SECP256K1_LIBRARIES}
-        INTERFACE_INCLUDE_DIRECTORIES ${SECP256K1_INCLUDE_DIRS})
+find_package(unofficial-secp256k1 CONFIG QUIET)
+if(unofficial-secp256k1_FOUND)
+    message(STATUS "secp256k1 found via vcpkg")
+    # secp256k1 needs both the main library and precomputed tables
+    if(TARGET unofficial::secp256k1 AND TARGET unofficial::secp256k1_precomputed)
+        add_library(secp256k1_combined INTERFACE)
+        target_link_libraries(secp256k1_combined INTERFACE 
+            unofficial::secp256k1 
+            unofficial::secp256k1_precomputed
+        )
+        add_library(secp256k1::secp256k1 ALIAS secp256k1_combined)
+    elseif(TARGET unofficial::secp256k1)
+        add_library(secp256k1::secp256k1 ALIAS unofficial::secp256k1)
+    elseif(TARGET unofficial::secp256k1_precomputed) 
+        add_library(secp256k1::secp256k1 ALIAS unofficial::secp256k1_precomputed)
+    else()
+        message(FATAL_ERROR "secp256k1 targets not found in vcpkg package")
+    endif()
+else()
+    # Try alternative target names
+    find_package(secp256k1 CONFIG QUIET)
+    if(secp256k1_FOUND)
+        message(STATUS "secp256k1 found via vcpkg (secp256k1 target)")
+        add_library(secp256k1::secp256k1 ALIAS secp256k1)
+    else()
+        message(FATAL_ERROR "secp256k1 not found. Please install with: vcpkg install secp256k1")
+    endif()
 endif()
 
 # Check testing framework (for unit tests)
-find_library(CHECK_LIBRARIES 
-    NAMES check 
-    PATHS /opt/homebrew/lib /usr/local/lib)
-find_path(CHECK_INCLUDE_DIRS 
-    NAMES check.h 
-    PATHS /opt/homebrew/include /usr/local/include)
-
-if(CHECK_LIBRARIES AND CHECK_INCLUDE_DIRS)
-    message(STATUS "Check testing framework found: ${CHECK_LIBRARIES}")
-    # Create imported target
-    add_library(Check::Check SHARED IMPORTED)
-    set_target_properties(Check::Check PROPERTIES
-        IMPORTED_LOCATION ${CHECK_LIBRARIES}
-        INTERFACE_INCLUDE_DIRECTORIES ${CHECK_INCLUDE_DIRS})
+find_package(check CONFIG QUIET)
+if(check_FOUND)
+    message(STATUS "Check testing framework found via vcpkg")
+    # Check provides both Check::check and Check::checkShared targets
+    if(TARGET Check::check)
+        add_library(Check::Check ALIAS Check::check)
+    elseif(TARGET Check::checkShared)
+        add_library(Check::Check ALIAS Check::checkShared)
+    else()
+        add_library(Check::Check ALIAS check)
+    endif()
 else()
-    message(STATUS "Check testing framework not found")
+    message(WARNING "Check testing framework not found. Tests may not build.")
+    message(STATUS "To install: vcpkg install check")
 endif()

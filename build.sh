@@ -121,38 +121,28 @@ if ! command -v cmake &> /dev/null; then
     exit 1
 fi
 
-# Check for pkg-config
+# Check for vcpkg (since we're using vcpkg for dependency management)
+if ! command -v vcpkg &> /dev/null; then
+    print_error "vcpkg is required but not found in PATH."
+    print_info "Please ensure vcpkg is installed and available in your PATH."
+    exit 1
+fi
+
+# Check if vcpkg.json exists
+if [[ ! -f "vcpkg.json" ]]; then
+    print_error "vcpkg.json manifest not found."
+    print_info "This project uses vcpkg for dependency management."
+    exit 1
+fi
+
+# Check for pkg-config (still needed for GLib via vcpkg)
 if ! command -v pkg-config &> /dev/null; then
     print_error "pkg-config is required but not installed."
+    print_info "Please install pkg-config: brew install pkg-config"
     exit 1
 fi
 
-# Check for required libraries
-MISSING_DEPS=()
-
-if ! pkg-config --exists mysqlclient; then
-    MISSING_DEPS+=("mysqlclient")
-fi
-
-if ! pkg-config --exists glib-2.0; then
-    MISSING_DEPS+=("glib-2.0")
-fi
-
-if [[ ! -f "/opt/homebrew/lib/libsecp256k1.dylib" ]] && [[ ! -f "/usr/local/lib/libsecp256k1.so" ]]; then
-    MISSING_DEPS+=("secp256k1")
-fi
-
-if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
-    print_error "Missing dependencies: ${MISSING_DEPS[*]}"
-    print_info "On macOS, you can install them with:"
-    print_info "  brew install mysql glib secp256k1"
-    if [[ "$BUILD_TESTS" == "ON" ]]; then
-        print_info "  brew install check  # for unit tests"
-    fi
-    exit 1
-fi
-
-print_success "All dependencies found"
+print_success "vcpkg dependency management configured"
 
 # Clean build if requested
 if [[ "$CLEAN_BUILD" == true ]]; then
