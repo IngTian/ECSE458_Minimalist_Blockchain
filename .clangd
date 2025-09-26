@@ -6,6 +6,5 @@ CompileFlags:
     - "-I/opt/homebrew/opt/gettext/include"
     - "-I/opt/homebrew/Cellar/pcre2/10.46/include"
     - "-I/opt/homebrew/Cellar/mysql/9.2.0_3/include/mysql"
-    - "-std=c11"
     - "-D_GNU_SOURCE"
   CompilationDatabase: build/
