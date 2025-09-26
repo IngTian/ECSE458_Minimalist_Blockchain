@@ -13,6 +13,7 @@
 
 # Temp folder
 /tmp
+/.cache
 
 # Log files
 **/*.log
