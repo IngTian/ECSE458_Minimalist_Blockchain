@@ -155,15 +155,20 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
  * @return SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_struct_in_hex(void *ptr, unsigned int size) {
-    unsigned char hash_msg[32];
+uint8_t *hash_struct(void *ptr, unsigned int size) {
     SHA256_CTX ctx;
     sha256_init(&ctx);
     sha256_update(&ctx, (unsigned char *)ptr, size);
-    sha256_final(&ctx, hash_msg);
-    char *hash_msg_hex = convert_char_hexadecimal((char *)hash_msg, 32);
-    general_log(LOG_SCOPE, LOG_DEBUG, "Hash message hashed (hex) -> %s", hash_msg_hex);
-    return hash_msg_hex;
+    uint8_t *result = (uint8_t *)malloc(32);
+    sha256_final(&ctx, result);
+    return result;
+}
+
+char *hash_to_hex(const uint8_t *hash) {
+    char *hex = (char *)malloc(65);
+    for (int i = 0; i < 32; i++) sprintf(hex + i * 2, "%02x", hash[i]);
+    hex[64] = '\0';
+    return hex;
 }
 
 /**

@@ -3,6 +3,7 @@
 
 #include <glib.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "utils/cryptography.h"
 
@@ -19,8 +20,8 @@
  */
 
 typedef struct TransactionOutpoint {
-    char hash[65];       // The transaction ID (TXID) of the transaction holding the output to spend.
-    unsigned int index;  // The output index of the specific output to spend from the transaction. Starts from 0.
+    uint8_t hash[32];    // The TXID of the transaction holding the output to spend (raw SHA256 bytes).
+    unsigned int index;  // The output index. Starts from 0.
 } transaction_outpoint;
 
 typedef struct TransactionInput {
@@ -46,7 +47,7 @@ typedef struct Transaction {
 } transaction;
 
 typedef struct TransactionCreateShortcutInput {
-    char *previous_txid;
+    uint8_t *previous_txid;
     unsigned int previous_output_idx;
     char *private_key;
 } transaction_create_shortcut_input;
@@ -70,8 +71,8 @@ typedef struct TransactionCreateShortcut {
  */
 
 typedef struct SocketTransactionOutpoint {
-    char hash[65];       // The transaction ID (TXID) of the transaction holding the output to spend.
-    unsigned int index;  // The output index of the specific output to spend from the transaction. Starts from 0.
+    uint8_t hash[32];    // TXID raw bytes.
+    unsigned int index;
 } socket_transaction_outpoint;
 
 typedef struct SocketTransactionInput {
@@ -106,35 +107,35 @@ typedef struct SocketTransaction {
 transaction *initialize_transaction_system(bool skip_genesis);
 void destroy_transaction_system(char *);
 void destroy_transaction(transaction *);
-char *get_transaction_txid(transaction *);
-char *get_genesis_transaction_private_key();
-secp256k1_pubkey *get_genesis_transaction_public_key();
-transaction *get_transaction_by_txid(char *);
+uint8_t *get_transaction_txid(transaction *);
+char *get_genesis_transaction_private_key(void);
+secp256k1_pubkey *get_genesis_transaction_public_key(void);
+transaction *get_transaction_by_txid(uint8_t *);
 bool create_new_transaction_shortcut(transaction_create_shortcut *, transaction *);
 bool finalize_transaction(transaction *);
 socket_transaction *cast_to_socket_transaction(transaction *);
 transaction *cast_to_transaction(socket_transaction *);
 int get_socket_transaction_length(socket_transaction *);
 bool verify_transaction(transaction *);
-char *hash_transaction_outpoint(transaction_outpoint *);
-transaction *create_a_new_single_in_single_out_transaction(char *previous_transaction_id,
+uint8_t *hash_transaction_outpoint(transaction_outpoint *);
+transaction *create_a_new_single_in_single_out_transaction(uint8_t *previous_transaction_id,
                                                            char *previous_output_private_key,
                                                            int previous_tx_output_idx,
                                                            int previous_value,
-                                                           char **res_txid,
+                                                           uint8_t **res_txid,
                                                            char **res_private_key);
-transaction *create_a_new_many_in_single_out_transaction(char **previous_transaction_id,
+transaction *create_a_new_many_in_single_out_transaction(uint8_t **previous_transaction_id,
                                                          char **previous_output_private_key,
                                                          int *previous_tx_output_idx,
                                                          int previous_value,
-                                                         char **res_txid,
+                                                         uint8_t **res_txid,
                                                          char **res_private_key,
                                                          int input_num);
-transaction *create_a_new_single_in_many_out_transaction(char *previous_transaction_id,
+transaction *create_a_new_single_in_many_out_transaction(uint8_t *previous_transaction_id,
                                                          char *previous_output_private_key,
                                                          int previous_tx_output_idx,
                                                          int *previous_value,
-                                                         char **res_txid,
+                                                         uint8_t **res_txid,
                                                          char ***res_private_key,
                                                          int output_num);
 #endif

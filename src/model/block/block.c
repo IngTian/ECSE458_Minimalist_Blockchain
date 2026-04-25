@@ -12,7 +12,7 @@
 
 #define LOG_SCOPE "block"
 
-char *g_genesis_block_hash;  // The hash of the header of the genesis block.
+uint8_t *g_genesis_block_hash;  // The hash of the header of the genesis block (raw 32 bytes).
 
 /*
  * -----------------------------------------------------------
@@ -26,11 +26,16 @@ char *g_genesis_block_hash;  // The hash of the header of the genesis block.
  * @return The SHA256 code.
  * @auhor Junjian Chen
  */
-char *hash_block_header(block_header *header) {
-    char *hash = hash_struct_in_hex(header, sizeof(block_header));
-    char *ret_val = hash_struct_in_hex(hash, strlen(hash));
-    free(hash);
-    return ret_val;
+static bool is_zero_hash(const uint8_t *hash) {
+    for (int i = 0; i < 32; i++) if (hash[i] != 0) return false;
+    return true;
+}
+
+uint8_t *hash_block_header(block_header *header) {
+    uint8_t *first = hash_struct(header, sizeof(block_header));
+    uint8_t *second = hash_struct(first, 32);
+    free(first);
+    return second;
 }
 
 /*
@@ -52,7 +57,9 @@ block *initialize_block_system(bool skip_genesis) {
     if (total_number_of_blocks == 0) {
         block *genesis_block = create_an_empty_block(1);
         g_genesis_block_hash = hash_block_header(genesis_block->header);
-        general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.", g_genesis_block_hash);
+        char *hash_hex = hash_to_hex(g_genesis_block_hash);
+        general_log(LOG_SCOPE, LOG_INFO, "Initialized the block system Genesis block hash: %s.", hash_hex);
+        free(hash_hex);
         return genesis_block;
     } else {
         return get_genesis_block();
@@ -80,8 +87,8 @@ block *create_an_empty_block(unsigned int transaction_amount) {
     block *block_create = malloc(sizeof(block));
     block_header *header = malloc(sizeof(block_header));
     header->version = 0;
-    memset(header->prev_block_header_hash, '\0', 65);
-    memset(header->merkle_root_hash, '\0', 65);
+    memset(header->prev_block_header_hash, 0, 32);
+    memset(header->merkle_root_hash, 0, 32);
     header->nonce = 0;
     header->nBits = 0;
     header->time = get_current_unix_time();
@@ -104,9 +111,8 @@ bool append_prev_block(block *prev_block, block *cur_block) {
         return false;
     }
 
-    // SHA256(previous block header) twice.
-    char *prev_block_header_hash = hash_block_header(prev_block->header);
-    memcpy(cur_block->header->prev_block_header_hash, prev_block_header_hash, 64);
+    uint8_t *prev_block_header_hash = hash_block_header(prev_block->header);
+    memcpy(cur_block->header->prev_block_header_hash, prev_block_header_hash, 32);
     free(prev_block_header_hash);
     return true;
 }
@@ -132,9 +138,9 @@ bool check_block_valid(block *block1) {
     }
 
     // check if the previous block is NULL
-    if (strcmp(header->prev_block_header_hash, "") == 0) {
-        char *hdr_hash = hash_block_header(header);
-        bool is_genesis = strcmp(hdr_hash, g_genesis_block_hash) == 0;
+    if (is_zero_hash(header->prev_block_header_hash)) {
+        uint8_t *hdr_hash = hash_block_header(header);
+        bool is_genesis = memcmp(hdr_hash, g_genesis_block_hash, 32) == 0;
         free(hdr_hash);
         if (!is_genesis) {
             general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid since the previous block is null.");
@@ -177,7 +183,7 @@ bool finalize_block(block *block_finalize) {
  * @return The block.
  * @author Junjian Chen
  */
-block *get_block_by_hash(char *hash) { return get_block(hash); }
+block *get_block_by_hash(uint8_t *hash) { return get_block(hash); }
 
 /**
  * Add transaction into the block.
@@ -226,10 +232,10 @@ bool verify_block_chain(block *chain_tail) {
             return false;
         }
 
-        if (strcmp(temp->header->prev_block_header_hash, "") == 0) {
+        if (is_zero_hash(temp->header->prev_block_header_hash)) {
             // When temp is genesis block
-            char *hash = hash_block_header(temp->header);
-            bool valid = strcmp(hash, g_genesis_block_hash) == 0;
+            uint8_t *hash = hash_block_header(temp->header);
+            bool valid = memcmp(hash, g_genesis_block_hash, 32) == 0;
             free(hash);
             if (valid) {
                 general_log(LOG_SCOPE, LOG_INFO, "The chain is valid!");
@@ -249,8 +255,8 @@ bool verify_block_chain(block *chain_tail) {
                 return false;
             }
 
-            char *hash = hash_block_header(prev_block->header);
-            bool match = strcmp(hash, temp->header->prev_block_header_hash) == 0;
+            uint8_t *hash = hash_block_header(prev_block->header);
+            bool match = memcmp(hash, temp->header->prev_block_header_hash, 32) == 0;
             free(hash);
             if (match) {
                 temp = get_block_by_hash(temp->header->prev_block_header_hash);
@@ -289,7 +295,7 @@ bool verify_block(block *block1) {
  * @return The hash of the genesis block.
  * @author Junjian Chen
  */
-char *get_genesis_block_hash() { return g_genesis_block_hash; }
+uint8_t *get_genesis_block_hash(void) { return g_genesis_block_hash; }
 
 /**
  * Create a new block based on its header information, transactions information
@@ -300,9 +306,9 @@ char *get_genesis_block_hash() { return g_genesis_block_hash; }
  */
 bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest) {
     block *ret_block = create_an_empty_block(block_data->transaction_list->txn_count);
-    memcpy(ret_block->header->prev_block_header_hash, block_data->header->prev_block_header_hash, 65);
+    memcpy(ret_block->header->prev_block_header_hash, block_data->header->prev_block_header_hash, 32);
     ret_block->header->time = block_data->header->time;
-    memcpy(ret_block->header->merkle_root_hash, block_data->header->merkle_root_hash, 65);
+    memcpy(ret_block->header->merkle_root_hash, block_data->header->merkle_root_hash, 32);
     ret_block->header->nBits = block_data->header->nBits;
     ret_block->header->nonce = block_data->header->nonce;
     ret_block->header->version = block_data->header->version;
@@ -312,7 +318,7 @@ bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest) {
     return true;
 }
 
-bool block_rollback(char *rollback_block_hash, char *current_block_hash) {
+bool block_rollback(uint8_t *rollback_block_hash, uint8_t *current_block_hash) {
     if (rollback_block_hash == NULL) {
         general_log(LOG_SCOPE, LOG_ERROR, "The block hash is null.");
         return false;
@@ -324,7 +330,7 @@ bool block_rollback(char *rollback_block_hash, char *current_block_hash) {
     }
     block *current_block = get_block_by_hash(current_block_hash);
 
-    while (strcmp(current_block_hash, rollback_block_hash) != 0) {
+    while (memcmp(current_block_hash, rollback_block_hash, 32) != 0) {
         current_block_hash = current_block->header->prev_block_header_hash;
         destroy_block(current_block);
         current_block = get_block_by_hash(current_block_hash);
@@ -356,8 +362,8 @@ socket_block *cast_to_socket_block(block *b) {
     socket_blk->txn_count = b->txn_count;
     socket_blk->nBits = b->header->nBits;
     socket_blk->time = b->header->time;
-    memcpy(socket_blk->prev_block_header_hash, b->header->prev_block_header_hash, 65);
-    memcpy(socket_blk->merkle_root_hash, b->header->merkle_root_hash, 65);
+    memcpy(socket_blk->prev_block_header_hash, b->header->prev_block_header_hash, 32);
+    memcpy(socket_blk->merkle_root_hash, b->header->merkle_root_hash, 32);
 
     for (int i = 0; i < b->txn_count; i++) {
         char *tx_starting_address = socket_blk->txns + txns_ptr_deviation[i];
@@ -385,8 +391,8 @@ block *cast_to_block(socket_block *socket_blk) {
     blk_header->version = socket_blk->version;
     blk_header->nBits = socket_blk->nBits;
     blk_header->nonce = socket_blk->nonce;
-    memcpy(blk_header->prev_block_header_hash, socket_blk->prev_block_header_hash, 65);
-    memcpy(blk_header->merkle_root_hash, socket_blk->merkle_root_hash, 65);
+    memcpy(blk_header->prev_block_header_hash, socket_blk->prev_block_header_hash, 32);
+    memcpy(blk_header->merkle_root_hash, socket_blk->merkle_root_hash, 32);
 
     // Initialize a block.
     block *blk = (block *)malloc(sizeof(block));
@@ -433,10 +439,9 @@ int get_socket_block_length(block *b) {
  * @return the created block pointer/
  * @author Shichang Zhang
  */
-block *create_a_new_block(char *previous_block_header_hash, transaction *txn, char **result_header_hash) {
-    block_header_shortcut block_header = {
-        .prev_block_header_hash = "", .version = 0, .nonce = 0, .nBits = 0, .merkle_root_hash = "", .time = get_current_unix_time()};
-    memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 65);
+block *create_a_new_block(uint8_t *previous_block_header_hash, transaction *txn, uint8_t **result_header_hash) {
+    block_header_shortcut block_header = {.version = 0, .nonce = 0, .nBits = 0, .time = get_current_unix_time()};
+    memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 32);
     transaction **txns = malloc(sizeof(transaction *));
     txns[0] = txn;
     transactions_shortcut txns_shortcut = {.txns = txns, .txn_count = 1};

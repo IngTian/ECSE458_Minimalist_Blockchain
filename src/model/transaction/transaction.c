@@ -15,8 +15,8 @@
 char *g_genesis_private_key;
 secp256k1_pubkey *g_genesis_public_key;
 
-char *hash_transaction_outpoint(transaction_outpoint *);
-char *hash_transaction_output(transaction_output *);
+uint8_t *hash_transaction_outpoint(transaction_outpoint *);
+uint8_t *hash_transaction_output(transaction_output *);
 transaction *create_an_empty_transaction(unsigned int, unsigned int);
 bool append_new_transaction_input(transaction *, transaction_input, unsigned int);
 bool append_new_transaction_output(transaction *, transaction_output, unsigned int);
@@ -53,18 +53,19 @@ bool verify_transaction_input(transaction_input *i, bool skip_UTXO_check) {
     }
 
     transaction_output previous_transaction_output = previous_transaction->tx_outs[output_idx];
-    char *hash_msg = hash_transaction_output(&previous_transaction_output);
+    uint8_t *hash_msg = hash_transaction_output(&previous_transaction_output);
     secp256k1_pubkey pubkey;
     secp256k1_ecdsa_signature signature;
     memcpy(pubkey.data, previous_transaction_output.pk_script, 64);
     memcpy(signature.data, i->signature_script, 64);
 
     transaction_outpoint *copied_outpoint = (transaction_outpoint *)malloc(sizeof(transaction_outpoint));
-    memcpy(copied_outpoint->hash, outpoint.hash, 64);
-    copied_outpoint->hash[64] = '\0';
+    memcpy(copied_outpoint->hash, outpoint.hash, 32);
     copied_outpoint->index = outpoint.index;
-    char *utxo_key = hash_transaction_outpoint(copied_outpoint);
+    uint8_t *utxo_key = hash_transaction_outpoint(copied_outpoint);
+    free(copied_outpoint);
     if (!does_utxo_entry_exist(utxo_key) && !skip_UTXO_check) {
+        free(utxo_key);
         general_log(LOG_SCOPE, LOG_ERROR, "UTXO is over spent.");
         return false;
     }
@@ -129,19 +130,23 @@ transaction *initialize_transaction_system(bool skip_genesis) {
         memcpy(genesis_transaction->tx_outs->pk_script, g_genesis_public_key->data, 64);
         genesis_transaction->tx_outs[0].pk_script_bytes = 64;
 
-        char *genesis_txid = get_transaction_txid(genesis_transaction);
+        uint8_t *genesis_txid = get_transaction_txid(genesis_transaction);
 
         transaction_outpoint outpoint = {.index = 0};
-        memcpy(outpoint.hash, genesis_txid, 64);
-        outpoint.hash[64] = '\0';
-        char *outpoint_hash = hash_transaction_outpoint(&outpoint);
+        memcpy(outpoint.hash, genesis_txid, 32);
+        free(genesis_txid);
+        uint8_t *outpoint_hash = hash_transaction_outpoint(&outpoint);
         long int *genesis_balance = (long int *)malloc(sizeof(long int));
         *genesis_balance = TOTAL_NUMBER_OF_COINS;
 
         save_utxo_entry(outpoint_hash, genesis_balance);
         save_transaction(genesis_transaction);
 
-        general_log(LOG_SCOPE, LOG_INFO, "Initialized the transaction module. Genesis TXID: %s", genesis_txid);
+        uint8_t *log_txid = get_transaction_txid(genesis_transaction);
+        char *log_txid_hex = hash_to_hex(log_txid);
+        free(log_txid);
+        general_log(LOG_SCOPE, LOG_INFO, "Initialized the transaction module. Genesis TXID: %s", log_txid_hex);
+        free(log_txid_hex);
 
         return genesis_transaction;
     } else {
@@ -165,14 +170,14 @@ void destroy_transaction_system(char *db_name) {
  * @return The hash of the transaction (32 bytes).
  * @author Ing Tian
  */
-char *get_transaction_txid(transaction *t) {
+uint8_t *get_transaction_txid(transaction *t) {
     transaction *copied_tx = (transaction *)malloc(sizeof(transaction));
     memset(copied_tx, 0, sizeof(transaction));
     copied_tx->tx_out_count = t->tx_out_count;
     copied_tx->tx_in_count = t->tx_in_count;
     copied_tx->lock_time = t->lock_time;
     copied_tx->version = t->version;
-    char *result = hash_struct_in_hex(copied_tx, sizeof(transaction));
+    uint8_t *result = hash_struct(copied_tx, sizeof(transaction));
     free(copied_tx);
     return result;
 }
@@ -183,14 +188,14 @@ char *get_transaction_txid(transaction *t) {
  * @return The SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_transaction_output(transaction_output *output) {
+uint8_t *hash_transaction_output(transaction_output *output) {
     unsigned long total_size_needed = sizeof(transaction_output) + output->pk_script_bytes;
     transaction_output *copied_output = (transaction_output *)malloc(total_size_needed);
     memset(copied_output, 0, total_size_needed);
     copied_output->pk_script_bytes = output->pk_script_bytes;
     copied_output->value = output->value;
     memcpy((char *)copied_output + sizeof(transaction_output), output->pk_script, output->pk_script_bytes);
-    char *result = hash_struct_in_hex(copied_output, total_size_needed);
+    uint8_t *result = hash_struct(copied_output, total_size_needed);
     free(copied_output);
     return result;
 }
@@ -201,13 +206,13 @@ char *hash_transaction_output(transaction_output *output) {
  * @return The SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_transaction_outpoint(transaction_outpoint *outpoint) {
-    transaction_outpoint *copied_transaction_outpoint = (transaction_outpoint *)malloc(sizeof(transaction_outpoint));
-    memset(copied_transaction_outpoint, 0, sizeof(transaction_outpoint));
-    memcpy(copied_transaction_outpoint->hash, outpoint->hash, 65);
-    copied_transaction_outpoint->index = outpoint->index;
-    char *result = hash_struct_in_hex(copied_transaction_outpoint, sizeof(transaction_outpoint));
-    free(copied_transaction_outpoint);
+uint8_t *hash_transaction_outpoint(transaction_outpoint *outpoint) {
+    transaction_outpoint *copied = (transaction_outpoint *)malloc(sizeof(transaction_outpoint));
+    memset(copied, 0, sizeof(transaction_outpoint));
+    memcpy(copied->hash, outpoint->hash, 32);
+    copied->index = outpoint->index;
+    uint8_t *result = hash_struct(copied, sizeof(transaction_outpoint));
+    free(copied);
     return result;
 }
 
@@ -319,12 +324,12 @@ bool finalize_transaction(transaction *t) {
     }
 
     // Register this transaction in the system.
-    char *txid = get_transaction_txid(t);
+    uint8_t *txid = get_transaction_txid(t);
     save_transaction(t);
 
     // Update UTXO.
     for (int i = 0; i < t->tx_in_count; i++) {
-        char *outpoint_hash = hash_transaction_outpoint(&t->tx_ins[i].previous_outpoint);
+        uint8_t *outpoint_hash = hash_transaction_outpoint(&t->tx_ins[i].previous_outpoint);
         remove_utxo_entry(outpoint_hash);
         free(outpoint_hash);
     }
@@ -332,12 +337,10 @@ bool finalize_transaction(transaction *t) {
     for (int i = 0; i < t->tx_out_count; i++) {
         long int *value = (long int *)malloc(sizeof(long int));
         *value = t->tx_outs[i].value;
-        transaction_outpoint *outpoint = (transaction_outpoint *)malloc(sizeof(transaction_outpoint));
-        memcpy(outpoint->hash, txid, 64);
-        outpoint->hash[64] = '\0';
-        outpoint->index = i;
-        char *outpoint_hash = hash_transaction_outpoint(outpoint);
-        free(outpoint);
+        transaction_outpoint outpoint;
+        memcpy(outpoint.hash, txid, 32);
+        outpoint.index = i;
+        uint8_t *outpoint_hash = hash_transaction_outpoint(&outpoint);
         save_utxo_entry(outpoint_hash, value);
     }
 
@@ -350,9 +353,8 @@ bool finalize_transaction(transaction *t) {
  * @return A new transaction
  * @author Junjian Chen
  */
-transaction *get_transaction_by_txid(char *txid) {
-    transaction *t = get_transaction(txid);
-    return t;
+transaction *get_transaction_by_txid(uint8_t *txid) {
+    return get_transaction(txid);
 }
 
 /**
@@ -389,10 +391,9 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
                                    .script_bytes = 64,
                                    .signature_script = (char *)malloc(65)};
         input.signature_script[64] = '\0';
-        memcpy(input.previous_outpoint.hash, transaction_data->inputs[i].previous_txid, 64);
-        input.previous_outpoint.hash[64] = '\0';
-        char *msg = hash_transaction_output(&previous_tx_output);
-        secp256k1_ecdsa_signature *signature = sign((unsigned char *)curr_input_data.private_key, (unsigned char *)msg);
+        memcpy(input.previous_outpoint.hash, transaction_data->inputs[i].previous_txid, 32);
+        uint8_t *msg = hash_transaction_output(&previous_tx_output);
+        secp256k1_ecdsa_signature *signature = sign((unsigned char *)curr_input_data.private_key, msg);
         memcpy(input.signature_script, signature->data, 64);
         free(signature);
         free(msg);
@@ -480,7 +481,7 @@ socket_transaction *cast_to_socket_transaction(transaction *tx) {
         current_socket_tx_in->script_bytes = tx->tx_ins[i].script_bytes;
         memcpy(current_socket_tx_in->signature_script, tx->tx_ins[i].signature_script, 64);
         current_socket_tx_in->sequence = tx->tx_ins[i].sequence;
-        memcpy(current_socket_tx_in->previous_outpoint.hash, tx->tx_ins[i].previous_outpoint.hash, 64);
+        memcpy(current_socket_tx_in->previous_outpoint.hash, tx->tx_ins[i].previous_outpoint.hash, 32);
         current_socket_tx_in->previous_outpoint.index = tx->tx_ins[i].previous_outpoint.index;
     }
 
@@ -524,8 +525,7 @@ transaction *cast_to_transaction(socket_transaction *socket_transaction) {
         memcpy(current_input->signature_script, current_socket_input.signature_script, 64);
         current_input->signature_script[64] = '\0';
         current_input->previous_outpoint.index = current_socket_input.previous_outpoint.index;
-        memcpy(current_input->previous_outpoint.hash, current_socket_input.previous_outpoint.hash, 64);
-        current_input->previous_outpoint.hash[64] = '\0';
+        memcpy(current_input->previous_outpoint.hash, current_socket_input.previous_outpoint.hash, 32);
     }
 
     // Initialize outputs.
@@ -566,11 +566,11 @@ int get_socket_transaction_length(socket_transaction *socket_tx) {
  * @return The pointer of the transaction.
  * @author Shichang Zhang
  */
-transaction *create_a_new_single_in_single_out_transaction(char *previous_transaction_id,
+transaction *create_a_new_single_in_single_out_transaction(uint8_t *previous_transaction_id,
                                                            char *previous_output_private_key,
                                                            int previous_tx_output_idx,
                                                            int previous_value,
-                                                           char **res_txid,
+                                                           uint8_t **res_txid,
                                                            char **res_private_key) {
     transaction_create_shortcut_input input = {
         .previous_output_idx = previous_tx_output_idx, .previous_txid = previous_transaction_id, .private_key = previous_output_private_key};
@@ -607,11 +607,11 @@ transaction *create_a_new_single_in_single_out_transaction(char *previous_transa
  * @return The pointer of the transaction.
  * @author Junjian Chen
  */
-transaction *create_a_new_many_in_single_out_transaction(char **previous_transaction_id,
+transaction *create_a_new_many_in_single_out_transaction(uint8_t **previous_transaction_id,
                                                          char **previous_output_private_key,
                                                          int *previous_tx_output_idx,
                                                          int previous_value,
-                                                         char **res_txid,
+                                                         uint8_t **res_txid,
                                                          char **res_private_key,
                                                          int input_num) {
     transaction_create_shortcut_input *inputs = malloc(input_num * sizeof(transaction_create_shortcut_input));
@@ -654,11 +654,11 @@ transaction *create_a_new_many_in_single_out_transaction(char **previous_transac
  * @return the pointer of the created transaction.
  * @author Junjian Chen
  */
-transaction *create_a_new_single_in_many_out_transaction(char *previous_transaction_id,
+transaction *create_a_new_single_in_many_out_transaction(uint8_t *previous_transaction_id,
                                                          char *previous_output_private_key,
                                                          int previous_tx_output_idx,
                                                          int *previous_value,
-                                                         char **res_txid,
+                                                         uint8_t **res_txid,
                                                          char ***res_private_key,
                                                          int output_num) {
     transaction_create_shortcut_output *outputs = malloc(output_num * sizeof(transaction_create_shortcut_output));

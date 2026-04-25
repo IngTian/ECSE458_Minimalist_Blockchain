@@ -2,9 +2,11 @@
 
 #include <glib.h>
 #include <mysql/mysql.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "utils/constants.h"
+#include "utils/cryptography.h"
 #include "utils/log_utils.h"
 #include "utils/mysql_util.h"
 
@@ -27,10 +29,21 @@ void free_utxo_table_key(void *key) { free(key); }
 
 void free_utxo_table_val(void *val) { free(val); }
 
+static guint binary_hash32(gconstpointer key) {
+    const uint8_t *d = (const uint8_t *)key;
+    guint h = 5381;
+    for (int i = 0; i < 32; i++) h = (h << 5) + h + d[i];
+    return h;
+}
+static gboolean binary_equal32(gconstpointer a, gconstpointer b) {
+    return memcmp(a, b, 32) == 0;
+}
+
 void print_utxo_entry(void *h, void *v, void *user_data) {
-    char *hash = (char *)h;
+    char *hex = hash_to_hex((const uint8_t *)h);
     long int *value = (long int *)v;
-    general_log(LOG_SCOPE, LOG_DEBUG, "ID: %s VAL: %ld", hash, *value);
+    general_log(LOG_SCOPE, LOG_DEBUG, "ID: %s VAL: %ld", hex, *value);
+    free(hex);
 }
 
 /*
@@ -103,8 +116,8 @@ bool initialize_transaction_persistence() {
         sprintf(filtered_query, sql_query, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE);
         return mysql_create_table(filtered_query);
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
-        g_global_transaction_table = g_hash_table_new_full(g_str_hash, g_str_equal, free_transaction_table_key, free_transaction_table_val);
-        g_utxo = g_hash_table_new_full(g_str_hash, g_str_equal, free_utxo_table_key, free_utxo_table_val);
+        g_global_transaction_table = g_hash_table_new_full(binary_hash32, binary_equal32, free_transaction_table_key, free_transaction_table_val);
+        g_utxo = g_hash_table_new_full(binary_hash32, binary_equal32, free_utxo_table_key, free_utxo_table_val);
     }
 
     return false;
@@ -124,7 +137,9 @@ bool save_transaction(transaction *tx) {
     }
 
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
-        char *txid = get_transaction_txid(tx);
+        uint8_t *txid_bin = get_transaction_txid(tx);
+        char *txid = hash_to_hex(txid_bin);
+        free(txid_bin);
         int temp_sql_query_size = 10000;
 
         // Save the transaction in table transaction.
@@ -146,6 +161,7 @@ bool save_transaction(transaction *tx) {
                 tx->lock_time);
         if (!mysql_insert(sql_query)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert transaction.");
+            free(txid);
             return false;
         };
         current_tx_size += 1;
@@ -180,6 +196,7 @@ bool save_transaction(transaction *tx) {
             transaction_input current_input = tx->tx_ins[i];
             char *signature_script_hex = convert_char_hexadecimal(current_input.signature_script, current_input.script_bytes);
             transaction_outpoint current_outpoint = current_input.previous_outpoint;
+            char *outpoint_hash_hex = hash_to_hex(current_outpoint.hash);
             sprintf(sql_query,
                     "set @script_bytes = %u;\n"
                     "set @signature_script = '%s';\n"
@@ -195,9 +212,10 @@ bool save_transaction(transaction *tx) {
                     current_input.script_bytes,
                     signature_script_hex,
                     current_input.sequence,
-                    current_outpoint.hash,
+                    outpoint_hash_hex,
                     current_outpoint.index,
                     current_tx_size);
+            free(outpoint_hash_hex);
             if (!mysql_insert(sql_query)) {
                 general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert input.");
                 return false;
@@ -207,7 +225,7 @@ bool save_transaction(transaction *tx) {
 
         return true;
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
-        char *txid = get_transaction_txid(tx);
+        uint8_t *txid = get_transaction_txid(tx);
         g_hash_table_insert(g_global_transaction_table, txid, tx);
         return true;
     }
@@ -222,8 +240,9 @@ bool save_transaction(transaction *tx) {
  * @return True for success and false otherwise.
  * @author Ing Tian
  */
-bool save_utxo_entry(char *key, long int *value) {
+bool save_utxo_entry(uint8_t *key, long int *value) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *key_hex = hash_to_hex(key);
         int temp_sql_query_size = 10000;
         char sql_query[temp_sql_query_size];
         memset(sql_query, '\0', temp_sql_query_size);
@@ -232,8 +251,9 @@ bool save_utxo_entry(char *key, long int *value) {
                 "set @value := %ld;\n"
                 "insert into utxo (id, hash, value)\n"
                 "values (NULL, @hash, @value);\n",
-                key,
+                key_hex,
                 *value);
+        free(key_hex);
         if (!mysql_insert(sql_query)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert UTXO entry.");
             return false;
@@ -254,12 +274,14 @@ bool save_utxo_entry(char *key, long int *value) {
  * @return True for success and false otherwise.
  * @author Ing Tian
  */
-bool remove_utxo_entry(char *key) {
+bool remove_utxo_entry(uint8_t *key) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *key_hex = hash_to_hex(key);
         int temp_sql_query_size = 10000;
         char sql_query[temp_sql_query_size];
         memset(sql_query, '\0', temp_sql_query_size);
-        sprintf(sql_query, "delete from utxo where hash='%s';\n", key);
+        sprintf(sql_query, "delete from utxo where hash='%s';\n", key_hex);
+        free(key_hex);
         if (!mysql_delete(sql_query)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete UTXO entry.");
             return false;
@@ -294,10 +316,12 @@ void print_utxo() {
  * @return True for success and false otherwise.
  * @author Ing Tian
  */
-bool update_transaction_block_id(unsigned long block_id, char *txid) {
+bool update_transaction_block_id(unsigned long block_id, uint8_t *txid) {
+    char *txid_hex = hash_to_hex(txid);
     char sql_query[1000];
     memset(sql_query, '\0', 1000);
-    sprintf(sql_query, "update transaction set block_id=%lu where txid='%s';", block_id, txid);
+    sprintf(sql_query, "update transaction set block_id=%lu where txid='%s';", block_id, txid_hex);
+    free(txid_hex);
     if (!mysql_update(sql_query)) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to update block ID (%d) for a transaction (%s).", block_id, txid);
         return false;
@@ -311,15 +335,17 @@ bool update_transaction_block_id(unsigned long block_id, char *txid) {
  * @return A transaction.
  * @author Ing Tian
  */
-transaction *get_transaction(char *txid) {
+transaction *get_transaction(uint8_t *txid) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *txid_hex = hash_to_hex(txid);
         transaction *tx = (transaction *)malloc(sizeof(transaction));
 
         int temp_sql_query_size = 10000;
         char sql_query[temp_sql_query_size];
         memset(sql_query, '\0', temp_sql_query_size);
 
-        sprintf(sql_query, "select * from transaction where txid='%s';", txid);
+        sprintf(sql_query, "select * from transaction where txid='%s';", txid_hex);
+        free(txid_hex);
         MYSQL_RES *res = mysql_read(sql_query);
 
         // Read transaction.
@@ -384,8 +410,9 @@ transaction *get_transaction(char *txid) {
             row = mysql_fetch_row(res);
             transaction_outpoint *current_outpoint = &tx->tx_ins[outpoint_idx].previous_outpoint;
             current_outpoint->index = atoi(row[2]);
-            memset(current_outpoint->hash, '\0', 65);
-            memcpy(current_outpoint->hash, row[1], 64);
+            uint8_t *hash_bin = (uint8_t *)convert_hex_back_to_data_array(row[1]);
+            memcpy(current_outpoint->hash, hash_bin, 32);
+            free(hash_bin);
 
             mysql_free_result(res);
             memset(sql_query, '\0', temp_sql_query_size);
@@ -414,10 +441,11 @@ transaction *get_genesis_transaction() {
         MYSQL_RES *res = mysql_read(sql_query);
 
         MYSQL_ROW row;
-        char genesis_txid[65];
-        genesis_txid[64] = '\0';
+        uint8_t genesis_txid[32];
         while ((row = mysql_fetch_row(res))) {
-            strcpy(genesis_txid, row[0]);
+            uint8_t *bin = (uint8_t *)convert_hex_back_to_data_array(row[0]);
+            memcpy(genesis_txid, bin, 32);
+            free(bin);
         }
 
         mysql_free_result(res);
@@ -435,11 +463,13 @@ transaction *get_genesis_transaction() {
  * @return True if the transaction exists and false otherwise.
  * @author Ing Tian
  */
-bool does_transaction_exist(char *txid) {
+bool does_transaction_exist(uint8_t *txid) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *txid_hex = hash_to_hex(txid);
         char sql_query[1000];
         memset(sql_query, '\0', 1000);
-        sprintf(sql_query, "select * from transaction where txid='%s';", txid);
+        sprintf(sql_query, "select * from transaction where txid='%s';", txid_hex);
+        free(txid_hex);
         MYSQL_RES *res = mysql_read(sql_query);
         bool result = res->row_count > 0;
         mysql_free_result(res);
@@ -457,11 +487,13 @@ bool does_transaction_exist(char *txid) {
  * @return True for exists and false otherwise.
  * @author Ing Tian
  */
-bool does_utxo_entry_exist(char *key) {
+bool does_utxo_entry_exist(uint8_t *key) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *key_hex = hash_to_hex(key);
         char sql_query[1000];
         memset(sql_query, '\0', 1000);
-        sprintf(sql_query, "select * from utxo where hash='%s';\n", key);
+        sprintf(sql_query, "select * from utxo where hash='%s';\n", key_hex);
+        free(key_hex);
         MYSQL_RES *res = mysql_read(sql_query);
         bool result = res->row_count > 0;
         mysql_free_result(res);
@@ -546,13 +578,13 @@ transaction *get_last_inserted_transaction() {
     MYSQL_RES *res = mysql_read(sql_query);
 
     MYSQL_ROW row;
-    char temp_txid[65];
-    temp_txid[64] = '\0';
+    uint8_t temp_txid[32];
     while ((row = mysql_fetch_row(res))) {
-        strcpy(temp_txid, row[0]);
+        uint8_t *bin = (uint8_t *)convert_hex_back_to_data_array(row[0]);
+        memcpy(temp_txid, bin, 32);
+        free(bin);
     }
 
     mysql_free_result(res);
-    transaction *tx = get_transaction(temp_txid);
-    return tx;
+    return get_transaction(temp_txid);
 }

@@ -2,6 +2,7 @@
 #define MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_MODEL_BLOCK_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "../transaction/transaction.h"
 
@@ -12,12 +13,12 @@
  */
 
 typedef struct BlockHeader {
-    int version;                      // The block version number indicates which set of block validation rules to follow.
-    char prev_block_header_hash[65];  // A SHA256(SHA256()) hash in internal byte order of the previous block’s header.
-    char merkle_root_hash[65];        // A SHA256(SHA256()) hash in internal byte order.
-    unsigned int time;                // The block time is a Unix epoch time when the miner started hashing the header (according to the miner).
-    unsigned int nBits;               // An encoded version of the target threshold this block’s header hash must be less than or equal to.
-    unsigned int nonce;               // An arbitrary number miners change to modify the header hash for the PoW.
+    int version;                        // The block version number indicates which set of block validation rules to follow.
+    uint8_t prev_block_header_hash[32]; // SHA256(SHA256()) of the previous block header (raw bytes).
+    uint8_t merkle_root_hash[32];       // SHA256(SHA256()) merkle root (raw bytes).
+    unsigned int time;                  // Unix epoch time when the miner started hashing the header.
+    unsigned int nBits;                 // Encoded target threshold.
+    unsigned int nonce;                 // PoW nonce.
 } block_header;
 
 typedef struct Block {
@@ -28,11 +29,11 @@ typedef struct Block {
 
 typedef struct BlockHeaderShortcut {
     int version;
-    char prev_block_header_hash[65];  // A SHA256(SHA256()) hash in internal byte order of the previous block’s header.
-    char merkle_root_hash[65];        // A SHA256(SHA256()) hash in internal byte order.
-    unsigned int time;                // The block time is a Unix epoch time when the miner started hashing the header (according to the miner).
-    unsigned int nBits;               // An encoded version of the target threshold this block’s header hash must be less than or equal to.
-    unsigned int nonce;               // An arbitrary number miners change to modify the header hash for the PoW.
+    uint8_t prev_block_header_hash[32];
+    uint8_t merkle_root_hash[32];
+    unsigned int time;
+    unsigned int nBits;
+    unsigned int nonce;
 } block_header_shortcut;
 
 typedef struct TransactionsShortcut {
@@ -52,31 +53,31 @@ typedef struct BlockCreateShortcut {
  */
 
 typedef struct SocketBlock {
-    int version;                      // The block version number indicates which set of block validation rules to follow.
-    char prev_block_header_hash[65];  // A SHA256(SHA256()) hash in internal byte order of the previous block’s header.
-    char merkle_root_hash[65];        // A SHA256(SHA256()) hash in internal byte order.
-    unsigned int time;                // The block time is a Unix epoch time when the miner started hashing the header (according to the miner).
-    unsigned int nBits;               // An encoded version of the target threshold this block’s header hash must be less than or equal to.
-    unsigned int nonce;               // An arbitrary number miners change to modify the header hash for the PoW.
-    unsigned int txn_count;           // Number of transaction
-    unsigned int txns_size;           // Size of the txns
-    char txns[0];                     // Script of Transactions
+    int version;
+    uint8_t prev_block_header_hash[32];
+    uint8_t merkle_root_hash[32];
+    unsigned int time;
+    unsigned int nBits;
+    unsigned int nonce;
+    unsigned int txn_count;
+    unsigned int txns_size;
+    char txns[0];
 } socket_block;
 
-char *hash_block_header(block_header *header);
+uint8_t *hash_block_header(block_header *header);
 block *initialize_block_system(bool skip_genesis);
 void destroy_block_system(char *);
 block *create_an_empty_block(unsigned int);
 bool append_prev_block(block *prev_block, block *cur_block);
 bool finalize_block(block *);
-block *get_block_by_hash(char *);
+block *get_block_by_hash(uint8_t *);
 bool append_transaction_into_block(block *, transaction *, unsigned int input_idx);
 bool verify_block_chain(block *);
 bool verify_block(block *);
-char *get_genesis_block_hash();
+uint8_t *get_genesis_block_hash(void);
 bool create_new_block_shortcut(block_create_shortcut *block_data, block *dest);
 socket_block *cast_to_socket_block(block *);
 block *cast_to_block(socket_block *);
 int get_socket_block_length(block *);
-block *create_a_new_block(char *previous_block_header_hash, transaction *txn, char **result_header_hash);
+block *create_a_new_block(uint8_t *previous_block_header_hash, transaction *txn, uint8_t **result_header_hash);
 #endif

@@ -6,8 +6,8 @@
 
 bool initialize_block_persistence();
 bool save_block(block *);
-bool does_block_exist(char *);
-block *get_block(char *);
+bool does_block_exist(uint8_t *);
+block *get_block(uint8_t *);
 block *get_genesis_block();
 block *get_last_inserted_block();
 unsigned long get_block_id_in_database(block *);

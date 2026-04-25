@@ -6,7 +6,9 @@
 #include <string.h>
 
 #include "../model/block/block.h"
+#include "../model/transaction/transaction.h"
 #include "constants.h"
+#include "cryptography.h"
 #include "sys_utils.h"
 
 // Regular text
@@ -158,12 +160,13 @@ void generate_dot_representation(block **block_list, int list_len, char *filenam
 
     // Create sub-graphs(blocks&transactions)
     for (int i = 0; i < list_len; i++) {
-        char *txid_dot;
         fprintf(fp, "subgraph cluster_%d{\n ", i);
         fprintf(fp, "label = \"Block%d\";\n", i);
         fprintf(fp, "DUMMY_%d [shape=point style=invis];\n", i);
         for (int j = 0; j < block_list[i]->txn_count; j++) {
-            txid_dot = get_transaction_txid(block_list[i]->txns[j]);
+            uint8_t *txid_bin = get_transaction_txid(block_list[i]->txns[j]);
+            char *txid_dot = hash_to_hex(txid_bin);
+            free(txid_bin);
             fprintf(fp, "txid%s;\n", txid_dot);
             free(txid_dot);
         }
@@ -177,15 +180,18 @@ void generate_dot_representation(block **block_list, int list_len, char *filenam
     }
 
     // Connect all transactions
+    static const uint8_t zero_hash[32] = {0};
     for (int m = 0; m < list_len; m++) {
-        char *txid_trans;
-        char *txid_previous;
         for (int n = 0; n < block_list[m]->txn_count; n++) {
-            txid_trans = get_transaction_txid(block_list[m]->txns[n]);
+            uint8_t *txid_bin = get_transaction_txid(block_list[m]->txns[n]);
+            char *txid_trans = hash_to_hex(txid_bin);
+            free(txid_bin);
             for (int o = 0; o < block_list[m]->txns[n]->tx_in_count; o++) {
-                txid_previous = block_list[m]->txns[n]->tx_ins[o].previous_outpoint.hash;
-                if (strlen(txid_previous) > 0) {
+                const uint8_t *prev_hash = block_list[m]->txns[n]->tx_ins[o].previous_outpoint.hash;
+                if (memcmp(prev_hash, zero_hash, 32) != 0) {
+                    char *txid_previous = hash_to_hex(prev_hash);
                     fprintf(fp, "txid%s -> txid%s;\n", txid_previous, txid_trans);
+                    free(txid_previous);
                 }
             }
             free(txid_trans);

@@ -1,17 +1,29 @@
 #include "block_persistence.h"
 
 #include <glib.h>
+#include <stdint.h>
 #include <string.h>
 
 #include "model/transaction/transaction_persistence.h"
 #include "utils/constants.h"
+#include "utils/cryptography.h"
 #include "utils/log_utils.h"
 #include "utils/mysql_util.h"
 
 #define LOG_SCOPE "block_persistence"
 
-static GHashTable *g_global_block_table;  // The global block table that maps block header hash to the block.
-block *g_genesis_block = NULL;            // The genesis block.
+static GHashTable *g_global_block_table;
+block *g_genesis_block = NULL;
+
+static guint binary_hash32(gconstpointer key) {
+    const uint8_t *d = (const uint8_t *)key;
+    guint h = 5381;
+    for (int i = 0; i < 32; i++) h = (h << 5) + h + d[i];
+    return h;
+}
+static gboolean binary_equal32(gconstpointer a, gconstpointer b) {
+    return memcmp(a, b, 32) == 0;
+}
 
 /**
  * Free the memory space of a block.
@@ -78,7 +90,7 @@ bool initialize_block_persistence() {
         sprintf(filtered_query, sql_query, PERSISTENCE_ENGINE, PERSISTENCE_ENGINE);
         return mysql_create_table(filtered_query);
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
-        g_global_block_table = g_hash_table_new(g_str_hash, g_str_equal);
+        g_global_block_table = g_hash_table_new(binary_hash32, binary_equal32);
         return true;
     }
 
@@ -117,6 +129,11 @@ bool save_block(block *bl) {
 
         // Insert block header.
         block_header *current_header = bl->header;
+        char *prev_hash_hex = hash_to_hex(current_header->prev_block_header_hash);
+        char *merkle_hex = hash_to_hex(current_header->merkle_root_hash);
+        uint8_t *hdr_hash_bin = hash_block_header(current_header);
+        char *hdr_hash_hex = hash_to_hex(hdr_hash_bin);
+        free(hdr_hash_bin);
         sprintf(sql_query,
                 "set @version = %d;\n"
                 "set @prev_block_header_hash = '%s';\n"
@@ -128,12 +145,15 @@ bool save_block(block *bl) {
                 "insert into block_header(block_h_id, version, block_header_hash, prev_block_header_hash, merkle_root_hash, time, nBits, nonce)\n"
                 "values (@block_h_id, @version, @block_header_hash, @prev_block_header_hash, @merkle_root_hash, @time, @nBits, @nonce);",
                 current_header->version,
-                current_header->prev_block_header_hash,
-                current_header->merkle_root_hash,
-                hash_block_header(current_header),
+                prev_hash_hex,
+                merkle_hex,
+                hdr_hash_hex,
                 current_header->time,
                 current_header->nBits,
                 current_header->nonce);
+        free(prev_hash_hex);
+        free(merkle_hex);
+        free(hdr_hash_hex);
         if (!mysql_insert(sql_query)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert block header.");
             return false;
@@ -144,7 +164,7 @@ bool save_block(block *bl) {
         unsigned long block_id = get_block_id_in_database(bl);
         for (int i = 0; i < bl->txn_count; i++) {
             transaction *current_transaction = bl->txns[i];
-            char *txid = get_transaction_txid(current_transaction);
+            uint8_t *txid = get_transaction_txid(current_transaction);
             if (!does_transaction_exist(txid)) {
                 save_transaction(current_transaction);
             }
@@ -154,7 +174,7 @@ bool save_block(block *bl) {
 
         return true;
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
-        char *cur_block_hash = hash_block_header(bl->header);
+        uint8_t *cur_block_hash = hash_block_header(bl->header);
         g_hash_table_insert(g_global_block_table, cur_block_hash, bl);
         return true;
     }
@@ -168,17 +188,20 @@ bool save_block(block *bl) {
  * @return Its block ID.
  */
 unsigned long get_block_id_in_database(block *block) {
-    char *header_hash = hash_block_header(block->header);
+    uint8_t *header_hash_bin = hash_block_header(block->header);
+    char *header_hash_hex = hash_to_hex(header_hash_bin);
+    free(header_hash_bin);
     char sql_query[1000];
-    sprintf(sql_query, "select block_h_id from block_header where block_header_hash='%s';", header_hash);
+    sprintf(sql_query, "select block_h_id from block_header where block_header_hash='%s';", header_hash_hex);
+    free(header_hash_hex);
     MYSQL_RES *res = mysql_read(sql_query);
 
     MYSQL_ROW row;
-    unsigned long block_header_id;
+    unsigned long block_header_id = 0;
     while ((row = mysql_fetch_row(res))) {
         block_header_id = atoi(row[0]);
     }
-    free(header_hash);
+    mysql_free_result(res);
     return block_header_id;
 }
 
@@ -188,10 +211,12 @@ unsigned long get_block_id_in_database(block *block) {
  * @return True for exists and false otherwise.
  * @author Luke E
  */
-bool does_block_exist(char *block_header_hash) {
+bool does_block_exist(uint8_t *block_header_hash) {
+    char *hex = hash_to_hex(block_header_hash);
     char sql_query[1000];
     memset(sql_query, '\0', 1000);
-    sprintf(sql_query, "select * from block_header where block_header_hash='%s';", block_header_hash);
+    sprintf(sql_query, "select * from block_header where block_header_hash='%s';", hex);
+    free(hex);
     MYSQL_RES *res = mysql_read(sql_query);
     bool result = res->row_count > 0;
     mysql_free_result(res);
@@ -204,8 +229,9 @@ bool does_block_exist(char *block_header_hash) {
  * @return The block.
  * @author Luke E
  */
-block *get_block(char *block_header_hash) {
+block *get_block(uint8_t *block_header_hash) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        char *hash_hex = hash_to_hex(block_header_hash);
         block *b = (block *)malloc(sizeof(block));
         memset(b, 0, sizeof(block));
         b->header = (block_header *)(malloc(sizeof(block_header)));
@@ -214,14 +240,19 @@ block *get_block(char *block_header_hash) {
         char sql_query[temp_sql_query_size];
 
         // Read block header.
-        sprintf(sql_query, "select * from block_header where block_header_hash='%s';", block_header_hash);
+        sprintf(sql_query, "select * from block_header where block_header_hash='%s';", hash_hex);
+        free(hash_hex);
         MYSQL_RES *res = mysql_read(sql_query);
         MYSQL_ROW row = mysql_fetch_row(res);
         unsigned long block_id;
         block_id = atoi(row[0]);
         b->header->version = atoi(row[1]);
-        memcpy(b->header->prev_block_header_hash, row[2], 64);
-        memcpy(b->header->merkle_root_hash, row[3], 64);
+        uint8_t *prev_bin = (uint8_t *)convert_hex_back_to_data_array(row[2]);
+        memcpy(b->header->prev_block_header_hash, prev_bin, 32);
+        free(prev_bin);
+        uint8_t *merkle_bin = (uint8_t *)convert_hex_back_to_data_array(row[3]);
+        memcpy(b->header->merkle_root_hash, merkle_bin, 32);
+        free(merkle_bin);
         b->header->time = atoi(row[4]);
         b->header->nBits = atoi(row[5]);
         b->header->nonce = atoi(row[6]);
@@ -237,18 +268,16 @@ block *get_block(char *block_header_hash) {
         memset(sql_query, 0, temp_sql_query_size);
 
         // Read associated transactions.
-        char **txids = (char **)malloc(b->txn_count * sizeof(char *));
-        memset(txids, 0, b->txn_count);
-        for (int i = 0; i < b->txn_count; i++) {
-            txids[i] = (char *)malloc(65);
-            memset(txids[i], 0, 65);
-        }
+        uint8_t **txids = (uint8_t **)malloc(b->txn_count * sizeof(uint8_t *));
+        for (int i = 0; i < b->txn_count; i++) txids[i] = (uint8_t *)malloc(32);
 
         sprintf(sql_query, "select txid from transaction where block_id=%lu;", block_id);
         res = mysql_read(sql_query);
         int tx_count = 0;
         while ((row = mysql_fetch_row(res))) {
-            memcpy(txids[tx_count], row[0], 64);
+            uint8_t *bin = (uint8_t *)convert_hex_back_to_data_array(row[0]);
+            memcpy(txids[tx_count], bin, 32);
+            free(bin);
             tx_count++;
         }
         b->txns = (transaction **)malloc(b->txn_count * sizeof(transaction *));
@@ -282,14 +311,15 @@ block *get_genesis_block() {
         MYSQL_RES *res = mysql_read(sql_query);
 
         MYSQL_ROW row;
-        char genesis_block_header_id[65];
-        genesis_block_header_id[64] = '\0';
+        uint8_t genesis_hash[32];
         while ((row = mysql_fetch_row(res))) {
-            strcpy(genesis_block_header_id, row[0]);
+            uint8_t *bin = (uint8_t *)convert_hex_back_to_data_array(row[0]);
+            memcpy(genesis_hash, bin, 32);
+            free(bin);
         }
 
         mysql_free_result(res);
-        block *genesis_block = get_block(genesis_block_header_id);
+        block *genesis_block = get_block(genesis_hash);
         g_genesis_block = genesis_block;
         return g_genesis_block;
     }
@@ -361,13 +391,13 @@ block *get_last_inserted_block() {
     MYSQL_RES *res = mysql_read(sql_query);
 
     MYSQL_ROW row;
-    char temp_header_id[65];
-    temp_header_id[64] = '\0';
+    uint8_t temp_hash[32];
     while ((row = mysql_fetch_row(res))) {
-        strcpy(temp_header_id, row[0]);
+        uint8_t *bin = (uint8_t *)convert_hex_back_to_data_array(row[0]);
+        memcpy(temp_hash, bin, 32);
+        free(bin);
     }
 
     mysql_free_result(res);
-    block *blk = get_block(temp_header_id);
-    return blk;
+    return get_block(temp_hash);
 }

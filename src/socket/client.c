@@ -64,17 +64,17 @@ int main(int argc, char const *argv[]) {
 
     // Send multiple transaction/block.
     int rest_coin = TOTAL_NUMBER_OF_COINS;
-    char *previous_transaction_id = get_transaction_txid(previous_transaction);
-    char *previous_transaction_id_array[NUMBER_OF_TEST_TRANSACTION_INPUT];
+    uint8_t *previous_transaction_id = get_transaction_txid(previous_transaction);
+    uint8_t *previous_transaction_id_array[NUMBER_OF_TEST_TRANSACTION_INPUT];
     char *previous_output_private_key = get_genesis_transaction_private_key();
     char *previous_output_private_key_array[NUMBER_OF_TEST_TRANSACTION_OUTPUT];
     int previous_output_index_list[NUMBER_OF_TEST_TRANSACTION_INPUT];
     int previous_value[NUMBER_OF_TEST_TRANSACTION_OUTPUT];
-    char *res_txid;
+    uint8_t *res_txid;
     char *res_private_key;
     char *res_private_key_array[NUMBER_OF_TEST_TRANSACTION_OUTPUT];
-    char *previous_block_header_hash = get_genesis_block_hash();
-    char *result_block_hash;
+    uint8_t *previous_block_header_hash = get_genesis_block_hash();
+    uint8_t *result_block_hash;
 
     transaction *curr_transaction;
     int current_data_index = 1;
@@ -83,7 +83,7 @@ int main(int argc, char const *argv[]) {
             // create the one-to-one transaction
             curr_transaction = create_a_new_single_in_single_out_transaction(
                 previous_transaction_id, previous_output_private_key, 0, TOTAL_NUMBER_OF_COINS, &res_txid, &res_private_key);
-            memcpy(previous_transaction_id, res_txid, 64);
+            memcpy(previous_transaction_id, res_txid, 32);
             memcpy(previous_output_private_key, res_private_key, 64);
         } else if (TEST_TRANSACTION_TYPE == 1) {
             // create a one to many transaction first
@@ -118,7 +118,7 @@ int main(int argc, char const *argv[]) {
                                                                            &res_txid,
                                                                            &res_private_key,
                                                                            NUMBER_OF_TEST_TRANSACTION_INPUT);
-            memcpy(previous_transaction_id, res_txid, 64);
+            memcpy(previous_transaction_id, res_txid, 32);
             memcpy(previous_output_private_key, res_private_key, 64);
         } else if (TEST_TRANSACTION_TYPE == 2) {
             // create one-to-multi curr_transaction
@@ -132,7 +132,7 @@ int main(int argc, char const *argv[]) {
                                                                            &res_txid,
                                                                            &res_private_key_array,
                                                                            NUMBER_OF_TEST_TRANSACTION_OUTPUT);
-            memcpy(previous_transaction_id, res_txid, 64);
+            memcpy(previous_transaction_id, res_txid, 32);
             previous_output_private_key = res_private_key_array[0];
         } else {
             general_log(LOG_SCOPE, LOG_ERROR, "Type of test transaction is invalid!");

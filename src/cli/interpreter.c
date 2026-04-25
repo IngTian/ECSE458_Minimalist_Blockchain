@@ -6,6 +6,7 @@
 #include "../model/transaction/transaction.h"
 #include "../model/transaction/transaction_persistence.h"
 #include "../model/block/block.h"
+#include "../utils/cryptography.h"
 #include "../utils/log_utils.h"
 #include "../utils/mjson.h"
 #include "shell.h"
@@ -174,11 +175,16 @@ int quit() {
 int init() {
     initialize_cryptography_system(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
     transaction *genesis_transaction = initialize_transaction_system(false);
-    char *genesis_transaction_id = get_transaction_txid(genesis_transaction);
+    uint8_t *genesis_txid_bin = get_transaction_txid(genesis_transaction);
+    char *genesis_transaction_id = hash_to_hex(genesis_txid_bin);
+    free(genesis_txid_bin);
     printf("Genesis transaction id: %s\n", genesis_transaction_id);
+    free(genesis_transaction_id);
     initialize_block_system(false);
-    char* genesis_block_hash = get_genesis_block_hash();
+    uint8_t *genesis_block_hash_bin = get_genesis_block_hash();
+    char *genesis_block_hash = hash_to_hex(genesis_block_hash_bin);
     printf("Genesis block hash: %s\n", genesis_block_hash);
+    free(genesis_block_hash);
     return 0;
 }
 
@@ -276,7 +282,7 @@ int cli_transaction_add_transaction_to_system(char *script) {
         char sender_private_key[100];
         mjson_get_string(buffer, strlen(buffer), "$.inputs[i].sender_private_key", sender_private_key, sizeof(sender_private_key));
 
-        memcpy(shortcut_input_array[i].previous_txid, previous_id, strlen(previous_id));
+        shortcut_input_array[i].previous_txid = (uint8_t *)convert_hex_back_to_data_array(previous_id);
         shortcut_input_array[i].previous_output_idx = (int)output_idx;
         shortcut_input_array[i].private_key = sender_private_key;
     }
@@ -449,9 +455,11 @@ int cli_block_add_block_to_system(char* script) {
         //TODO: append the transactions into the block.
     }
 
-    char previous_block_hash[100];
-    mjson_get_string(buffer, strlen(buffer), "$.previous_block_hash", previous_block_hash, sizeof(previous_block_hash));
-    block* previous_block =  get_block_by_hash(previous_block_hash);
+    char previous_block_hash_hex[65];
+    mjson_get_string(buffer, strlen(buffer), "$.previous_block_hash", previous_block_hash_hex, sizeof(previous_block_hash_hex));
+    uint8_t *previous_block_hash = (uint8_t *)convert_hex_back_to_data_array(previous_block_hash_hex);
+    block *previous_block = get_block_by_hash(previous_block_hash);
+    free(previous_block_hash);
 
     block* new_block = create_an_empty_block((int)number_of_transactions);
     if(append_prev_block(previous_block, new_block)){
@@ -469,9 +477,9 @@ int cli_block_add_block_to_system(char* script) {
  * @return If runs successfully, return 0.
  */
 int cli_block_get_genesis_block_hash() {
-    char *temp = get_genesis_block_hash();
+    uint8_t *temp = get_genesis_block_hash();
     printf("Genesis block hash: ");
-    print_hex((unsigned char*)temp, strlen(temp));
+    print_hex(temp, 32);
     return 0;
 }
 
