@@ -68,16 +68,18 @@ char *str_trim(char *str) {
     unsigned long front_white_spaces, back_white_spaces;
 
     // Get number of front white spaces.
-    for(front_white_spaces = 0; front_white_spaces < str_len; front_white_spaces++)
-        if (!isspace(str[front_white_spaces]))
+    for (front_white_spaces = 0; front_white_spaces < str_len; front_white_spaces++)
+        if (!isspace((unsigned char)str[front_white_spaces]))
             break;
 
     // Get number of back white spaces.
-    for(back_white_spaces = 0; str_len - 1 - back_white_spaces >= 0; back_white_spaces++)
-        if (!isspace(str[str_len - 1 - back_white_spaces]))
+    for (back_white_spaces = 0; back_white_spaces < str_len - front_white_spaces; back_white_spaces++)
+        if (!isspace((unsigned char)str[str_len - 1 - back_white_spaces]))
             break;
 
-    char *res = (char*)malloc(str_len - front_white_spaces - back_white_spaces);
-    memcpy(res, &str[front_white_spaces], str_len-front_white_spaces-back_white_spaces);
+    unsigned long trimmed_len = str_len - front_white_spaces - back_white_spaces;
+    char *res = (char *)malloc(trimmed_len + 1);
+    memcpy(res, &str[front_white_spaces], trimmed_len);
+    res[trimmed_len] = '\0';
     return res;
 }

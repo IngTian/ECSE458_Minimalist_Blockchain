@@ -165,6 +165,7 @@ void generate_dot_representation(block **block_list, int list_len, char *filenam
         for (int j = 0; j < block_list[i]->txn_count; j++) {
             txid_dot = get_transaction_txid(block_list[i]->txns[j]);
             fprintf(fp, "txid%s;\n", txid_dot);
+            free(txid_dot);
         }
         fprintf(fp, "}\n");
     }
@@ -187,6 +188,7 @@ void generate_dot_representation(block **block_list, int list_len, char *filenam
                     fprintf(fp, "txid%s -> txid%s;\n", txid_previous, txid_trans);
                 }
             }
+            free(txid_trans);
         }
     }
 

@@ -5,9 +5,9 @@
 
 #define LOG_SCOPE "performance test"
 
-int main() {
+int main(int argc, char *argv[]) {
     int block_list_length = 2;
-    char *file_name = "/Users/olinayu/Desktop/ko.txt";
+    char *file_name = (argc > 1) ? argv[1] : "blockchain.dot";
     block *block_list[block_list_length];
     for (int i = 0; i < block_list_length; i++) block_list[i] = malloc(sizeof(block));
     generate_dot_representation(block_list, block_list_length, file_name);

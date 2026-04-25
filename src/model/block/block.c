@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 
 #include "model/block/block_persistence.h"
 #include "utils/constants.h"
@@ -27,7 +28,7 @@ char *g_genesis_block_hash;  // The hash of the header of the genesis block.
  */
 char *hash_block_header(block_header *header) {
     char *hash = hash_struct_in_hex(header, sizeof(block_header));
-    char *ret_val = hash_struct_in_hex(hash, sizeof(hash));
+    char *ret_val = hash_struct_in_hex(hash, strlen(hash));
     free(hash);
     return ret_val;
 }
@@ -105,9 +106,8 @@ bool append_prev_block(block *prev_block, block *cur_block) {
 
     // SHA256(previous block header) twice.
     char *prev_block_header_hash = hash_block_header(prev_block->header);
-
     memcpy(cur_block->header->prev_block_header_hash, prev_block_header_hash, 64);
-
+    free(prev_block_header_hash);
     return true;
 }
 
@@ -133,7 +133,10 @@ bool check_block_valid(block *block1) {
 
     // check if the previous block is NULL
     if (strcmp(header->prev_block_header_hash, "") == 0) {
-        if (strcmp(hash_block_header(header), g_genesis_block_hash) != 0) {
+        char *hdr_hash = hash_block_header(header);
+        bool is_genesis = strcmp(hdr_hash, g_genesis_block_hash) == 0;
+        free(hdr_hash);
+        if (!is_genesis) {
             general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid since the previous block is null.");
             return false;
         }
@@ -226,7 +229,9 @@ bool verify_block_chain(block *chain_tail) {
         if (strcmp(temp->header->prev_block_header_hash, "") == 0) {
             // When temp is genesis block
             char *hash = hash_block_header(temp->header);
-            if (strcmp(hash, g_genesis_block_hash) == 0) {
+            bool valid = strcmp(hash, g_genesis_block_hash) == 0;
+            free(hash);
+            if (valid) {
                 general_log(LOG_SCOPE, LOG_INFO, "The chain is valid!");
                 return true;
             } else {
@@ -245,7 +250,9 @@ bool verify_block_chain(block *chain_tail) {
             }
 
             char *hash = hash_block_header(prev_block->header);
-            if (strcmp(hash, temp->header->prev_block_header_hash) == 0) {
+            bool match = strcmp(hash, temp->header->prev_block_header_hash) == 0;
+            free(hash);
+            if (match) {
                 temp = get_block_by_hash(temp->header->prev_block_header_hash);
             } else {
                 general_log(LOG_SCOPE, LOG_ERROR, "The block is invalid: previous block hash doesn't match!\n Error block: the last %dth block", i);
@@ -345,7 +352,7 @@ socket_block *cast_to_socket_block(block *b) {
 
     socket_block *socket_blk = (socket_block *)malloc(sizeof(socket_block) + txns_total_length);
     socket_blk->version = b->header->version;
-    socket_blk->nonce = b->header->version;
+    socket_blk->nonce = b->header->nonce;
     socket_blk->txn_count = b->txn_count;
     socket_blk->nBits = b->header->nBits;
     socket_blk->time = b->header->time;
@@ -426,12 +433,12 @@ int get_socket_block_length(block *b) {
  * @return the created block pointer/
  * @author Shichang Zhang
  */
-block *create_a_new_block(char *previous_block_header_hash, transaction *transaction, char **result_header_hash) {
+block *create_a_new_block(char *previous_block_header_hash, transaction *txn, char **result_header_hash) {
     block_header_shortcut block_header = {
         .prev_block_header_hash = "", .version = 0, .nonce = 0, .nBits = 0, .merkle_root_hash = "", .time = get_current_unix_time()};
     memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 65);
-    struct transaction **txns = malloc(sizeof(txns));
-    txns[0] = transaction;
+    transaction **txns = malloc(sizeof(transaction *));
+    txns[0] = txn;
     transactions_shortcut txns_shortcut = {.txns = txns, .txn_count = 1};
     block_create_shortcut block_data = {.header = &block_header, .transaction_list = &txns_shortcut};
 

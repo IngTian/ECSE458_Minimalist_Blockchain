@@ -189,7 +189,7 @@ char *hash_transaction_output(transaction_output *output) {
     memset(copied_output, 0, total_size_needed);
     copied_output->pk_script_bytes = output->pk_script_bytes;
     copied_output->value = output->value;
-    memcpy(copied_output + sizeof(transaction_output), output->pk_script, output->pk_script_bytes);
+    memcpy((char *)copied_output + sizeof(transaction_output), output->pk_script, output->pk_script_bytes);
     char *result = hash_struct_in_hex(copied_output, total_size_needed);
     free(copied_output);
     return result;
@@ -337,9 +337,11 @@ bool finalize_transaction(transaction *t) {
         outpoint->hash[64] = '\0';
         outpoint->index = i;
         char *outpoint_hash = hash_transaction_outpoint(outpoint);
+        free(outpoint);
         save_utxo_entry(outpoint_hash, value);
     }
 
+    free(txid);
     return true;
 }
 
@@ -681,8 +683,9 @@ transaction *create_a_new_single_in_many_out_transaction(char *previous_transact
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to finalize a transaction.");
     }
     *res_txid = get_transaction_txid(t);
+    *res_private_key = (char **)malloc(output_num * sizeof(char *));
     for (int i = 0; i < output_num; i++) {
-        res_private_key[i] = new_private_key_list[i];
+        (*res_private_key)[i] = new_private_key_list[i];
     }
     return t;
 }
