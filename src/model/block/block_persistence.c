@@ -218,6 +218,7 @@ bool does_block_exist(uint8_t *block_header_hash) {
     sprintf(sql_query, "select * from block_header where block_header_hash='%s';", hex);
     free(hex);
     MYSQL_RES *res = mysql_read(sql_query);
+    if (res == NULL) return false;
     bool result = res->row_count > 0;
     mysql_free_result(res);
     return result;
@@ -243,19 +244,22 @@ block *get_block(uint8_t *block_header_hash) {
         sprintf(sql_query, "select * from block_header where block_header_hash='%s';", hash_hex);
         free(hash_hex);
         MYSQL_RES *res = mysql_read(sql_query);
+        if (res == NULL) { free(b->header); free(b); return NULL; }
         MYSQL_ROW row = mysql_fetch_row(res);
+        if (row == NULL) { mysql_free_result(res); free(b->header); free(b); return NULL; }
         unsigned long block_id;
         block_id = atoi(row[0]);
         b->header->version = atoi(row[1]);
-        uint8_t *prev_bin = (uint8_t *)convert_hex_back_to_data_array(row[2]);
+        /* row[2] is block_header_hash (the column we searched by) — skip it */
+        uint8_t *prev_bin = (uint8_t *)convert_hex_back_to_data_array(row[3]);
         memcpy(b->header->prev_block_header_hash, prev_bin, 32);
         free(prev_bin);
-        uint8_t *merkle_bin = (uint8_t *)convert_hex_back_to_data_array(row[3]);
+        uint8_t *merkle_bin = (uint8_t *)convert_hex_back_to_data_array(row[4]);
         memcpy(b->header->merkle_root_hash, merkle_bin, 32);
         free(merkle_bin);
-        b->header->time = atoi(row[4]);
-        b->header->nBits = atoi(row[5]);
-        b->header->nonce = atoi(row[6]);
+        b->header->time = atoi(row[5]);
+        b->header->nBits = atoi(row[6]);
+        b->header->nonce = atoi(row[7]);
         mysql_free_result(res);
         memset(sql_query, 0, temp_sql_query_size);
 

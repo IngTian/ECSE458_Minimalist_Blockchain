@@ -36,7 +36,7 @@ bool append_new_transaction_output(transaction *, transaction_output, unsigned i
  */
 bool verify_transaction_input(transaction_input *i, bool skip_UTXO_check) {
     transaction_outpoint outpoint = i->previous_outpoint;
-    char *transaction_hash = outpoint.hash;
+    uint8_t *transaction_hash = outpoint.hash;
     unsigned int output_idx = outpoint.index;
 
     if (!does_transaction_exist(transaction_hash)) {
@@ -45,6 +45,10 @@ bool verify_transaction_input(transaction_input *i, bool skip_UTXO_check) {
     }
 
     transaction *previous_transaction = get_transaction(transaction_hash);
+    if (previous_transaction == NULL) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Could not retrieve previous transaction in verify_transaction_input.");
+        return false;
+    }
 
     if (output_idx >= previous_transaction->tx_out_count) {
         general_log(
@@ -150,6 +154,8 @@ transaction *initialize_transaction_system(bool skip_genesis) {
 
         return genesis_transaction;
     } else {
+        g_genesis_private_key = (char *)convert_hex_back_to_data_array(GENESIS_PRIVATE_KEY);
+        g_genesis_public_key = get_a_new_public_key(g_genesis_private_key);
         return get_genesis_transaction();
     }
 }
@@ -308,9 +314,13 @@ bool finalize_transaction(transaction *t) {
 
     for (int i = 0; i < t->tx_in_count; i++) {
         transaction_input input = t->tx_ins[i];
-        char *previous_transaction_id = input.previous_outpoint.hash;
+        uint8_t *previous_transaction_id = input.previous_outpoint.hash;
         unsigned int previous_output_id = input.previous_outpoint.index;
         transaction *previous_transaction = get_transaction(previous_transaction_id);
+        if (previous_transaction == NULL) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Could not retrieve previous transaction for finalize.");
+            return false;
+        }
         input_sum += previous_transaction->tx_outs[previous_output_id].value;
     }
 

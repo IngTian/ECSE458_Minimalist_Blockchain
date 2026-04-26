@@ -14,10 +14,18 @@ MYSQL *g_mysql_connection;
  * Helper methods.
  * -----------------------------------------------------------
  */
+
+static void consume_all_results() {
+    do {
+        MYSQL_RES *result = mysql_store_result(g_mysql_connection);
+        if (result) mysql_free_result(result);
+    } while (mysql_next_result(g_mysql_connection) == 0);
+}
+
 void free_mysql_connection_result() {
     while (mysql_more_results(g_mysql_connection)) {
         MYSQL_RES *result = mysql_store_result(g_mysql_connection);
-        mysql_free_result(result);
+        if (result) mysql_free_result(result);
         mysql_next_result(g_mysql_connection);
     }
 }
@@ -79,6 +87,7 @@ bool mysql_create_database(char *sql_query) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to create database (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
     }
+    consume_all_results();
     return true;
 }
 
@@ -94,6 +103,7 @@ bool mysql_create_table(char *sql_query) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to create tables (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
     }
+    consume_all_results();
     return true;
 }
 
@@ -109,6 +119,7 @@ bool mysql_delete_table(char *sql_query) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete tables with SQL: %s", sql_query);
         return false;
     }
+    consume_all_results();
     return true;
 }
 
@@ -124,6 +135,7 @@ bool mysql_insert(char *sql_query) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert into the database (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
     }
+    consume_all_results();
     return true;
 }
 
@@ -154,6 +166,7 @@ bool mysql_update(char *sql_query) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to update data (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
     }
+    consume_all_results();
     return true;
 }
 
@@ -169,6 +182,7 @@ bool mysql_delete(char *sql_query) {
         general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete entries (%s) with SQL: %s", mysql_error(g_mysql_connection), sql_query);
         return false;
     }
+    consume_all_results();
     return true;
 }
 
@@ -185,5 +199,5 @@ unsigned long mysql_get_last_updated_id() { return mysql_insert_id(g_mysql_conne
  */
 void destroy_mysql_system() {
     mysql_close(g_mysql_connection);
-    free(g_mysql_connection);
+    g_mysql_connection = NULL;
 }

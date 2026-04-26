@@ -62,7 +62,11 @@ block *initialize_block_system(bool skip_genesis) {
         free(hash_hex);
         return genesis_block;
     } else {
-        return get_genesis_block();
+        block *genesis = get_genesis_block();
+        if (genesis != NULL) {
+            g_genesis_block_hash = hash_block_header(genesis->header);
+        }
+        return genesis;
     }
 }
 
