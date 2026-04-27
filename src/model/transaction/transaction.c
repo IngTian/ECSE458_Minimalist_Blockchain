@@ -39,11 +39,6 @@ bool verify_transaction_input(transaction_input *i, bool skip_UTXO_check) {
     uint8_t *transaction_hash = outpoint.hash;
     unsigned int output_idx = outpoint.index;
 
-    if (!does_transaction_exist(transaction_hash)) {
-        general_log(LOG_SCOPE, LOG_ERROR, "Could not find previous transaction: %s", transaction_hash);
-        return false;
-    }
-
     transaction *previous_transaction = get_transaction(transaction_hash);
     if (previous_transaction == NULL) {
         general_log(LOG_SCOPE, LOG_ERROR, "Could not retrieve previous transaction in verify_transaction_input.");
@@ -333,29 +328,7 @@ bool finalize_transaction(transaction *t) {
         return false;
     }
 
-    // Register this transaction in the system.
-    uint8_t *txid = get_transaction_txid(t);
-    save_transaction(t);
-
-    // Update UTXO.
-    for (int i = 0; i < t->tx_in_count; i++) {
-        uint8_t *outpoint_hash = hash_transaction_outpoint(&t->tx_ins[i].previous_outpoint);
-        remove_utxo_entry(outpoint_hash);
-        free(outpoint_hash);
-    }
-
-    for (int i = 0; i < t->tx_out_count; i++) {
-        long int *value = (long int *)malloc(sizeof(long int));
-        *value = t->tx_outs[i].value;
-        transaction_outpoint outpoint;
-        memcpy(outpoint.hash, txid, 32);
-        outpoint.index = i;
-        uint8_t *outpoint_hash = hash_transaction_outpoint(&outpoint);
-        save_utxo_entry(outpoint_hash, value);
-    }
-
-    free(txid);
-    return true;
+    return commit_finalized_transaction(t);
 }
 
 /**
@@ -380,11 +353,11 @@ bool create_new_transaction_shortcut(transaction_create_shortcut *transaction_da
     for (int i = 0; i < transaction_data->num_of_inputs; i++) {
         transaction_create_shortcut_input curr_input_data = transaction_data->inputs[i];
 
-        if (!does_transaction_exist(curr_input_data.previous_txid)) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Failed to find the previous transaction with the given TXID: %s", curr_input_data.previous_txid);
+        transaction *previous_tx = get_transaction(curr_input_data.previous_txid);
+        if (previous_tx == NULL) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to find the previous transaction with the given TXID.");
             return false;
         }
-        transaction *previous_tx = get_transaction(curr_input_data.previous_txid);
 
         if (curr_input_data.previous_output_idx >= previous_tx->tx_out_count) {
             general_log(LOG_SCOPE,

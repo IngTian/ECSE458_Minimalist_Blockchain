@@ -18,6 +18,46 @@ static transaction *g_genesis_transaction = NULL;  // The genesis transaction.
 static uint8_t g_genesis_txid[32];                 // Cached TXID of the genesis transaction.
 static bool g_genesis_txid_set = false;
 
+/* Single-entry cache for the last non-genesis transaction fetched from MySQL.
+   Chained workloads (verify, finalize) re-fetch the same prev_txid 3+ times in a row;
+   this cache turns those repeats into pointer comparisons. */
+static transaction *g_last_fetched_tx = NULL;
+static uint8_t g_last_fetched_txid[32];
+static bool g_last_fetched_set = false;
+
+static void invalidate_get_transaction_cache(void) {
+    if (g_last_fetched_tx != NULL) {
+        destroy_transaction(g_last_fetched_tx);
+        g_last_fetched_tx = NULL;
+    }
+    g_last_fetched_set = false;
+}
+
+/* Allocates a deep copy of `src` so the cache can own/free it independently of the caller. */
+static transaction *deep_copy_transaction(const transaction *src) {
+    transaction *dst = (transaction *)malloc(sizeof(transaction));
+    dst->version = src->version;
+    dst->tx_in_count = src->tx_in_count;
+    dst->tx_out_count = src->tx_out_count;
+    dst->lock_time = src->lock_time;
+    dst->tx_ins = (transaction_input *)malloc(src->tx_in_count * sizeof(transaction_input));
+    dst->tx_outs = (transaction_output *)malloc(src->tx_out_count * sizeof(transaction_output));
+    for (unsigned int i = 0; i < src->tx_in_count; i++) {
+        dst->tx_ins[i].script_bytes = src->tx_ins[i].script_bytes;
+        dst->tx_ins[i].sequence = src->tx_ins[i].sequence;
+        dst->tx_ins[i].previous_outpoint = src->tx_ins[i].previous_outpoint;
+        dst->tx_ins[i].signature_script = (char *)malloc(src->tx_ins[i].script_bytes);
+        memcpy(dst->tx_ins[i].signature_script, src->tx_ins[i].signature_script, src->tx_ins[i].script_bytes);
+    }
+    for (unsigned int i = 0; i < src->tx_out_count; i++) {
+        dst->tx_outs[i].value = src->tx_outs[i].value;
+        dst->tx_outs[i].pk_script_bytes = src->tx_outs[i].pk_script_bytes;
+        dst->tx_outs[i].pk_script = (char *)malloc(src->tx_outs[i].pk_script_bytes);
+        memcpy(dst->tx_outs[i].pk_script, src->tx_outs[i].pk_script, src->tx_outs[i].pk_script_bytes);
+    }
+    return dst;
+}
+
 /*
  * -----------------------------------------------------------
  * Helper methods.
@@ -122,6 +162,14 @@ bool initialize_transaction_persistence() {
         g_utxo = g_hash_table_new_full(binary_hash32, binary_equal32, free_utxo_table_key, free_utxo_table_val);
     }
 
+    /* In MYSQL mode, also keep g_utxo as a fresh in-memory mirror so
+       does_utxo_entry_exist can short-circuit the SELECT. NOTE: this assumes a
+       fresh start (tables wiped or first init); resume scenarios would need a
+       startup load. */
+    if (PERSISTENCE_MODE == PERSISTENCE_MYSQL && g_utxo == NULL) {
+        g_utxo = g_hash_table_new_full(binary_hash32, binary_equal32, free, free);
+    }
+
     return false;
 }
 
@@ -146,89 +194,50 @@ bool save_transaction(transaction *tx) {
         uint8_t *txid_bin = get_transaction_txid(tx);
         char *txid = hash_to_hex(txid_bin);
         free(txid_bin);
-        int temp_sql_query_size = 10000;
 
-        // Save the transaction in table transaction.
-        char sql_query[temp_sql_query_size];
-        memset(sql_query, '\0', temp_sql_query_size);
-        sprintf(sql_query,
-                "set @txid := '%s';\n"
-                "set @version := %d;\n"
-                "set @tx_in_count := %u;\n"
-                "set @tx_out_count := %u;\n"
-                "set @lock_time := %u;\n"
-                "insert into transaction (id, txid, version, tx_in_count, tx_out_count, lock_time)\n"
-                "values (NULL, @txid, @version, @tx_in_count, @tx_out_count, @lock_time);\n"
-                "set @transaction_auto_id := LAST_INSERT_ID();",
-                txid,
-                tx->version,
-                tx->tx_in_count,
-                tx->tx_out_count,
-                tx->lock_time);
-        if (!mysql_insert(sql_query)) {
-            general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert transaction.");
-            free(txid);
-            return false;
-        };
-        current_tx_size += 1;
+        /* Build one big multi-statement query that covers transaction + all outputs + all inputs/outpoints,
+           so save_transaction does a single mysql_query roundtrip. */
+        size_t buf_cap = 4096 + (size_t)tx->tx_out_count * 1024 + (size_t)tx->tx_in_count * 2048;
+        char *buf = (char *)malloc(buf_cap);
+        size_t off = 0;
+        off += snprintf(buf + off, buf_cap - off,
+                        "insert into transaction (id, txid, version, tx_in_count, tx_out_count, lock_time)"
+                        " values (NULL, '%s', %d, %u, %u, %u);",
+                        txid, tx->version, tx->tx_in_count, tx->tx_out_count, tx->lock_time);
         free(txid);
-        memset(sql_query, '\0', temp_sql_query_size);
 
-        // Insert transaction outputs.
+        unsigned int related_tx_idx = current_tx_size + 1;
         for (int i = 0; i < tx->tx_out_count; i++) {
             transaction_output current_output = tx->tx_outs[i];
             char *pk_script_hex = convert_char_hexadecimal(current_output.pk_script, current_output.pk_script_bytes);
-            sprintf(sql_query,
-                    "set @value = %ld;\n"
-                    "set @pk_script_bytes = %d;\n"
-                    "set @pk_script = '%s';\n"
-                    "set @related_tx_idx = %u;\n"
-                    "insert into transaction_output (id, value, pk_script_bytes, pk_script, transaction_id)\n"
-                    "values (NULL, @value, @pk_script_bytes, @pk_script, @related_tx_idx);",
-                    current_output.value,
-                    current_output.pk_script_bytes,
-                    pk_script_hex,
-                    current_tx_size);
-            if (!mysql_insert(sql_query)) {
-                general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert output.");
-                return false;
-            }
-            memset(sql_query, '\0', temp_sql_query_size);
+            off += snprintf(buf + off, buf_cap - off,
+                            "insert into transaction_output (id, value, pk_script_bytes, pk_script, transaction_id)"
+                            " values (NULL, %ld, %d, '%s', %u);",
+                            current_output.value, current_output.pk_script_bytes, pk_script_hex, related_tx_idx);
             free(pk_script_hex);
         }
 
-        // Insert transaction inputs.
         for (int i = 0; i < tx->tx_in_count; i++) {
             transaction_input current_input = tx->tx_ins[i];
             char *signature_script_hex = convert_char_hexadecimal(current_input.signature_script, current_input.script_bytes);
-            transaction_outpoint current_outpoint = current_input.previous_outpoint;
-            char *outpoint_hash_hex = hash_to_hex(current_outpoint.hash);
-            sprintf(sql_query,
-                    "set @script_bytes = %u;\n"
-                    "set @signature_script = '%s';\n"
-                    "set @sequence = %u;\n"
-                    "set @hash = '%s';\n"
-                    "set @index = %u;\n"
-                    "set @related_tx_idx = %u;\n"
-                    "insert into transaction_input (id, script_bytes, signature_script, sequence, transaction_id)\n"
-                    "values (NULL, @script_bytes, @signature_script, @sequence, @related_tx_idx);\n"
-                    "set @transaction_input_auto_id := LAST_INSERT_ID();\n"
-                    "insert into transaction_outpoint (id, hash, idx, transaction_input_id)\n"
-                    "values (NULL, @hash, @index, @transaction_input_auto_id);",
-                    current_input.script_bytes,
-                    signature_script_hex,
-                    current_input.sequence,
-                    outpoint_hash_hex,
-                    current_outpoint.index,
-                    current_tx_size);
-            free(outpoint_hash_hex);
-            if (!mysql_insert(sql_query)) {
-                general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert input.");
-                return false;
-            }
+            char *outpoint_hash_hex = hash_to_hex(current_input.previous_outpoint.hash);
+            off += snprintf(buf + off, buf_cap - off,
+                            "insert into transaction_input (id, script_bytes, signature_script, sequence, transaction_id)"
+                            " values (NULL, %u, '%s', %u, %u);"
+                            "insert into transaction_outpoint (id, hash, idx, transaction_input_id)"
+                            " values (NULL, '%s', %u, LAST_INSERT_ID());",
+                            current_input.script_bytes, signature_script_hex, current_input.sequence, related_tx_idx,
+                            outpoint_hash_hex, current_input.previous_outpoint.index);
             free(signature_script_hex);
+            free(outpoint_hash_hex);
         }
 
+        bool ok = mysql_insert(buf);
+        free(buf);
+        if (!ok) {
+            general_log(LOG_SCOPE, LOG_ERROR, "Failed to save transaction.");
+            return false;
+        }
         return true;
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         uint8_t *txid = get_transaction_txid(tx);
@@ -237,6 +246,128 @@ bool save_transaction(transaction *tx) {
     }
 
     return false;
+}
+
+/**
+ * Persist a finalized transaction together with its UTXO updates in a single
+ * mysql_query roundtrip: insert transaction + outputs + inputs/outpoints,
+ * delete spent UTXOs, insert new UTXOs.
+ */
+bool commit_finalized_transaction(transaction *tx) {
+    if (!g_genesis_txid_set) {
+        g_genesis_transaction = tx;
+        uint8_t *txid_for_cache = get_transaction_txid(tx);
+        memcpy(g_genesis_txid, txid_for_cache, 32);
+        free(txid_for_cache);
+        g_genesis_txid_set = true;
+    }
+
+    if (PERSISTENCE_MODE != PERSISTENCE_MYSQL) {
+        if (!save_transaction(tx)) return false;
+        uint8_t *txid = get_transaction_txid(tx);
+        for (int i = 0; i < tx->tx_in_count; i++) {
+            uint8_t *outpoint_hash = hash_transaction_outpoint(&tx->tx_ins[i].previous_outpoint);
+            remove_utxo_entry(outpoint_hash);
+            free(outpoint_hash);
+        }
+        for (int i = 0; i < tx->tx_out_count; i++) {
+            long int *value = (long int *)malloc(sizeof(long int));
+            *value = tx->tx_outs[i].value;
+            transaction_outpoint outpoint;
+            memcpy(outpoint.hash, txid, 32);
+            outpoint.index = i;
+            uint8_t *outpoint_hash = hash_transaction_outpoint(&outpoint);
+            save_utxo_entry(outpoint_hash, value);
+        }
+        free(txid);
+        return true;
+    }
+
+    uint8_t *txid_bin = get_transaction_txid(tx);
+    char *txid_hex = hash_to_hex(txid_bin);
+
+    size_t buf_cap = 8192 + (size_t)tx->tx_out_count * 1536 + (size_t)tx->tx_in_count * 2560;
+    char *buf = (char *)malloc(buf_cap);
+    size_t off = 0;
+
+    off += snprintf(buf + off, buf_cap - off,
+                    "insert into transaction (id, txid, version, tx_in_count, tx_out_count, lock_time)"
+                    " values (NULL, '%s', %d, %u, %u, %u);"
+                    "set @tx_auto_id := LAST_INSERT_ID();",
+                    txid_hex, tx->version, tx->tx_in_count, tx->tx_out_count, tx->lock_time);
+
+    for (int i = 0; i < tx->tx_out_count; i++) {
+        transaction_output current_output = tx->tx_outs[i];
+        char *pk_script_hex = convert_char_hexadecimal(current_output.pk_script, current_output.pk_script_bytes);
+        off += snprintf(buf + off, buf_cap - off,
+                        "insert into transaction_output (id, value, pk_script_bytes, pk_script, transaction_id)"
+                        " values (NULL, %ld, %d, '%s', @tx_auto_id);",
+                        current_output.value, current_output.pk_script_bytes, pk_script_hex);
+        free(pk_script_hex);
+    }
+
+    for (int i = 0; i < tx->tx_in_count; i++) {
+        transaction_input current_input = tx->tx_ins[i];
+        char *signature_script_hex = convert_char_hexadecimal(current_input.signature_script, current_input.script_bytes);
+        char *outpoint_hash_hex = hash_to_hex(current_input.previous_outpoint.hash);
+        off += snprintf(buf + off, buf_cap - off,
+                        "insert into transaction_input (id, script_bytes, signature_script, sequence, transaction_id)"
+                        " values (NULL, %u, '%s', %u, @tx_auto_id);"
+                        "insert into transaction_outpoint (id, hash, idx, transaction_input_id)"
+                        " values (NULL, '%s', %u, LAST_INSERT_ID());",
+                        current_input.script_bytes, signature_script_hex, current_input.sequence,
+                        outpoint_hash_hex, current_input.previous_outpoint.index);
+        free(signature_script_hex);
+        free(outpoint_hash_hex);
+    }
+
+    /* Spend the inputs from the UTXO set (DB + in-memory mirror). */
+    for (int i = 0; i < tx->tx_in_count; i++) {
+        uint8_t *outpoint_hash = hash_transaction_outpoint(&tx->tx_ins[i].previous_outpoint);
+        char *spent_hex = hash_to_hex(outpoint_hash);
+        off += snprintf(buf + off, buf_cap - off, "delete from utxo where hash='%s';", spent_hex);
+        free(spent_hex);
+        if (g_utxo != NULL) g_hash_table_remove(g_utxo, outpoint_hash);
+        free(outpoint_hash);
+    }
+
+    /* Insert new UTXOs for each output (DB + in-memory mirror). */
+    for (int i = 0; i < tx->tx_out_count; i++) {
+        transaction_outpoint outpoint;
+        memcpy(outpoint.hash, txid_bin, 32);
+        outpoint.index = i;
+        uint8_t *outpoint_hash = hash_transaction_outpoint(&outpoint);
+        char *new_hex = hash_to_hex(outpoint_hash);
+        off += snprintf(buf + off, buf_cap - off,
+                        "insert into utxo (id, hash, value) values (NULL, '%s', %ld);",
+                        new_hex, tx->tx_outs[i].value);
+        free(new_hex);
+        if (g_utxo != NULL) {
+            long int *cached_val = (long int *)malloc(sizeof(long int));
+            *cached_val = tx->tx_outs[i].value;
+            g_hash_table_insert(g_utxo, outpoint_hash, cached_val);
+        } else {
+            free(outpoint_hash);
+        }
+    }
+
+    free(txid_hex);
+
+    bool ok = mysql_insert(buf);
+    free(buf);
+    if (!ok) {
+        general_log(LOG_SCOPE, LOG_ERROR, "Failed to commit finalized transaction.");
+        free(txid_bin);
+        return false;
+    }
+
+    /* Cache the just-committed tx so the next chained lookup avoids re-fetching from MySQL. */
+    if (g_last_fetched_tx != NULL) destroy_transaction(g_last_fetched_tx);
+    g_last_fetched_tx = deep_copy_transaction(tx);
+    memcpy(g_last_fetched_txid, txid_bin, 32);
+    g_last_fetched_set = true;
+    free(txid_bin);
+    return true;
 }
 
 /**
@@ -263,9 +394,9 @@ bool save_utxo_entry(uint8_t *key, long int *value) {
         if (!mysql_insert(sql_query)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to insert UTXO entry.");
             return false;
-        } else {
-            return true;
-        };
+        }
+        if (g_utxo != NULL) g_hash_table_insert(g_utxo, key, value);
+        return true;
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_hash_table_insert(g_utxo, key, value);
         return true;
@@ -291,9 +422,9 @@ bool remove_utxo_entry(uint8_t *key) {
         if (!mysql_delete(sql_query)) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete UTXO entry.");
             return false;
-        } else {
-            return true;
-        };
+        }
+        if (g_utxo != NULL) g_hash_table_remove(g_utxo, key);
+        return true;
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         g_hash_table_remove(g_utxo, key);
         return true;
@@ -348,6 +479,9 @@ transaction *get_transaction(uint8_t *txid) {
         if (g_genesis_txid_set && g_genesis_transaction != NULL && memcmp(txid, g_genesis_txid, 32) == 0) {
             return g_genesis_transaction;
         }
+        if (g_last_fetched_set && g_last_fetched_tx != NULL && memcmp(txid, g_last_fetched_txid, 32) == 0) {
+            return g_last_fetched_tx;
+        }
         char *txid_hex = hash_to_hex(txid);
         transaction *tx = (transaction *)malloc(sizeof(transaction));
 
@@ -364,18 +498,21 @@ transaction *get_transaction(uint8_t *txid) {
         MYSQL_ROW row;
         int transaction_auto_id = 0;
         tx->version = 0; tx->tx_in_count = 0; tx->tx_out_count = 0; tx->lock_time = 0;
+        bool found = false;
         while ((row = mysql_fetch_row(res))) {
             transaction_auto_id = atoi(row[0]);
             tx->version = atoi(row[2]);
             tx->tx_in_count = atoi(row[3]);
             tx->tx_out_count = atoi(row[4]);
             tx->lock_time = atoi(row[5]);
+            found = true;
         }
+        mysql_free_result(res);
+        if (!found) { free(tx); return NULL; }
         tx->tx_ins = (transaction_input *)malloc(tx->tx_in_count * sizeof(transaction_input));
         memset(tx->tx_ins, 0, tx->tx_in_count * sizeof(transaction_input));
         tx->tx_outs = (transaction_output *)malloc(tx->tx_out_count * sizeof(transaction_output));
         memset(tx->tx_outs, 0, tx->tx_out_count * sizeof(transaction_output));
-        mysql_free_result(res);
         memset(sql_query, '\0', temp_sql_query_size);
 
         // Read transaction outputs.
@@ -438,6 +575,10 @@ transaction *get_transaction(uint8_t *txid) {
             memset(sql_query, '\0', temp_sql_query_size);
         }
 
+        if (g_last_fetched_tx != NULL) destroy_transaction(g_last_fetched_tx);
+        g_last_fetched_tx = tx;
+        memcpy(g_last_fetched_txid, txid, 32);
+        g_last_fetched_set = true;
         return tx;
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
         return g_hash_table_lookup(g_global_transaction_table, txid);
@@ -509,6 +650,7 @@ bool does_transaction_exist(uint8_t *txid) {
  * @author Ing Tian
  */
 bool does_utxo_entry_exist(uint8_t *key) {
+    if (g_utxo != NULL && g_hash_table_contains(g_utxo, key)) return true;
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *key_hex = hash_to_hex(key);
         char sql_query[1000];
@@ -520,8 +662,6 @@ bool does_utxo_entry_exist(uint8_t *key) {
         bool result = res->row_count > 0;
         mysql_free_result(res);
         return result;
-    } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
-        return g_hash_table_contains(g_utxo, key);
     }
 
     return false;
@@ -538,6 +678,11 @@ bool destroy_transaction_persistence(char *db_name) {
     bool res = false;
     g_genesis_transaction = NULL;
     g_genesis_txid_set = false;
+    invalidate_get_transaction_cache();
+    if (g_utxo != NULL) {
+        g_hash_table_destroy(g_utxo);
+        g_utxo = NULL;
+    }
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
             "use %s;\n"
@@ -553,8 +698,6 @@ bool destroy_transaction_persistence(char *db_name) {
             general_log(LOG_SCOPE, LOG_ERROR, "Failed to delete tables.");
         }
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
-        g_hash_table_remove_all(g_utxo);
-        g_hash_table_destroy(g_utxo);
         g_hash_table_remove_all(g_global_transaction_table);
         g_hash_table_destroy(g_global_transaction_table);
         res = true;

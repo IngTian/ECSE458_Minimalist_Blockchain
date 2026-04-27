@@ -6,6 +6,7 @@
 
 bool initialize_transaction_persistence();
 bool save_transaction(transaction *);
+bool commit_finalized_transaction(transaction *);
 bool save_utxo_entry(uint8_t *, long int *);
 void print_utxo();
 bool remove_utxo_entry(uint8_t *);
