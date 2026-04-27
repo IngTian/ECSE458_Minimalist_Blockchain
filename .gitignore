@@ -5,6 +5,7 @@
 
 # CMake products.
 /cmake-build-debug
+/build-release
 /build
 /camke
 
