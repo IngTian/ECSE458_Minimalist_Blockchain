@@ -18,3 +18,7 @@
 # Log files
 **/*.log
 **/*.profraw
+
+# Local Claude instructions (user-specific, not for repo)
+CLAUDE.local.md
+.claude/
