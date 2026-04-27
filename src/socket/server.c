@@ -122,7 +122,7 @@ void *handle_tcp_connection(void *arg) {
             // print block info
             general_log(LOG_SCOPE, LOG_DEBUG, "Block txns count: %d", block1->txn_count);
             general_log(LOG_SCOPE, LOG_DEBUG, "Block header version: %d", block1->header->version);
-            char *prev_blk_header_hash = convert_char_hexadecimal(block1->header->prev_block_header_hash, 64);
+            char *prev_blk_header_hash = convert_char_hexadecimal((char *)block1->header->prev_block_header_hash, 32);
             general_log(LOG_SCOPE, LOG_DEBUG, "Previous block header hash: %s", prev_blk_header_hash);
             free(prev_blk_header_hash);
             general_log(LOG_SCOPE, LOG_DEBUG, "Block txns count: %d", block1->txn_count);

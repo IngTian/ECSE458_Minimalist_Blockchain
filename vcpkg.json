@@ -1,0 +1,11 @@
+{
+    "name": "minimalist-blockchain",
+    "version": "1.0.0",
+    "description": "A minimalist blockchain implementation in C",
+    "dependencies": [
+        "secp256k1",
+        "check",
+        "glib",
+        "libmysql"
+    ]
+}

@@ -1,9 +1,58 @@
----
+# Base style
 BasedOnStyle: Google
+Language: Cpp
+
+# Line breaking
+ColumnLimit: 120              # 150 is generous; 120 is a sweet spot for readability
 BinPackArguments: false
 BinPackParameters: false
-ColumnLimit: 150
-DerivePointerAlignment: false
+AllowAllArgumentsOnNextLine: false
+AllowAllConstructorInitializersOnNextLine: false
+
+# Indentation
 IndentWidth: 4
-Language: Cpp
-PointerAlignment: Right
+TabWidth: 4
+UseTab: Never
+
+# Braces
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: false
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: true
+  BeforeElse: true
+
+# Pointers & references
+DerivePointerAlignment: false
+PointerAlignment: Right       # int* ptr, not int *ptr
+ReferenceAlignment: Right     # int& ref, not int &ref
+
+# Includes
+SortIncludes: true
+IncludeBlocks: Regroup        # group system, third-party, and project headers
+IncludeCategories:
+  - Regex: '^<.*\.h>'
+    Priority: 1
+  - Regex: '^<.*>'
+    Priority: 2
+  - Regex: '^".*"'
+    Priority: 3
+
+# Spaces
+SpaceBeforeParens: ControlStatements  # if (x), but f(x)
+SpacesInParentheses: false
+SpacesInAngles: false
+SpaceAfterCStyleCast: true
+
+# Modern C++ features
+AlignAfterOpenBracket: Align
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortLambdasOnASingleLine: Empty
+Cpp11BracedListStyle: true
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true

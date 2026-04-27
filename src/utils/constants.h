@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#include "utils/log_utils.h"
+#include "log_utils.h"
 
 // General
 #define TOTAL_NUMBER_OF_COINS 40960
@@ -22,7 +22,7 @@
 #define PERSISTENCE_MODE PERSISTENCE_MYSQL
 #define MYSQL_HOST_ADDR "localhost"
 #define MYSQL_USERNAME "root"
-#define MYSQL_PASSWORD "Tzy1123581321!"
+#define MYSQL_PASSWORD "112358"
 #define MYSQL_DB_MINER "miner"
 #define MYSQL_DB_LISTENER "listener"
 #define MYSQL_PORT_NUMBER 3306

@@ -6,10 +6,19 @@
 # CMake products.
 /cmake-build-debug
 /build
+/camke
+
+# Vcpkg
+/vcpkg_installed
 
 # Temp folder
 /tmp
+/.cache
 
 # Log files
 **/*.log
 **/*.profraw
+
+# Local Claude instructions (user-specific, not for repo)
+CLAUDE.local.md
+.claude/

@@ -7,7 +7,9 @@
 /*
  * SHA256
  */
-char *hash_struct_in_hex(void *, unsigned int);
+#include <stdint.h>
+uint8_t *hash_struct(void *, unsigned int);
+char *hash_to_hex(const uint8_t *hash);
 
 /**
  * secp256k1

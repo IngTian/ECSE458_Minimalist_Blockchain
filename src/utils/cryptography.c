@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "utils/log_utils.h"
+#include "log_utils.h"
 
 #define LOG_SCOPE "cryptography"
 
@@ -43,7 +43,6 @@ static const unsigned int g_sha256_k[64] = {
     0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f,
     0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2};
 
-SHA256_CTX *g_sha256_ctx;
 
 /*
  * -----------------------------------------------------------
@@ -67,7 +66,6 @@ void initialize_cryptography_system(unsigned int flag) {
  */
 void destroy_cryptography_system() {
     secp256k1_context_destroy(g_crypto_context);
-    free(g_sha256_ctx);
     general_log(LOG_SCOPE, LOG_INFO, "Destroyed the cryptography library.");
 }
 
@@ -157,16 +155,20 @@ secp256k1_pubkey *get_a_new_public_key(char *private_key) {
  * @return SHA256 hashcode.
  * @author Ing Tian
  */
-char *hash_struct_in_hex(void *ptr, unsigned int size) {
-    unsigned char *hash_msg = (unsigned char *)malloc(33);
-    g_sha256_ctx = malloc(sizeof(SHA256_CTX));
-    sha256_init(g_sha256_ctx);
-    sha256_update(g_sha256_ctx, (unsigned char *)ptr, size);
-    sha256_final(g_sha256_ctx, hash_msg);
-    char *hash_msg_hex = convert_char_hexadecimal((char *)hash_msg, 32);
-    general_log(LOG_SCOPE, LOG_DEBUG, "Hash message hashed (hex) -> %s", hash_msg_hex);
-    free(hash_msg);
-    return hash_msg_hex;
+uint8_t *hash_struct(void *ptr, unsigned int size) {
+    SHA256_CTX ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, (unsigned char *)ptr, size);
+    uint8_t *result = (uint8_t *)malloc(32);
+    sha256_final(&ctx, result);
+    return result;
+}
+
+char *hash_to_hex(const uint8_t *hash) {
+    char *hex = (char *)malloc(65);
+    for (int i = 0; i < 32; i++) sprintf(hex + i * 2, "%02x", hash[i]);
+    hex[64] = '\0';
+    return hex;
 }
 
 /**
@@ -180,7 +182,9 @@ char *convert_hex_back_to_data_array(void *ptr) {
     char *res = (char *)malloc(str_len / 2 + 1);
     memset(res, '\0', str_len / 2 + 1);
     for (int i = 0; i < (str_len / 2); i++) {
-        sscanf(ptr + 2 * i, "%02x", &res[i]);
+        unsigned int tmp;
+        sscanf(ptr + 2 * i, "%02x", &tmp);
+        res[i] = (char)tmp;
     }
     return res;
 }
