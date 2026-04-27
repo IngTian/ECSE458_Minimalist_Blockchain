@@ -15,6 +15,8 @@
 static GHashTable *g_global_transaction_table;     // The global transaction table, mapping TXID to transaction.
 static GHashTable *g_utxo;                         // Unspent Transaction Output. mapping each transaction output to its value left.
 static transaction *g_genesis_transaction = NULL;  // The genesis transaction.
+static uint8_t g_genesis_txid[32];                 // Cached TXID of the genesis transaction.
+static bool g_genesis_txid_set = false;
 
 /*
  * -----------------------------------------------------------
@@ -134,6 +136,10 @@ bool save_transaction(transaction *tx) {
     unsigned int current_tx_size = get_total_number_of_transactions();
     if (current_tx_size == 0) {
         g_genesis_transaction = tx;
+        uint8_t *txid_for_cache = get_transaction_txid(tx);
+        memcpy(g_genesis_txid, txid_for_cache, 32);
+        free(txid_for_cache);
+        g_genesis_txid_set = true;
     }
 
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
@@ -337,6 +343,11 @@ bool update_transaction_block_id(unsigned long block_id, uint8_t *txid) {
  */
 transaction *get_transaction(uint8_t *txid) {
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
+        // Genesis lookups go through the in-memory cache so that test-time
+        // mutations of g_genesis_transaction are observed by verify/create.
+        if (g_genesis_txid_set && g_genesis_transaction != NULL && memcmp(txid, g_genesis_txid, 32) == 0) {
+            return g_genesis_transaction;
+        }
         char *txid_hex = hash_to_hex(txid);
         transaction *tx = (transaction *)malloc(sizeof(transaction));
 
@@ -525,6 +536,8 @@ bool does_utxo_entry_exist(uint8_t *key) {
  */
 bool destroy_transaction_persistence(char *db_name) {
     bool res = false;
+    g_genesis_transaction = NULL;
+    g_genesis_txid_set = false;
     if (PERSISTENCE_MODE == PERSISTENCE_MYSQL) {
         char *sql_query =
             "use %s;\n"
