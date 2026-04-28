@@ -47,7 +47,7 @@ void destroy_block(block *block_destroy) {
 
 void free_g_global_block_table_entry(void *block_id, void *blk, void *user_data) {
     free(block_id);
-    destroy_block(blk);
+    destroy_block((block *)blk);
 }
 
 /*
@@ -296,8 +296,9 @@ block *get_block(uint8_t *block_header_hash) {
 
         return b;
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
-        return g_hash_table_lookup(g_global_block_table, block_header_hash);
+        return (block *)g_hash_table_lookup(g_global_block_table, block_header_hash);
     }
+    return NULL;
 }
 
 /**

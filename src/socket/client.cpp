@@ -95,7 +95,7 @@ int main(int argc, char const *argv[]) {
                                                                          0,
                                                                          previous_value,
                                                                          &res_txid,
-                                                                         &res_private_key_array,
+                                                                         (char ***)&res_private_key_array,
                                                                          NUMBER_OF_TEST_TRANSACTION_OUTPUT);
             memcpy(previous_output_private_key_array, res_private_key_array, NUMBER_OF_TEST_TRANSACTION_OUTPUT * sizeof(char *));
             for (int j = 0; j < NUMBER_OF_TEST_TRANSACTION_INPUT; j++) previous_transaction_id_array[j] = res_txid;
@@ -130,7 +130,7 @@ int main(int argc, char const *argv[]) {
                                                                            0,
                                                                            previous_value,
                                                                            &res_txid,
-                                                                           &res_private_key_array,
+                                                                           (char ***)&res_private_key_array,
                                                                            NUMBER_OF_TEST_TRANSACTION_OUTPUT);
             memcpy(previous_transaction_id, res_txid, 32);
             previous_output_private_key = res_private_key_array[0];

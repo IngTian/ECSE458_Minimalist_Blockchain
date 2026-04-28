@@ -13,13 +13,24 @@
 #define NUMBER_OF_TEST_TRANSACTION_INPUT 1
 #define NUMBER_OF_TEST_TRANSACTION_OUTPUT 1
 
-// Persistence Definition
+// Persistence Definition.
+// Kept as macros so C TUs (e.g., mjson) still compile if they ever include
+// this header. C++ TUs prefer the typed `bc::persistence::mode` constexpr
+// below for compile-time dispatch via `if constexpr`.
 #define PERSISTENCE_RAM 0
 #define PERSISTENCE_MYSQL 1
 #define PERSISTENCE_ENGINE_INNODB "INNODB"
 #define PERSISTENCE_ENGINE_MEMORY "MEMORY"
 #define PERSISTENCE_ENGINE PERSISTENCE_ENGINE_INNODB
 #define PERSISTENCE_MODE PERSISTENCE_MYSQL
+
+#ifdef __cplusplus
+namespace bc::persistence {
+inline constexpr int RAM = PERSISTENCE_RAM;
+inline constexpr int MYSQL = PERSISTENCE_MYSQL;
+inline constexpr int mode = PERSISTENCE_MODE;
+}  // namespace bc::persistence
+#endif
 #define MYSQL_HOST_ADDR "localhost"
 #define MYSQL_USERNAME "root"
 #define MYSQL_PASSWORD "112358"

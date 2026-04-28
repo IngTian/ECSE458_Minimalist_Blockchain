@@ -6,6 +6,10 @@
 
 #include "../transaction/transaction.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The following field is for defining blocks.
  * For more details, please visit:
@@ -80,4 +84,9 @@ socket_block *cast_to_socket_block(block *);
 block *cast_to_block(socket_block *);
 int get_socket_block_length(block *);
 block *create_a_new_block(uint8_t *previous_block_header_hash, transaction *txn, uint8_t **result_header_hash);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

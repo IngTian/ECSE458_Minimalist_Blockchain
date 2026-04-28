@@ -5,6 +5,7 @@
 
 # CMake products.
 /cmake-build-debug
+/build-release
 /build
 /camke
 
@@ -20,5 +21,4 @@
 **/*.profraw
 
 # Local Claude instructions (user-specific, not for repo)
-CLAUDE.local.md
 .claude/

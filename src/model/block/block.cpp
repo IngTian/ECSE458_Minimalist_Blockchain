@@ -88,8 +88,8 @@ void destroy_block_system(char *db_name) {
  * @author Junjian Chen
  */
 block *create_an_empty_block(unsigned int transaction_amount) {
-    block *block_create = malloc(sizeof(block));
-    block_header *header = malloc(sizeof(block_header));
+    block *block_create = (block *)malloc(sizeof(block));
+    block_header *header = (block_header *)malloc(sizeof(block_header));
     header->version = 0;
     memset(header->prev_block_header_hash, 0, 32);
     memset(header->merkle_root_hash, 0, 32);
@@ -444,12 +444,12 @@ int get_socket_block_length(block *b) {
  * @author Shichang Zhang
  */
 block *create_a_new_block(uint8_t *previous_block_header_hash, transaction *txn, uint8_t **result_header_hash) {
-    block_header_shortcut block_header = {.version = 0, .nonce = 0, .nBits = 0, .time = get_current_unix_time()};
+    block_header_shortcut block_header = {.version = 0, .time = (unsigned int)get_current_unix_time(), .nBits = 0, .nonce = 0};
     memcpy(block_header.prev_block_header_hash, previous_block_header_hash, 32);
-    transaction **txns = malloc(sizeof(transaction *));
+    transaction **txns = (transaction **)malloc(sizeof(transaction *));
     txns[0] = txn;
-    transactions_shortcut txns_shortcut = {.txns = txns, .txn_count = 1};
-    block_create_shortcut block_data = {.header = &block_header, .transaction_list = &txns_shortcut};
+    transactions_shortcut txns_shortcut = {.txn_count = 1, .txns = txns};
+    block_create_shortcut block_data = {.transaction_list = &txns_shortcut, .header = &block_header};
 
     block *block1 = (block *)malloc(sizeof(block));
     if (!create_new_block_shortcut(&block_data, block1)) {

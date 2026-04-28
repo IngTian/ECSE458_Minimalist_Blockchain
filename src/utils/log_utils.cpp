@@ -1,14 +1,20 @@
 #include "log_utils.h"
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
+
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <mutex>
 
 #include "../model/block/block.h"
 #include "../model/transaction/transaction.h"
 #include "constants.h"
 #include "cryptography.h"
+#include "logger.hpp"
 #include "sys_utils.h"
 
 // Regular text
@@ -103,41 +109,62 @@ char *convert_char_hexadecimal(char *ptr, unsigned int byte_length) {
 }
 
 /**
- * Log.
+ * Log via spdlog. Backward-compatible printf-style interface.
+ * For new code prefer bc::log::info(scope, "{}", ...) from logger.hpp.
  * @param scope The topic of the log.
- * @param log_level The log level. (LOG_DEBUG, LOG_INFO, LOG_ERROR)
- * @param format
- * @param ... Messages, similar to printf.
+ * @param log_level The log level (LOG_DEBUG, LOG_INFO, LOG_ERROR).
+ * @param format printf-style format string.
+ * @param ... Variadic arguments matching format.
  */
 void general_log(char *scope, int log_level, char *format, ...) {
     if (!VERBOSE || log_level < LOG_LEVEL) return;
 
-    // Print marcos.
-    char *curr_time = get_str_timestamp(LOG_TIME_FORMAT, LOG_TIME_LENGTH);
+    bc::log::ensure_initialized();
+    auto level = bc::log::detail::level_from_legacy(log_level);
+    if (!spdlog::default_logger_raw()->should_log(level)) return;
 
-    if (log_level == LOG_DEBUG)
-        printf(BYEL "%s" reset, "DBUG");
-    else if (log_level == LOG_INFO)
-        printf(BBLU "%s" reset, "INFO");
-    else if (log_level == LOG_ERROR)
-        printf(BRED "%s" reset, "FATA");
-    else
-        return;
-
-    printf(CYN "[%s]" reset, curr_time);
-    free(curr_time);
-
-    printf("(%s)", scope);
-    printf(" ----> ");
-
-    // Print custom message.
+    // vsnprintf into a stack buffer first; spill to heap if message is huge
+    // (typical messages here are short — UTXO hashes, error strings).
+    char stack_buf[1024];
     va_list args;
     va_start(args, format);
-    vfprintf(stdout, format, args);
+    int needed = vsnprintf(stack_buf, sizeof(stack_buf), format, args);
     va_end(args);
 
-    printf("\n");
+    if (needed < 0) return;  // formatting error; just drop
+
+    if (static_cast<size_t>(needed) < sizeof(stack_buf)) {
+        spdlog::default_logger_raw()->log(level, "({}) ----> {}", scope, stack_buf);
+    } else {
+        std::string heap_buf(static_cast<size_t>(needed) + 1, '\0');
+        va_list args2;
+        va_start(args2, format);
+        vsnprintf(heap_buf.data(), heap_buf.size(), format, args2);
+        va_end(args2);
+        heap_buf.resize(static_cast<size_t>(needed));
+        spdlog::default_logger_raw()->log(level, "({}) ----> {}", scope, heap_buf);
+    }
 }
+
+namespace bc::log {
+
+void ensure_initialized() {
+    static std::once_flag init_flag;
+    std::call_once(init_flag, [] {
+        auto logger = spdlog::stdout_color_mt("blockchain");
+        spdlog::set_default_logger(logger);
+        spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] %v");
+        // Map utils/constants.h LOG_LEVEL to spdlog level.
+        switch (LOG_LEVEL) {
+            case 0: spdlog::set_level(spdlog::level::debug); break;
+            case 1: spdlog::set_level(spdlog::level::info); break;
+            case 2: spdlog::set_level(spdlog::level::err); break;
+            default: spdlog::set_level(spdlog::level::info); break;
+        }
+    });
+}
+
+}  // namespace bc::log
 
 /**
  * Generate a .dot file to represent our system.

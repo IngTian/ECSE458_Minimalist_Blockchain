@@ -2,6 +2,11 @@
 #define MINIMALIST_BLOCKCHAIN_SYSTEM_SRC_UTILS_MYSQL_UTIL_H
 
 #include <mysql/mysql.h>
+#include <stdbool.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct MySQLConfig {
     char host_addr[50];
@@ -13,6 +18,8 @@ typedef struct MySQLConfig {
     unsigned long client_flag;
 } mysql_config;
 
+extern MYSQL *g_mysql_connection;
+
 void initialize_mysql_system(char *db_name);
 bool mysql_create_database(char *sql_query);
 bool mysql_create_table(char *sql_query);
@@ -23,5 +30,9 @@ bool mysql_update(char *sql_query);
 bool mysql_delete(char *sql_query);
 unsigned long mysql_get_last_updated_id();
 void destroy_mysql_system();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

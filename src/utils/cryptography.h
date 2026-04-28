@@ -4,6 +4,10 @@
 #include <secp256k1.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * SHA256
  */
@@ -24,6 +28,10 @@ char *convert_hex_back_to_data_array(void *);
 secp256k1_pubkey *get_a_new_public_key(char *);
 bool verify(secp256k1_pubkey *, unsigned char *, secp256k1_ecdsa_signature *);
 secp256k1_ecdsa_signature *sign(private_key private_key, unsigned char *msg_to_sign);
+
+#ifdef __cplusplus
+}
+#endif
 
 /*************************************************************************
  * Copyright (c) 2020-2021 Elichai Turkel                                *

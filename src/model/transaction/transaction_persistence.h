@@ -4,6 +4,10 @@
 
 #include "transaction.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool initialize_transaction_persistence();
 bool save_transaction(transaction *);
 bool commit_finalized_transaction(transaction *);
@@ -18,5 +22,9 @@ bool does_transaction_exist(uint8_t *);
 bool does_utxo_entry_exist(uint8_t *);
 bool destroy_transaction_persistence(char *);
 unsigned int get_total_number_of_transactions();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

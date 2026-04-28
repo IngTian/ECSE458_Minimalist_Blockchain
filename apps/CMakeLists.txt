@@ -11,7 +11,7 @@ set(COMMON_LINK_LIBS
 )
 
 # Main blockchain application
-add_executable(main ${CMAKE_SOURCE_DIR}/src/main.c)
+add_executable(main ${CMAKE_SOURCE_DIR}/src/main.cpp)
 target_link_libraries(main PRIVATE ${COMMON_LINK_LIBS})
 
 # Link with C++ standard library since MySQL client is built with C++
@@ -27,7 +27,7 @@ set_target_properties(main PROPERTIES
 
 # Interactive shell
 if(APPLE)
-    add_executable(shell ${CMAKE_SOURCE_DIR}/src/cli/shell.c)
+    add_executable(shell ${CMAKE_SOURCE_DIR}/src/cli/shell.cpp)
     target_link_libraries(shell PRIVATE ${COMMON_LINK_LIBS})
     # Link with C++ standard library since MySQL client is built with C++
     if(APPLE)
@@ -41,7 +41,7 @@ if(APPLE)
 endif()
 
 # Network server
-add_executable(server ${CMAKE_SOURCE_DIR}/src/socket/server.c)
+add_executable(server ${CMAKE_SOURCE_DIR}/src/socket/server.cpp)
 target_link_libraries(server PRIVATE ${COMMON_LINK_LIBS})
 # Link with C++ standard library since MySQL client is built with C++
 if(APPLE)
@@ -54,7 +54,7 @@ set_target_properties(server PROPERTIES
 )
 
 # Network client
-add_executable(client ${CMAKE_SOURCE_DIR}/src/socket/client.c)
+add_executable(client ${CMAKE_SOURCE_DIR}/src/socket/client.cpp)
 target_link_libraries(client PRIVATE ${COMMON_LINK_LIBS})
 # Link with C++ standard library since MySQL client is built with C++
 if(APPLE)

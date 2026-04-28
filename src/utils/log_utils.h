@@ -1,6 +1,10 @@
 #ifndef MINIMALIST_BLOCK_CHAIN_SYSTEM_SRC_UTILS_LOG_UTILS_H
 #define MINIMALIST_BLOCK_CHAIN_SYSTEM_SRC_UTILS_LOG_UTILS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Forward declaration
 typedef struct Block block;
 
@@ -13,5 +17,9 @@ void general_log(char *, int, char *, ...);
 void print_hex(unsigned char *, int size);
 void generate_dot_representation(block **, int, char *);
 void write_to_file(char *, char *, char *[], int);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

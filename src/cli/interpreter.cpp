@@ -9,6 +9,7 @@
 #include "../utils/cryptography.h"
 #include "../utils/log_utils.h"
 #include "../utils/mjson.h"
+#include "interpreter.h"
 #include "shell.h"
 
 secp256k1_pubkey *public_key_temp;

@@ -5,8 +5,8 @@
 add_subdirectory(block)
 add_subdirectory(transaction)
 
-# Collect all model sources
-file(GLOB_RECURSE MODEL_SOURCES "*.c")
+# Collect all model sources (mixed C / C++ during migration)
+file(GLOB_RECURSE MODEL_SOURCES "*.c" "*.cpp")
 file(GLOB_RECURSE MODEL_HEADERS "*.h")
 
 # Create the models library
@@ -16,6 +16,8 @@ add_library(BlockChainModels STATIC ${MODEL_SOURCES} ${MODEL_HEADERS})
 set_target_properties(BlockChainModels PROPERTIES
     C_STANDARD 11
     C_STANDARD_REQUIRED ON
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
     POSITION_INDEPENDENT_CODE ON
 )
 

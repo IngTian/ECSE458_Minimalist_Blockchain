@@ -4,9 +4,9 @@
 #include <string.h> 
 
 #include "interpreter.h"
+#include "shell.h"
 
 int MAX_USER_INPUT = 1000;
-int parseInput(char ui[]);
 
 int main(int argc, char *argv[]) {
     printf("%s\n", "Block chain minimalist shell");
