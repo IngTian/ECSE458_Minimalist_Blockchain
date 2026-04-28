@@ -1,8 +1,8 @@
 # Utils Library - Core utilities for the blockchain system
 # Provides cryptography, logging, JSON parsing, database utilities, etc.
 
-# Collect source files
-file(GLOB UTILS_SOURCES "*.c")
+# Collect source files (mixed C / C++ during migration)
+file(GLOB UTILS_SOURCES "*.c" "*.cpp")
 file(GLOB UTILS_HEADERS "*.h")
 
 # Create the utils library
@@ -12,6 +12,8 @@ add_library(BlockChainUtils STATIC ${UTILS_SOURCES} ${UTILS_HEADERS})
 set_target_properties(BlockChainUtils PROPERTIES
     C_STANDARD 11
     C_STANDARD_REQUIRED ON
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
     POSITION_INDEPENDENT_CODE ON
 )
 
@@ -30,6 +32,8 @@ target_link_libraries(BlockChainUtils PUBLIC
     MySQL::Client
     GLib::GLib
     secp256k1::secp256k1
+    spdlog::spdlog
+    fmt::fmt
 )
 
 # Compiler flags for this target

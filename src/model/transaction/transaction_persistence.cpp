@@ -5,6 +5,11 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <array>
+#include <cstring>
+#include <memory>
+#include <optional>
+
 #include "utils/constants.h"
 #include "utils/cryptography.h"
 #include "utils/log_utils.h"
@@ -18,19 +23,27 @@ static transaction *g_genesis_transaction = NULL;  // The genesis transaction.
 static uint8_t g_genesis_txid[32];                 // Cached TXID of the genesis transaction.
 static bool g_genesis_txid_set = false;
 
-/* Single-entry cache for the last non-genesis transaction fetched from MySQL.
-   Chained workloads (verify, finalize) re-fetch the same prev_txid 3+ times in a row;
-   this cache turns those repeats into pointer comparisons. */
-static transaction *g_last_fetched_tx = NULL;
-static uint8_t g_last_fetched_txid[32];
-static bool g_last_fetched_set = false;
-
-static void invalidate_get_transaction_cache(void) {
-    if (g_last_fetched_tx != NULL) {
-        destroy_transaction(g_last_fetched_tx);
-        g_last_fetched_tx = NULL;
+// Single-entry cache for the last non-genesis transaction fetched from MySQL.
+// Chained workloads (verify, finalize) re-fetch the same prev_txid 3+ times in
+// a row; this cache turns those repeats into a memcmp. The unique_ptr owns the
+// transaction with destroy_transaction as the deleter — eviction is automatic
+// when the entry is reassigned or the optional is reset.
+struct transaction_deleter {
+    void operator()(transaction *t) const noexcept {
+        if (t) destroy_transaction(t);
     }
-    g_last_fetched_set = false;
+};
+using owned_transaction = std::unique_ptr<transaction, transaction_deleter>;
+
+struct cache_entry {
+    std::array<uint8_t, 32> txid;
+    owned_transaction tx;
+};
+
+static std::optional<cache_entry> g_last_fetched;
+
+static void invalidate_get_transaction_cache(void) noexcept {
+    g_last_fetched.reset();
 }
 
 /* Allocates a deep copy of `src` so the cache can own/free it independently of the caller. */
@@ -65,7 +78,7 @@ static transaction *deep_copy_transaction(const transaction *src) {
  */
 void free_transaction_table_key(void *key) { free(key); }
 
-void free_transaction_table_val(void *val) { destroy_transaction(val); }
+void free_transaction_table_val(void *val) { destroy_transaction((transaction *)val); }
 
 void free_utxo_table_key(void *key) { free(key); }
 
@@ -361,11 +374,12 @@ bool commit_finalized_transaction(transaction *tx) {
         return false;
     }
 
-    /* Cache the just-committed tx so the next chained lookup avoids re-fetching from MySQL. */
-    if (g_last_fetched_tx != NULL) destroy_transaction(g_last_fetched_tx);
-    g_last_fetched_tx = deep_copy_transaction(tx);
-    memcpy(g_last_fetched_txid, txid_bin, 32);
-    g_last_fetched_set = true;
+    // Cache the just-committed tx so the next chained lookup avoids re-fetching from MySQL.
+    // optional::emplace replaces any existing entry; the previous unique_ptr is destroyed first.
+    cache_entry new_entry;
+    std::memcpy(new_entry.txid.data(), txid_bin, 32);
+    new_entry.tx.reset(deep_copy_transaction(tx));
+    g_last_fetched.emplace(std::move(new_entry));
     free(txid_bin);
     return true;
 }
@@ -479,8 +493,8 @@ transaction *get_transaction(uint8_t *txid) {
         if (g_genesis_txid_set && g_genesis_transaction != NULL && memcmp(txid, g_genesis_txid, 32) == 0) {
             return g_genesis_transaction;
         }
-        if (g_last_fetched_set && g_last_fetched_tx != NULL && memcmp(txid, g_last_fetched_txid, 32) == 0) {
-            return g_last_fetched_tx;
+        if (g_last_fetched && std::memcmp(txid, g_last_fetched->txid.data(), 32) == 0) {
+            return g_last_fetched->tx.get();
         }
         char *txid_hex = hash_to_hex(txid);
         transaction *tx = (transaction *)malloc(sizeof(transaction));
@@ -575,13 +589,15 @@ transaction *get_transaction(uint8_t *txid) {
             memset(sql_query, '\0', temp_sql_query_size);
         }
 
-        if (g_last_fetched_tx != NULL) destroy_transaction(g_last_fetched_tx);
-        g_last_fetched_tx = tx;
-        memcpy(g_last_fetched_txid, txid, 32);
-        g_last_fetched_set = true;
+        // Cache: optional::emplace replaces any prior entry; the previous
+        // unique_ptr's deleter (destroy_transaction) runs automatically.
+        cache_entry new_entry;
+        std::memcpy(new_entry.txid.data(), txid, 32);
+        new_entry.tx.reset(tx);
+        g_last_fetched.emplace(std::move(new_entry));
         return tx;
     } else if (PERSISTENCE_MODE == PERSISTENCE_RAM) {
-        return g_hash_table_lookup(g_global_transaction_table, txid);
+        return (transaction *)g_hash_table_lookup(g_global_transaction_table, txid);
     }
 
     return NULL;

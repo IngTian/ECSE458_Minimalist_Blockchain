@@ -62,7 +62,7 @@ int initialize_socket(char *server_address_str, int server_port, int *sock, int 
  */
 char *combine_data_with_command(char *command, unsigned int command_length, const char *data, unsigned int data_length) {
     size_t n = command_length + data_length;
-    char *s = malloc(n);
+    char *s = (char *)malloc(n);
     memcpy(s, command, command_length);
     memcpy(s + command_length, data, data_length);
     return s;

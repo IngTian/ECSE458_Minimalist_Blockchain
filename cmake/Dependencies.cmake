@@ -73,6 +73,14 @@ else()
     endif()
 endif()
 
+# spdlog (header-only / static, fmt-style logging)
+find_package(spdlog CONFIG REQUIRED)
+message(STATUS "spdlog found via vcpkg: ${spdlog_VERSION}")
+
+# fmt (separate target — spdlog's bundled fmt is exposed via spdlog::spdlog)
+find_package(fmt CONFIG REQUIRED)
+message(STATUS "fmt found via vcpkg: ${fmt_VERSION}")
+
 # Check testing framework (for unit tests)
 find_package(check CONFIG QUIET)
 if(check_FOUND)

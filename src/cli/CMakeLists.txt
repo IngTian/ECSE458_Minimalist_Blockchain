@@ -1,19 +1,20 @@
 # CLI Module - Command Line Interface for blockchain operations
 
-# Collect source files (excluding shell.c which will be an executable)
-set(CLI_SOURCES
-    interpreter.c
-)
+# Collect source files (excluding shell.{c,cpp} which is built as an executable in apps/)
+file(GLOB _CLI_C_FILES "interpreter.c" "interpreter.cpp")
+set(CLI_SOURCES ${_CLI_C_FILES})
 
 file(GLOB CLI_HEADERS "*.h")
 
 # Create the CLI module library
 add_library(CliModule STATIC ${CLI_SOURCES} ${CLI_HEADERS})
 
-# Set target properties
+# Set target properties (mixed C / C++ during migration)
 set_target_properties(CliModule PROPERTIES
     C_STANDARD 11
     C_STANDARD_REQUIRED ON
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED ON
     POSITION_INDEPENDENT_CODE ON
 )
 

@@ -84,9 +84,9 @@ int main(int argc, char const *argv[]) {
         }
         general_log(LOG_SCOPE, LOG_INFO, "Handling client %s", inet_ntoa(incoming_client_address.sin_addr));
         pthread_t thread_id;
-        int *arg = malloc(sizeof(*arg) * 2);
-        *arg = client_socket;
-        arg[1] = (int)general_log_buffer;
+        void **arg = (void **)malloc(sizeof(void *) * 2);
+        arg[0] = (void *)(intptr_t)client_socket;
+        arg[1] = (void *)general_log_buffer;
         pthread_create(&thread_id, NULL, handle_tcp_connection, arg);
     }
 
@@ -97,9 +97,10 @@ int main(int argc, char const *argv[]) {
 }
 
 void *handle_tcp_connection(void *arg) {
-    int client_socket = ((int *)arg)[0];
+    void **args = (void **)arg;
+    int client_socket = (int)(intptr_t)args[0];
     char msg_buffer[SOCKET_MSG_MAX_SIZE];
-    char **general_log_buffer = ((char ***) arg)[1];
+    char **general_log_buffer = (char **)args[1];
     int general_log_counter = 0;
     sprintf(general_log_buffer[general_log_counter++], "Save,Ver");
 

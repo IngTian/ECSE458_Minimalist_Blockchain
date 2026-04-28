@@ -4,6 +4,10 @@
 
 #include "block.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 bool initialize_block_persistence();
 bool save_block(block *);
 bool does_block_exist(uint8_t *);
@@ -14,5 +18,9 @@ unsigned long get_block_id_in_database(block *);
 void destroy_block(block *);
 bool destroy_block_persistence(char *);
 unsigned int get_total_number_of_blocks();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

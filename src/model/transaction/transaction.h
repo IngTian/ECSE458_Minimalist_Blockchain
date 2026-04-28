@@ -7,6 +7,10 @@
 
 #include "utils/cryptography.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
  * The following field is for defining transactions.
  * For more details, please visit:
@@ -138,4 +142,9 @@ transaction *create_a_new_single_in_many_out_transaction(uint8_t *previous_trans
                                                          uint8_t **res_txid,
                                                          char ***res_private_key,
                                                          int output_num);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif
